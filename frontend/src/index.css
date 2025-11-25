@@ -1,68 +1,67 @@
+/* Dán vào frontend/src/index.css */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    --primary-color: #4F46E5;
+    --background-color: #F9FAFB;
+    --card-background: #FFFFFF;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --border-color: #E5E7EB;
+    --input-bg: #FFFFFF;
+    --pipeline-bg: #F3F4F6;
+    --success-color: #10B981;
+    --danger-color: #EF4444;
+    --screening-bg: #E0E7FF;
+    --screening-text: #3730A3;
+    --interview-bg: #FEF3C7;
+    --interview-text: #92400E;
+    --offer-bg: #D1FAE5;
+    --offer-text: #065F46;
+    --rejected-bg: #FEE2E2;
+    --rejected-text: #991B1B;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+    font-family: 'Be Vietnam Pro', sans-serif; 
+    background-color: var(--background-color); 
+    color: var(--text-primary); 
 }
-a:hover {
-  color: #535bf2;
-}
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
+/* Header */
+.main-header { background-color: var(--card-background); padding: 15px 30px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo h1 { font-size: 20px; font-weight: 600; }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+/* Layout chính */
+.hr-layout { display: flex; gap: 20px; margin-top: 20px; }
+.sidebar { width: 240px; flex-shrink: 0; background-color: var(--card-background); border-radius: 12px; padding: 15px; height: calc(100vh - 100px); }
+.main-content { flex-grow: 1; }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
+/* KPI Cards */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+.kpi-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.kpi-card h3 { font-size: 14px; color: var(--text-secondary); margin-bottom: 10px; }
+.kpi-card .value { font-size: 32px; font-weight: 700; }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-}
+/* Pipeline (Cột ứng viên) */
+.recruitment-pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.pipeline-column { background-color: var(--pipeline-bg); padding: 15px; border-radius: 12px; min-height: 500px; }
+.pipeline-column-header { font-weight: 600; margin-bottom: 15px; color: var(--text-primary); }
+
+/* Thẻ Ứng viên */
+.candidate-card { background-color: var(--card-background); padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: transform 0.2s; cursor: grab; }
+.candidate-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.candidate-info { display: flex; align-items: center; gap: 10px; }
+.candidate-avatar { width: 36px; height: 36px; border-radius: 50%; background-color: var(--border-color); display: flex; justify-content: center; align-items: center; font-weight: 600; }
+.candidate-name { font-weight: 600; font-size: 14px; }
+.candidate-role { font-size: 12px; color: var(--text-secondary); }
+.candidate-details { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+.candidate-score { color: var(--success-color); font-weight: 700; }
+
+/* Tags trạng thái */
+.tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.tag-screening { background: var(--screening-bg); color: var(--screening-text); }
+.tag-interview { background: var(--interview-bg); color: var(--interview-text); }
+.tag-offer { background: var(--offer-bg); color: var(--offer-text); }
+.tag-rejected { background: var(--rejected-bg); color: var(--rejected-text); }
