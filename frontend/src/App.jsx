@@ -7,7 +7,7 @@ function App() {
 
   // Gọi API từ Backend khi web vừa tải
   useEffect(() => {
-    axios.get('https://hr-api-server.onrender.com')
+    axios.get('https://hr-api-server.onrender.com/api/candidates')
       .then(response => {
         setCandidates(response.data);
       })
