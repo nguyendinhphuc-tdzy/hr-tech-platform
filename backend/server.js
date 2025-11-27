@@ -3,17 +3,15 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const multer = require('multer');
-const pdfParse = require('pdf-parse'); 
+const pdfParse = require('pdf-parse'); // Đổi tên biến thành pdfParse cho an toàn
+const fs = require('fs');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- CẤU HÌNH QUAN TRỌNG: LƯU FILE TRONG RAM ---
-// (Khắc phục lỗi không đọc được file trên Render)
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ dest: 'uploads/' });
 
 // Kết nối Database
 const pool = new Pool({
@@ -21,63 +19,71 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Kết nối AI
+// Kết nối AI Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Hàm phân tích CV
+// Hàm phân tích CV bằng AI
 async function analyzeCV(text) {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = `
-        Bạn là chuyên gia tuyển dụng. Hãy phân tích CV và trả về JSON (chỉ JSON):
+        Bạn là chuyên gia tuyển dụng (HR). Hãy phân tích văn bản CV dưới đây và trích xuất thông tin thành dạng JSON (chỉ trả về JSON, không markdown):
         {
-            "full_name": "Tên ứng viên (nếu có)",
-            "email": "Email (nếu có)",
             "skills": ["kỹ năng 1", "kỹ năng 2"],
-            "score": số điểm 1-10,
-            "summary": "Tóm tắt 2 câu tiếng Việt"
+            "score": số điểm từ 1-10,
+            "summary": "Tóm tắt ngắn gọn 2 câu về ứng viên",
+            "experience_years": số năm kinh nghiệm (số),
+            "email": "email tìm thấy hoặc null",
+            "full_name": "tên tìm thấy hoặc null"
         }
-        Nội dung CV: ${text.substring(0, 10000)}`;
+        Nội dung CV:
+        """
+        ${text.substring(0, 10000)}
+        """
+        `;
 
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
         const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanText);
     } catch (error) {
-        console.error("Lỗi Gemini:", error);
+        console.error("Lỗi AI:", error);
         return { 
-            skills: ["Lỗi phân tích AI"], 
+            skills: ["Lỗi phân tích"], 
             score: 0, 
             summary: "Không thể phân tích CV này.",
+            email: null,
             full_name: null
         };
     }
 }
 
-// API Upload (Đã tối ưu)
+// API Upload CV
 app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Thiếu file CV' });
         
-        console.log(`Đang xử lý file (Memory): ${req.file.originalname}`);
+        console.log(`Đang xử lý file: ${req.file.originalname}`);
 
-        // 1. Đọc PDF trực tiếp từ Buffer (RAM) -> Không cần fs.readFileSync
+        // 1. Đọc file PDF (Đoạn này đã sửa để dùng biến pdfParse)
+        const dataBuffer = fs.readFileSync(req.file.path);
+        
         let pdfData;
         try {
-            pdfData = await pdfParse(req.file.buffer);
+            pdfData = await pdfParse(dataBuffer); // Gọi hàm pdfParse
         } catch (pdfError) {
-            console.error("Lỗi đọc PDF:", pdfError);
-            return res.status(400).json({ error: "File PDF bị lỗi hoặc có mật khẩu. Hãy thử file khác." });
+            console.error("Lỗi thư viện PDF:", pdfError);
+            throw new Error("Không đọc được file PDF. Hãy thử file khác.");
         }
         
-        // 2. Gọi AI phân tích
+        // 2. Gửi cho AI phân tích
         const aiResult = await analyzeCV(pdfData.text);
         
         // 3. Chuẩn bị dữ liệu
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
         const finalEmail = aiResult.email || "";
 
-        // 4. Lưu vào Database
+        // 4. Lưu vào Supabase
         const result = await pool.query(
             `INSERT INTO candidates 
             (organization_id, full_name, email, role, status, ai_rating, ai_analysis) 
@@ -86,12 +92,15 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
             [finalName, finalEmail, aiResult.score, JSON.stringify(aiResult)]
         );
 
-        // Không cần xóa file vì nó nằm trong RAM và tự giải phóng
-        
+        // 5. Dọn dẹp
+        fs.unlinkSync(req.file.path);
+
         res.json({ message: "Thành công!", candidate: result.rows[0] });
 
     } catch (err) {
         console.error(err);
+        // Dọn dẹp file nếu lỗi
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         res.status(500).json({ error: "Lỗi Server: " + err.message });
     }
 });
