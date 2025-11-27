@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import API_BASE_URL from './config'; // Import file cấu hình URL
 
 const CVUpload = ({ onUploadSuccess }) => {
     const [file, setFile] = useState(null);
@@ -23,18 +24,19 @@ const CVUpload = ({ onUploadSuccess }) => {
 
         setLoading(true);
         try {
-            // Thay URL bằng link Render của bạn nếu đã deploy, hoặc localhost:5000 nếu chạy local
-            const apiUrl = `${API_BASE_URL}/api/cv/upload`;; 
-            // const apiUrl = 'http://localhost:5000/api/cv/upload'; // Dùng dòng này nếu test local
-
-            const response = await axios.post(apiUrl, formData, {
+            // Sử dụng biến API_BASE_URL để tự động chọn localhost hoặc Render
+            const response = await axios.post(`${API_BASE_URL}/api/cv/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
             setResult(response.data);
-            alert(`Đã quét xong! Điểm AI: ${response.data.candidate.ai_rating}`);
+            alert(`✅ Scan xong! Ứng viên: ${response.data.candidate.full_name} - Điểm AI: ${response.data.candidate.ai_rating}`);
             
-            // Gọi hàm reload lại danh sách bên ngoài (nếu có)
+            // Reset form
+            setFile(null);
+            setName('');
+            
+            // Gọi hàm reload danh sách bên ngoài (nếu có)
             if (onUploadSuccess) onUploadSuccess();
             
         } catch (error) {
@@ -51,9 +53,12 @@ const CVUpload = ({ onUploadSuccess }) => {
             background: '#fff', 
             borderRadius: '12px', 
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            marginBottom: '20px'
+            marginBottom: '20px',
+            border: '1px solid #E5E7EB'
         }}>
-            <h3 style={{marginTop: 0, color: '#4F46E5'}}>🤖 AI Scan CV Test</h3>
+            <h3 style={{marginTop: 0, color: '#4F46E5', display:'flex', alignItems:'center', gap:'10px'}}>
+                <i className="fa-solid fa-robot"></i> AI Scan CV Test
+            </h3>
             
             <div style={{marginBottom: '10px'}}>
                 <label style={{display: 'block', marginBottom: '5px', fontWeight: 500}}>Tên ứng viên:</label>
