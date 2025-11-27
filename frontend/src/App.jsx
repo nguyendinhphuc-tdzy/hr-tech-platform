@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './views/Dashboard';
 import CVScanView from './views/CVScanView';
 import InternBook from './views/InternBook';
+import AITraining from './views/AITraining'; // Import view mới
 
 function App() {
   // Quản lý tab đang hiển thị
@@ -35,12 +36,7 @@ function App() {
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'cv-scan' && <CVScanView />}
           {activeTab === 'intern-book' && <InternBook />}
-          {activeTab === 'ai-training' && (
-              <div style={{textAlign:'center', marginTop:'50px', color: '#6B7280'}}>
-                  <h2>🚧 Tính năng Huấn luyện AI</h2>
-                  <p>Đang được phát triển...</p>
-              </div>
-          )}
+          {activeTab === 'ai-training' && <AITraining />}
         </main>
       </div>
     </div>
