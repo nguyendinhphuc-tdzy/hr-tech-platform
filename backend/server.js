@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const multer = require('multer');
-const pdf = require('pdf-parse');
+const pdfParse = require('pdf-parse'); // Đổi tên biến thành pdfParse cho an toàn
 const fs = require('fs');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
@@ -13,12 +13,13 @@ app.use(express.json());
 
 const upload = multer({ dest: 'uploads/' });
 
+// Kết nối Database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// Kết nối AI Gemini (Lấy key từ file .env)
+// Kết nối AI Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Hàm phân tích CV bằng AI
@@ -26,14 +27,15 @@ async function analyzeCV(text) {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = `
-        Bạn là chuyên gia tuyển dụng (HR). Hãy phân tích văn bản CV dưới đây và trích xuất thông tin thành dạng JSON (chỉ trả về JSON, không markdown).
-        Các trường cần lấy:
-        - full_name (string): Tên ứng viên (nếu tìm thấy)
-        - email (string): Email ứng viên
-        - skills (array string): Danh sách kỹ năng chuyên môn (ví dụ: React, Node.js...)
-        - score (number): Chấm điểm CV trên thang 10 dựa trên độ chi tiết và kinh nghiệm.
-        - summary (string): Tóm tắt ngắn gọn 2-3 câu về điểm mạnh/yếu của ứng viên bằng tiếng Việt.
-        
+        Bạn là chuyên gia tuyển dụng (HR). Hãy phân tích văn bản CV dưới đây và trích xuất thông tin thành dạng JSON (chỉ trả về JSON, không markdown):
+        {
+            "skills": ["kỹ năng 1", "kỹ năng 2"],
+            "score": số điểm từ 1-10,
+            "summary": "Tóm tắt ngắn gọn 2 câu về ứng viên",
+            "experience_years": số năm kinh nghiệm (số),
+            "email": "email tìm thấy hoặc null",
+            "full_name": "tên tìm thấy hoặc null"
+        }
         Nội dung CV:
         """
         ${text.substring(0, 10000)}
@@ -42,17 +44,14 @@ async function analyzeCV(text) {
 
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
-        
-        // Làm sạch JSON (bỏ dấu ```json nếu có)
         const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanText);
     } catch (error) {
         console.error("Lỗi AI:", error);
-        // Fallback: Trả về dữ liệu mặc định nếu AI lỗi
         return { 
-            skills: ["Không phân tích được"], 
+            skills: ["Lỗi phân tích"], 
             score: 0, 
-            summary: "Lỗi kết nối AI hoặc CV không đọc được.",
+            summary: "Không thể phân tích CV này.",
             email: null,
             full_name: null
         };
@@ -66,15 +65,21 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         
         console.log(`Đang xử lý file: ${req.file.originalname}`);
 
-        // 1. Đọc file PDF
+        // 1. Đọc file PDF (Đoạn này đã sửa để dùng biến pdfParse)
         const dataBuffer = fs.readFileSync(req.file.path);
-        const pdfData = await pdf(dataBuffer);
+        
+        let pdfData;
+        try {
+            pdfData = await pdfParse(dataBuffer); // Gọi hàm pdfParse
+        } catch (pdfError) {
+            console.error("Lỗi thư viện PDF:", pdfError);
+            throw new Error("Không đọc được file PDF. Hãy thử file khác.");
+        }
         
         // 2. Gửi cho AI phân tích
         const aiResult = await analyzeCV(pdfData.text);
         
-        // 3. Chuẩn bị dữ liệu lưu DB
-        // Ưu tiên tên từ Form nhập, nếu không có thì lấy từ AI, cuối cùng là "Ẩn danh"
+        // 3. Chuẩn bị dữ liệu
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
         const finalEmail = aiResult.email || "";
 
@@ -87,18 +92,19 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
             [finalName, finalEmail, aiResult.score, JSON.stringify(aiResult)]
         );
 
-        // 5. Dọn dẹp file tạm
+        // 5. Dọn dẹp
         fs.unlinkSync(req.file.path);
 
         res.json({ message: "Thành công!", candidate: result.rows[0] });
 
     } catch (err) {
         console.error(err);
-        res.status(500).send("Lỗi Server: " + err.message);
+        // Dọn dẹp file nếu lỗi
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        res.status(500).json({ error: "Lỗi Server: " + err.message });
     }
 });
 
-// API Lấy danh sách
 app.get('/api/candidates', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM candidates ORDER BY id DESC');
@@ -110,5 +116,5 @@ app.get('/api/candidates', async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server Backend chạy tại cổng ${PORT}`);
+    console.log(`Server chạy tại cổng ${PORT}`);
 });
