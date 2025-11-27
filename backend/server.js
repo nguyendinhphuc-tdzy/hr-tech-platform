@@ -1,16 +1,17 @@
+/* FILE: backend/server.js */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const multer = require('multer'); // Thư viện nhận file
-const pdf = require('pdf-parse'); // Thư viện đọc PDF
-const fs = require('fs'); // Thư viện quản lý file của hệ thống
+const multer = require('multer');
+const pdf = require('pdf-parse');
+const fs = require('fs');
+const { GoogleGenerativeAI } = require("@google/generative-ai"); // Thư viện AI mới
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Cấu hình nơi lưu file tạm thời
 const upload = multer({ dest: 'uploads/' });
 
 // Kết nối Database
@@ -19,83 +20,116 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// --- HÀM "AI" ĐỌC HIỂU CV ---
-async function parseCV(filePath) {
-    const dataBuffer = fs.readFileSync(filePath);
+// Kết nối Google Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// --- HÀM AI PHÂN TÍCH CV (VERSION XỊN) ---
+async function analyzeCVWithGemini(text) {
     try {
-        const data = await pdf(dataBuffer);
-        const text = data.text; // Văn bản thô từ PDF
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        // 1. Tìm Email (Regex)
-        const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi;
-        const emails = text.match(emailRegex);
-        const extractedEmail = emails ? emails[0] : null;
+        // Câu lệnh ra lệnh cho AI (Prompt engineering)
+        const prompt = `
+        Bạn là một chuyên gia tuyển dụng nhân sự (HR Expert) với 20 năm kinh nghiệm.
+        Nhiệm vụ: Phân tích nội dung CV dưới đây và trích xuất thông tin quan trọng.
+        
+        Yêu cầu trả về: Chỉ trả về một JSON object duy nhất (không markdown, không giải thích thêm) theo cấu trúc sau:
+        {
+            "email": "string hoặc null",
+            "full_name": "string hoặc null",
+            "skills": ["skill1", "skill2", ...],
+            "score": number (thang 10, dựa trên chất lượng CV),
+            "summary": "Tóm tắt ngắn gọn 2 câu về ứng viên",
+            "experience_years": number (số năm kinh nghiệm ước tính)
+        }
 
-        // 2. Tìm Kỹ năng (Từ khóa)
-        const techKeywords = ['React', 'NodeJS', 'Python', 'Java', 'SQL', 'PostgreSQL', 'MongoDB', 'Docker', 'AWS', 'Excel', 'Figma', 'Javascript', 'HTML', 'CSS'];
-        const foundSkills = techKeywords.filter(skill => 
-            text.toLowerCase().includes(skill.toLowerCase())
-        );
+        Nội dung CV:
+        """
+        ${text.substring(0, 10000)} 
+        """
+        `;
+        // (Cắt ngắn text để tránh quá tải token nếu CV quá dài)
 
-        // 3. Chấm điểm (Giả lập)
-        let aiScore = Math.min(10, foundSkills.length * 1.5);
-        if (aiScore < 5 && foundSkills.length > 0) aiScore = 5;
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        let textResponse = response.text();
 
-        return {
-            raw_text: text,
-            email: extractedEmail,
-            skills: foundSkills,
-            score: parseFloat(aiScore.toFixed(1))
-        };
+        // Làm sạch JSON (đôi khi AI trả về dính dấu ```json)
+        textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        return JSON.parse(textResponse);
+
     } catch (error) {
-        console.error("Lỗi đọc PDF:", error);
-        return null;
+        console.error("Lỗi Gemini AI:", error);
+        // Fallback: Nếu AI lỗi thì trả về dữ liệu rỗng để không sập app
+        return {
+            email: null,
+            skills: ["Lỗi phân tích AI"],
+            score: 5,
+            summary: "Không thể phân tích chi tiết lúc này.",
+            experience_years: 0
+        };
     }
 }
 
-// --- API UPLOAD & SCAN (Cái bạn đang thiếu) ---
+// --- API UPLOAD ---
 app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Chưa gửi file' });
         
-        const { full_name } = req.body;
-        console.log(`Đang xử lý CV của: ${full_name}`);
+        const { full_name } = req.body; // Tên do người dùng nhập (ưu tiên hơn tên trong CV)
+        console.log(`🤖 Đang đọc CV của: ${full_name}...`);
 
-        // 1. Đọc file
-        const scanResult = await parseCV(req.file.path);
+        // 1. Đọc text từ PDF
+        const dataBuffer = fs.readFileSync(req.file.path);
+        const pdfData = await pdf(dataBuffer);
+        const rawText = pdfData.text;
 
-        // 2. Xử lý kết quả
-        let status = 'Failed';
-        let aiRating = 0;
-        let aiAnalysis = {};
-        let emailToSave = '';
+        // 2. Gửi cho AI phân tích
+        console.log("... Đang gửi sang Google Gemini...");
+        const aiResult = await analyzeCVWithGemini(rawText);
+        console.log("✅ AI Phân tích xong:", aiResult.summary);
 
-        if (scanResult) {
-            status = 'Screening';
-            aiRating = scanResult.score;
-            emailToSave = scanResult.email || '';
-            aiAnalysis = { skills: scanResult.skills };
-        }
+        // 3. Chuẩn bị dữ liệu lưu
+        // Nếu AI tìm thấy email mà user chưa nhập thì lấy của AI
+        const emailToSave = aiResult.email || 'no-email@provided.com';
+        
+        // Dữ liệu phân tích chi tiết
+        const aiAnalysisData = {
+            skills: aiResult.skills,
+            summary: aiResult.summary,
+            experience_years: aiResult.experience_years,
+            raw_text_snippet: rawText.substring(0, 200) // Lưu 1 đoạn ngắn để preview
+        };
 
-        // 3. Lưu vào Database
+        // 4. Lưu vào Database
         const result = await pool.query(
             `INSERT INTO candidates (organization_id, full_name, email, role, status, ai_rating, ai_analysis) 
              VALUES (1, $1, $2, $3, $4, $5, $6) RETURNING *`,
-            [full_name, emailToSave, 'Ứng viên mới', status, aiRating, JSON.stringify(aiAnalysis)]
+            [
+                full_name, // Dùng tên người dùng nhập
+                emailToSave, 
+                aiResult.skills[0] || 'Ứng viên tiềm năng', // Lấy kỹ năng đầu tiên làm Role tạm
+                'Screening', 
+                aiResult.score, 
+                JSON.stringify(aiAnalysisData)
+            ]
         );
 
-        // 4. Xóa file tạm
+        // 5. Xóa file tạm
         fs.unlinkSync(req.file.path);
 
         res.json({ message: "Thành công!", candidate: result.rows[0] });
 
     } catch (err) {
         console.error(err);
+        // Xóa file nếu lỗi
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         res.status(500).send("Lỗi Server: " + err.message);
     }
 });
 
-// API Lấy danh sách (Cũ)
+// API Lấy danh sách (Giữ nguyên)
 app.get('/api/candidates', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM candidates ORDER BY id DESC');
