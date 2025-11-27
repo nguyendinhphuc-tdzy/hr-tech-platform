@@ -9,7 +9,7 @@ const Dashboard = () => {
   // Gọi API Backend
   const fetchCandidates = () => {
     // URL Render của bạn
-    axios.get('https://hr-api-server.onrender.com/api/candidates')
+    axios.get('${API_BASE_URL}/api/candidates')
       .then(response => {
         setCandidates(response.data);
         setLoading(false);

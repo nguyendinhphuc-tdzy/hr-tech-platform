@@ -24,7 +24,7 @@ const CVUpload = ({ onUploadSuccess }) => {
         setLoading(true);
         try {
             // Thay URL bằng link Render của bạn nếu đã deploy, hoặc localhost:5000 nếu chạy local
-            const apiUrl = 'https://hr-api-server.onrender.com/api/cv/upload'; 
+            const apiUrl = `${API_BASE_URL}/api/cv/upload`;; 
             // const apiUrl = 'http://localhost:5000/api/cv/upload'; // Dùng dòng này nếu test local
 
             const response = await axios.post(apiUrl, formData, {
