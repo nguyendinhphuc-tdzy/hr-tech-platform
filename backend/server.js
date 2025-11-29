@@ -5,6 +5,8 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const multer = require('multer');
 const fs = require('fs'); 
+const csv = require('csv-parser');
+
 
 // --- IMPORT THƯ VIỆN ĐỌC FILE ---
 const mammoth = require('mammoth'); 
@@ -184,4 +186,63 @@ app.post('/api/training/chat', async (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server chạy tại cổng ${PORT}`);
+});
+// --- API 5: IMPORT JOB TỪ CSV ---
+app.post('/api/jobs/import', upload.single('csv_file'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Thiếu file CSV' });
+        
+        const results = [];
+        const filePath = req.file.path || req.file.buffer; // Xử lý cho cả Disk và Memory storage
+
+        // Hàm đọc dòng CSV và xử lý
+        const processStream = () => new Promise((resolve, reject) => {
+            const stream = req.file.buffer 
+                ? require('stream').Readable.from(req.file.buffer) // Đọc từ RAM (nếu dùng MemoryStorage)
+                : fs.createReadStream(req.file.path); // Đọc từ ổ cứng
+
+            stream
+                .pipe(csv())
+                .on('data', (data) => {
+                    // Chuyển đổi dữ liệu CSV thành JSON tiêu chí
+                    const jobData = {
+                        title: data.Title || 'Vị trí chưa đặt tên',
+                        requirements: {
+                            skills: data.Skills ? data.Skills.split('|').map(s => s.trim()) : [],
+                            experience_years: parseInt(data.Experience) || 0,
+                            education: data.Education || 'Không yêu cầu',
+                            description: data.Description || ''
+                        },
+                        status: 'active'
+                    };
+                    results.push(jobData);
+                })
+                .on('end', resolve)
+                .on('error', reject);
+        });
+
+        await processStream();
+
+        // Lưu hàng loạt vào Database
+        for (const job of results) {
+            await pool.query(
+                `INSERT INTO job_positions (title, requirements, status) VALUES ($1, $2, 'active')`,
+                [job.title, JSON.stringify(job.requirements)]
+            );
+        }
+
+        res.json({ message: `Đã nhập thành công ${results.length} vị trí tuyển dụng!` });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Lỗi Import CSV: " + err.message });
+    }
+});
+
+// --- API 6: LẤY DANH SÁCH JOB (Để hiển thị lên Dropdown chọn) ---
+app.get('/api/jobs', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM job_positions ORDER BY id DESC');
+        res.json(result.rows);
+    } catch (err) { res.status(500).send(err.message); }
 });
