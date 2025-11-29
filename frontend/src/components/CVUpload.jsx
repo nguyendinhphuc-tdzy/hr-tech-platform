@@ -1,117 +1,95 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import API_BASE_URL from './config'; // Đảm bảo bạn đã có file config.js trong cùng thư mục components
+import API_BASE_URL from './config';
 
 const CVUpload = ({ onUploadSuccess }) => {
     const [file, setFile] = useState(null);
     const [name, setName] = useState('');
+    const [selectedJob, setSelectedJob] = useState('');
+    const [jobs, setJobs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
 
-    const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
-    };
+    // Lấy danh sách Job để điền vào ô chọn
+    useEffect(() => {
+        axios.get(`${API_BASE_URL}/api/jobs`)
+            .then(res => setJobs(res.data))
+            .catch(err => console.error("Lỗi lấy danh sách job", err));
+    }, []);
 
     const handleUpload = async () => {
-        if (!file || !name) {
-            alert("Vui lòng nhập tên và chọn file CV!");
-            return;
-        }
+        if (!file) return alert("Chọn file CV đi bạn!");
 
         const formData = new FormData();
         formData.append('cv_file', file);
         formData.append('full_name', name);
+        if (selectedJob) formData.append('job_id', selectedJob); // Gửi kèm ID Job
 
         setLoading(true);
         try {
-            // Gọi API thông qua biến cấu hình (Tự động chọn Localhost hoặc Render)
             const response = await axios.post(`${API_BASE_URL}/api/cv/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            setResult(response.data);
-            alert(`✅ Scan xong! Ứng viên: ${response.data.candidate.full_name}\nĐiểm AI: ${response.data.candidate.ai_rating}/10`);
+            setResult(response.data.candidate);
+            alert(`✅ Đã so khớp xong!\nĐiểm phù hợp: ${response.data.candidate.ai_rating}/10`);
             
-            // Reset form sau khi thành công
-            setFile(null);
-            setName('');
-            
-            // Gọi hàm reload danh sách ở component cha (Dashboard)
             if (onUploadSuccess) onUploadSuccess();
             
         } catch (error) {
-            console.error(error);
-            const errorMessage = error.response?.data?.error || error.message || "Lỗi không xác định";
-            alert("❌ Lỗi khi upload: " + errorMessage);
+            alert("Lỗi: " + (error.response?.data?.error || error.message));
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div style={{
-            padding: '20px', 
-            background: '#fff', 
-            borderRadius: '12px', 
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            marginBottom: '20px',
-            border: '1px solid #E5E7EB'
-        }}>
-            <h3 style={{marginTop: 0, color: '#4F46E5', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                <i className="fa-solid fa-robot"></i> AI Scan CV
-            </h3>
+        <div style={{padding: '20px', background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '20px'}}>
+            <h3 style={{marginTop: 0, color: '#4F46E5'}}><i className="fa-solid fa-crosshairs"></i> Scan & So Khớp</h3>
             
-            <div style={{display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap'}}>
+            <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end'}}>
+                {/* Chọn Job */}
                 <div style={{flex: 1, minWidth: '200px'}}>
-                    <label style={{display: 'block', marginBottom: '5px', fontWeight: 500, fontSize: '14px', color: '#374151'}}>Họ tên ứng viên:</label>
-                    <input 
-                        type="text" 
-                        value={name} 
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Nhập tên..."
+                    <label style={{display: 'block', fontWeight: 500, fontSize:'14px', marginBottom:'5px'}}>Vị trí ứng tuyển:</label>
+                    <select 
+                        value={selectedJob}
+                        onChange={(e) => setSelectedJob(e.target.value)}
                         style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB'}}
-                    />
+                    >
+                        <option value="">-- Quét tự do (Không so sánh) --</option>
+                        {jobs.map(job => (
+                            <option key={job.id} value={job.id}>{job.title}</option>
+                        ))}
+                    </select>
                 </div>
 
                 <div style={{flex: 1, minWidth: '200px'}}>
-                    <label style={{display: 'block', marginBottom: '5px', fontWeight: 500, fontSize: '14px', color: '#374151'}}>File CV (PDF):</label>
-                    <input 
-                        type="file" 
-                        accept=".pdf" 
-                        onChange={handleFileChange} 
-                        style={{fontSize: '14px'}}
-                    />
+                    <label style={{display: 'block', fontWeight: 500, fontSize:'14px', marginBottom:'5px'}}>Tên ứng viên (Tùy chọn):</label>
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nhập tên..." style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB'}} />
+                </div>
+
+                <div style={{flex: 1, minWidth: '200px'}}>
+                    <label style={{display: 'block', fontWeight: 500, fontSize:'14px', marginBottom:'5px'}}>File CV (PDF):</label>
+                    <input type="file" accept=".pdf" onChange={(e) => setFile(e.target.files[0])} style={{fontSize:'14px'}} />
                 </div>
 
                 <button 
                     onClick={handleUpload} 
                     disabled={loading}
-                    style={{
-                        background: loading ? '#9CA3AF' : '#4F46E5',
-                        color: 'white',
-                        padding: '10px 20px',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        fontWeight: 600,
-                        height: '42px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                    }}
+                    style={{background: loading ? '#9CA3AF' : '#4F46E5', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '6px', fontWeight: 600, height: '42px', cursor: 'pointer'}}
                 >
-                    {loading ? <><i className="fa-solid fa-spinner fa-spin"></i> Đang quét...</> : <><i className="fa-solid fa-cloud-arrow-up"></i> Scan & Upload</>}
+                    {loading ? 'Đang chấm điểm...' : 'Scan Ngay'}
                 </button>
             </div>
 
-            {/* Hiển thị kết quả ngắn gọn */}
-            {result && (
-                <div style={{marginTop: '15px', padding: '12px', background: '#ECFDF5', borderRadius: '6px', border: '1px solid #A7F3D0'}}>
-                    <p style={{margin: 0, color: '#047857', fontSize: '14px'}}>
-                        <strong>✅ Kết quả AI:</strong> Tìm thấy {result.analysis?.skills?.length || 0} kỹ năng.
+            {/* Hiển thị kết quả nhanh */}
+            {result && result.ai_analysis && (
+                <div style={{marginTop: '15px', padding: '15px', background: '#F0FDF4', borderRadius: '8px', border: '1px solid #BBF7D0'}}>
+                    <p style={{margin: 0, fontWeight: 600, color: '#166534'}}>
+                        🎯 Kết quả: {result.ai_rating}/10 điểm
                     </p>
-                    <p style={{margin: '5px 0 0 0', fontSize: '13px', color: '#065F46'}}>
-                        Kỹ năng: {result.analysis?.skills?.join(', ') || 'Chưa xác định'}
+                    <p style={{margin: '5px 0 0 0', fontSize: '14px', color: '#15803D'}}>
+                        {result.ai_analysis.match_reason || result.ai_analysis.summary}
                     </p>
                 </div>
             )}

@@ -91,27 +91,91 @@ async function analyzeCV(text) {
 // 2. CÁC API
 // ==========================================
 
-// API 1: Scan CV
+// --- API 1: SCAN & MATCHING (So khớp với tiêu chí) ---
 app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Thiếu file CV' });
-        console.log(`📄 Đang scan CV: ${req.file.originalname}`);
-
-        // Đọc nội dung PDF
-        const rawText = await readPdfBuffer(req.file.buffer);
-
-        // Gọi AI
-        const aiResult = await analyzeCV(rawText);
         
-        // Lưu DB
+        // Lấy ID công việc mà HR chọn (nếu có)
+        const jobId = req.body.job_id;
+        
+        let jobCriteria = null;
+        if (jobId) {
+            // Lấy tiêu chí từ Database
+            const jobResult = await pool.query('SELECT * FROM job_positions WHERE id = $1', [jobId]);
+            if (jobResult.rows.length > 0) {
+                jobCriteria = jobResult.rows[0];
+            }
+        }
+
+        // 1. Đọc nội dung PDF
+        let rawText = "";
+        try {
+            const pdfData = await pdfParse(req.file.buffer);
+            rawText = pdfData.text;
+        } catch (e) { return res.status(400).json({ error: "Lỗi đọc file PDF" }); }
+
+        // 2. Gửi cho AI Phân tích & So sánh
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        let prompt = "";
+        if (jobCriteria) {
+            // TRƯỜNG HỢP CÓ TIÊU CHÍ (Matching Mode)
+            const reqs = jobCriteria.requirements;
+            prompt = `
+            Bạn là HR Manager. Hãy so sánh CV dưới đây với yêu cầu công việc sau:
+            - Vị trí: ${jobCriteria.title}
+            - Kỹ năng bắt buộc: ${reqs.skills ? reqs.skills.join(', ') : 'Không rõ'}
+            - Kinh nghiệm: ${reqs.experience_years} năm
+            - Học vấn: ${reqs.education}
+
+            Nhiệm vụ:
+            1. Trích xuất thông tin ứng viên.
+            2. Đánh giá mức độ phù hợp (%) dựa trên các tiêu chí trên.
+            3. Giải thích ngắn gọn lý do trừ điểm.
+
+            Trả về JSON:
+            {
+                "full_name": "Tên ứng viên",
+                "email": "Email",
+                "score": số điểm (0-100),
+                "match_reason": "Giải thích tại sao đạt điểm này",
+                "skills": ["kỹ năng của ứng viên"],
+                "missing_skills": ["kỹ năng còn thiếu"]
+            }
+            Nội dung CV: ${rawText.substring(0, 15000)}
+            `;
+        } else {
+            // TRƯỜNG HỢP KHÔNG CHỌN VỊ TRÍ (Scan Mode thường)
+            prompt = `Phân tích CV và trả về JSON: { "full_name": "...", "email": "...", "skills": [], "score": 0, "match_reason": "Tóm tắt hồ sơ" } \nNội dung: ${rawText.substring(0, 15000)}`;
+        }
+
+        const aiResultRaw = await model.generateContent(prompt);
+        const txt = aiResultRaw.response.text().replace(/```json|```/g, '').trim();
+        const aiResult = JSON.parse(txt);
+
+        // Chuẩn hóa điểm về thang 10
+        const finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
+
+        // 3. Lưu vào Database
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên";
-        const result = await pool.query(
-            `INSERT INTO candidates (organization_id, full_name, email, role, status, ai_rating, ai_analysis) 
-             VALUES (1, $1, $2, 'Ứng viên', 'Screening', $3, $4) RETURNING *`,
-            [finalName, aiResult.email, aiResult.score, JSON.stringify(aiResult)]
-        );
         
-        res.json({ message: "Thành công!", candidate: result.rows[0] });
+        // Lưu ý: Thêm cột job_id vào lệnh INSERT
+        const result = await pool.query(
+            `INSERT INTO candidates (organization_id, job_id, full_name, email, role, status, ai_rating, ai_analysis) 
+             VALUES (1, $1, $2, $3, $4, 'Screening', $5, $6) RETURNING *`,
+            [
+                jobId || null, // Lưu job_id nếu có
+                finalName, 
+                aiResult.email, 
+                jobCriteria ? jobCriteria.title : 'Ứng viên tự do', // Role lấy theo tên Job
+                finalScore, 
+                JSON.stringify(aiResult)
+            ]
+        );
+
+        res.json({ message: "Scan & Matching thành công!", candidate: result.rows[0] });
+
     } catch (err) { 
         console.error(err);
         res.status(500).json({ error: "Lỗi Server: " + err.message }); 
