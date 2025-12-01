@@ -17,7 +17,7 @@ app.use(express.json());
 
 // --- CẤU HÌNH ---
 // Model AI ổn định nhất
-let ACTIVE_MODEL_NAME = "gemini-1.5-flash"; 
+let ACTIVE_MODEL_NAME = "gemini-2.5-flash"; 
 
 // Cấu hình Memory Storage
 const storage = multer.memoryStorage();
@@ -216,7 +216,7 @@ app.post('/api/training/chat', async (req, res) => {
         const queryVector = await createEmbedding(query);
         const searchResult = await pool.query(`select content from match_documents($1, 0.5, 5)`, [`[${queryVector.join(',')}]`]);
         const context = searchResult.rows.map(r => r.content).join("\n---\n");
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent(`Context: ${context} \nAnswer: ${query}`);
         res.json({ answer: result.response.text() });
     } catch (err) { res.status(500).json({ error: err.message }); }
