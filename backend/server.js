@@ -105,7 +105,10 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         const aiResult = JSON.parse(result.response.text().replace(/```json|```/g, '').trim());
 
         // --- BƯỚC 3: LƯU DATABASE (KÈM LINK FILE) ---
-        const finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
+// Xử lý điểm số an toàn: Nếu không có điểm thì mặc định là 0
+        let rawScore = aiResult.score || 0; // Nếu null/undefined thì lấy 0
+        if (typeof rawScore === 'string') rawScore = parseFloat(rawScore); // Chắc chắn là số
+        const finalScore = rawScore > 10 ? (rawScore / 10).toFixed(1) : rawScore;
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên";
 
         const dbResult = await pool.query(
