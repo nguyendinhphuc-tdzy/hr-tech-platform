@@ -1,61 +1,58 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import CandidateCard from '../components/CandidateCard';
 import API_BASE_URL from '../components/config';
+import CandidateModal from '../components/CandidateModal'; // Import Modal
 
 const Dashboard = () => {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCandidate, setSelectedCandidate] = useState(null); // State quản lý modal
 
-  // Gọi API Backend
-  const fetchCandidates = () => {
-    // URL Render của bạn
-    axios.get(`${API_BASE_URL}/api/candidates`)
-      .then(response => {
-        setCandidates(response.data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  };
+  // ... (giữ nguyên hàm fetchCandidates) ...
 
-  useEffect(() => { fetchCandidates(); }, []);
-
-  // Lọc danh sách theo cột
-  const getList = (status) => candidates.filter(c => 
-    (c.status || c.pipeline_stage || '').toLowerCase() === status.toLowerCase()
-  );
-
+  // Sửa phần render của PipelineColumn để thêm sự kiện onClick
+  // ...
+  
   return (
     <div className="hr-dashboard">
-      {/* KPI Section */}
-      <section className="kpi-grid">
-        <div className="kpi-card"><h3>Tổng hồ sơ</h3><p className="value">{candidates.length}</p></div>
-        <div className="kpi-card"><h3>Phỏng vấn</h3><p className="value">{getList('Interview').length}</p></div>
-        <div className="kpi-card"><h3>Offer</h3><p className="value" style={{color:'#10B981'}}>{getList('Offer').length}</p></div>
-        <div className="kpi-card"><h3>Vị trí mở</h3><p className="value">5</p></div>
-      </section>
+      {/* ... (KPI section giữ nguyên) ... */}
 
-      {/* Pipeline Section */}
-      <h2 className="section-title">Quy trình Tuyển dụng</h2>
-      {loading ? <div style={{textAlign:'center', color:'#666'}}>Đang tải dữ liệu...</div> : (
-        <div className="recruitment-pipeline">
-           <PipelineColumn title="Screening" list={getList('Screening')} />
-           <PipelineColumn title="Interview" list={getList('Interview')} />
-           <PipelineColumn title="Offer" list={getList('Offer')} />
-           <PipelineColumn title="Rejected" list={getList('Rejected')} />
-        </div>
+      {/* ... (Pipeline section) ... */}
+      <div className="recruitment-pipeline">
+           {/* Truyền hàm setSelectedCandidate xuống */}
+           <PipelineColumn title="Screening" list={getList('Screening')} onSelect={setSelectedCandidate} />
+           <PipelineColumn title="Interview" list={getList('Interview')} onSelect={setSelectedCandidate} />
+           <PipelineColumn title="Offer" list={getList('Offer')} onSelect={setSelectedCandidate} />
+           <PipelineColumn title="Rejected" list={getList('Rejected')} onSelect={setSelectedCandidate} />
+      </div>
+
+      {/* Hiển thị Modal nếu có candidate được chọn */}
+      {selectedCandidate && (
+        <CandidateModal 
+            candidate={selectedCandidate} 
+            onClose={() => setSelectedCandidate(null)} 
+        />
       )}
     </div>
   );
 };
 
-const PipelineColumn = ({ title, list }) => (
+// Sửa component con để nhận sự kiện click
+const PipelineColumn = ({ title, list, onSelect }) => (
     <div className="pipeline-column">
         <h3 className="pipeline-column-header">{title} ({list.length})</h3>
-        {list.map(c => <CandidateCard key={c.id} data={c} />)}
+        {list.map(c => (
+            <div 
+                key={c.id} 
+                className="candidate-card" 
+                onClick={() => onSelect(c)} // Bắt sự kiện click
+                style={{cursor: 'pointer'}}
+            >
+                {/* ... (Nội dung thẻ giữ nguyên) ... */}
+                <p className="candidate-name">{c.full_name}</p>
+                {/* ... */}
+            </div>
+        ))}
     </div>
 );
 
