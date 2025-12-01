@@ -62,7 +62,7 @@ function chunkText(text, chunkSize = 1000) {
 }
 
 async function createEmbedding(text) {
-    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const model = genAI.getGenerativeModel({model: ACTIVE_MODEL_NAME});
     const result = await model.embedContent(text);
     return result.embedding.values;
 }
