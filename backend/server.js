@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // --- CẤU HÌNH ---
-const MODEL_NAME = "gemini-1.5-flash"; // Model mặc định
+const MODEL_NAME = "gemini-2.5-flash"; // Model mặc định
 
 // Cấu hình Memory Storage
 const storage = multer.memoryStorage();
