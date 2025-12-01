@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Phiên bản Stable - Cố định Model) */
+/* FILE: backend/server.js - DIAGNOSTIC VERSION */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -9,15 +9,16 @@ const csv = require('csv-parser');
 const mammoth = require('mammoth'); 
 const pdf = require('pdf-parse'); 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require('axios'); // Bắt buộc phải có thư viện này
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- CẤU HÌNH CỐ ĐỊNH (KHÔNG TỰ DÒ NỮA) ---
-// Model này ổn định nhất và miễn phí
-const MODEL_NAME = "gemini-1.5-flash"; 
+// --- CẤU HÌNH ---
+const MODEL_NAME = "gemini-1.5-flash"; // Model mặc định
 
+// Cấu hình Memory Storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -29,77 +30,122 @@ const pool = new Pool({
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ==========================================
-// CÁC HÀM HỖ TRỢ
+// 🔍 TÍNH NĂNG TỰ KIỂM TRA MODEL (CHẨN ĐOÁN)
 // ==========================================
-
-async function readPdfBuffer(buffer) {
+async function checkAvailableModels() {
     try {
-        const data = await pdf(buffer);
-        return data.text;
-    } catch (err) { return ""; }
-}
+        console.log("🔍 Đang kết nối tới Google để lấy danh sách Model...");
+        const apiKey = process.env.GEMINI_API_KEY;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+        
+        const response = await axios.get(url);
+        const models = response.data.models;
+        
+        console.log("\n✅ KẾT NỐI THÀNH CÔNG! Dưới đây là các Model bạn được dùng:");
+        console.log("-------------------------------------------------------");
+        const availableNames = [];
+        models.forEach(m => {
+            const name = m.name.replace('models/', '');
+            if (name.includes('gemini')) {
+                console.log(`🔹 ${name}`);
+                availableNames.push(name);
+            }
+        });
+        console.log("-------------------------------------------------------\n");
 
-function chunkText(text, chunkSize = 1000) {
-    const chunks = [];
-    let currentChunk = "";
-    const sentences = text.split(/(?<=[.?!])\s+/);
-    for (const sentence of sentences) {
-        if ((currentChunk + sentence).length > chunkSize) {
-            chunks.push(currentChunk);
-            currentChunk = sentence;
-        } else { currentChunk += " " + sentence; }
+        if (!availableNames.includes(MODEL_NAME)) {
+            console.warn(`⚠️ CẢNH BÁO: Model mặc định '${MODEL_NAME}' không thấy trong danh sách!`);
+            console.warn(`👉 Hãy đổi biến MODEL_NAME trong code thành một trong các tên ở trên.`);
+        } else {
+            console.log(`🚀 Model mặc định '${MODEL_NAME}' HỢP LỆ. Sẵn sàng chiến đấu!`);
+        }
+
+    } catch (error) {
+        console.error("❌ LỖI KẾT NỐI GOOGLE:", error.response?.data || error.message);
+        console.error("👉 Kiểm tra lại API KEY xem có bị sai hoặc hết hạn không.");
     }
-    if (currentChunk) chunks.push(currentChunk);
-    return chunks;
 }
 
-async function createEmbedding(text) {
-    // Model embedding riêng biệt, không liên quan đến Flash/Pro
-    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-    const result = await model.embedContent(text);
-    return result.embedding.values;
-}
+// Chạy kiểm tra ngay khi khởi động
+checkAvailableModels();
 
 // ==========================================
-// API SCAN CV
+// CÁC API NGHIỆP VỤ
 // ==========================================
-app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
+
+// Hàm phân tích CV (đã bỏ tham số apiVersion gây lỗi)
+async function analyzeCV(fileBuffer, mimeType, jobCriteria) {
     try {
-        if (!req.file) return res.status(400).json({ error: 'Thiếu file CV' });
+        const model = genAI.getGenerativeModel({ model: MODEL_NAME }); // Để mặc định, không ép v1beta
         
-        console.log(`🤖 Đang xử lý file: ${req.file.originalname}`);
-
-        const jobId = req.body.job_id;
-        let jobCriteria = null;
-        if (jobId) {
-            const jobRes = await pool.query('SELECT * FROM job_positions WHERE id = $1', [jobId]);
-            if (jobRes.rows.length > 0) jobCriteria = jobRes.rows[0];
-        }
-
-        // --- GỌI AI VỚI MODEL CỐ ĐỊNH ---
-        // Sử dụng apiVersion: 'v1beta' để đảm bảo tương thích
-        const model = genAI.getGenerativeModel({ model: MODEL_NAME }, { apiVersion: 'v1beta' });
+        let prompt = `Bạn là chuyên gia HR. Hãy trích xuất thông tin từ tài liệu đính kèm.`;
         
-        let prompt = `Bạn là chuyên gia HR. Hãy phân tích CV đính kèm.`;
         if (jobCriteria) {
+            // ĐÂY CHÍNH LÀ CHỖ AI "HỌC" TỪ CSV CỦA BẠN
+            // Chúng ta nhồi tiêu chí từ DB vào Prompt
             const reqs = jobCriteria.requirements;
-            prompt += ` So sánh với JD: ${jobCriteria.title}, Kỹ năng: ${reqs.skills}. Đánh giá % phù hợp.`;
+            prompt += `
+            Và SO SÁNH với yêu cầu công việc sau:
+            - Vị trí: "${jobCriteria.title}"
+            - Kỹ năng cần có: ${reqs.skills ? reqs.skills.join(', ') : 'Không rõ'}
+            - Kinh nghiệm: ${reqs.experience_years} năm
+            - Học vấn: ${reqs.education}
+            
+            Nhiệm vụ:
+            1. Trích xuất thông tin ứng viên.
+            2. Đánh giá % độ phù hợp (0-100) dựa trên các tiêu chí trên.
+            3. Giải thích ngắn gọn lý do tại sao phù hợp/không phù hợp.
+            `;
+        } else {
+            prompt += ` Đánh giá tổng quan chất lượng hồ sơ.`;
         }
 
-        prompt += ` Trả về JSON duy nhất: { "full_name": "Tên", "email": "Email", "skills": [], "score": 0-100, "match_reason": "Lý do", "summary": "Tóm tắt" }`;
+        prompt += `
+        Trả về JSON duy nhất (không markdown):
+        {
+            "full_name": "Tên ứng viên",
+            "email": "Email",
+            "skills": ["Skill 1", "Skill 2"],
+            "score": số điểm (0-100),
+            "match_reason": "Đánh giá chi tiết (Tiếng Việt)",
+            "summary": "Tóm tắt hồ sơ"
+        }`;
 
         const imageParts = [{
             inlineData: {
-                data: req.file.buffer.toString("base64"),
-                mimeType: req.file.mimetype,
+                data: fileBuffer.toString("base64"),
+                mimeType: mimeType,
             },
         }];
 
         const result = await model.generateContent([prompt, ...imageParts]);
         const responseText = result.response.text().replace(/```json|```/g, '').trim();
-        const aiResult = JSON.parse(responseText);
+        return JSON.parse(responseText);
 
-        // Lưu DB
+    } catch (error) {
+        console.error("Lỗi Gemini:", error.message);
+        throw new Error(`AI không phản hồi: ${error.message}`);
+    }
+}
+
+// API Upload & Scan
+app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Thiếu file CV' });
+        
+        const jobId = req.body.job_id;
+        let jobCriteria = null;
+        
+        // Lấy tri thức từ DB (CSV đã import)
+        if (jobId) {
+            const jobRes = await pool.query('SELECT * FROM job_positions WHERE id = $1', [jobId]);
+            if (jobRes.rows.length > 0) jobCriteria = jobRes.rows[0];
+        }
+
+        // Gọi AI phân tích
+        const aiResult = await analyzeCV(req.file.buffer, req.file.mimetype, jobCriteria);
+
+        // Lưu kết quả
         const finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
 
@@ -111,14 +157,13 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
 
         res.json({ message: "Thành công!", candidate: dbResult.rows[0] });
 
-    } catch (err) { 
+    } catch (err) {
         console.error("Lỗi Server:", err);
-        // Mẹo: In ra lỗi chi tiết để biết Key có vấn đề không
-        res.status(500).json({ error: "Lỗi AI: " + err.message + " (Hãy kiểm tra lại API Key từ AI Studio)" }); 
+        res.status(500).json({ error: "Lỗi Server: " + err.message });
     }
 });
 
-// ... (Giữ nguyên các API danh sách, training, chat, import job cũ) ...
+// ... (Giữ nguyên các API import, list jobs, candidates cũ) ...
 app.get('/api/candidates', async (req, res) => {
     const result = await pool.query('SELECT * FROM candidates ORDER BY id DESC');
     res.json(result.rows);
@@ -128,6 +173,7 @@ app.get('/api/jobs', async (req, res) => {
     res.json(result.rows);
 });
 app.post('/api/jobs/import', upload.single('csv_file'), async (req, res) => {
+    // ... code import csv cũ ...
     try {
         if (!req.file) return res.status(400).json({ error: 'Thiếu CSV' });
         const results = [];
@@ -140,32 +186,6 @@ app.post('/api/jobs/import', upload.single('csv_file'), async (req, res) => {
             for (const job of results) await pool.query(`INSERT INTO job_positions (title, requirements, status) VALUES ($1, $2, 'active')`, [job.title, JSON.stringify(job.requirements)]);
             res.json({ message: "Import xong!" });
         });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/training/upload', upload.single('doc_file'), async (req, res) => {
-    try {
-        if (!req.file) return res.status(400).json({ error: 'Thiếu file' });
-        let rawText = "";
-        if (req.file.mimetype === 'application/pdf') rawText = await readPdfBuffer(req.file.buffer);
-        else if (req.file.mimetype.includes('word')) { const r = await mammoth.extractRawText({ buffer: req.file.buffer }); rawText = r.value; }
-        const chunks = chunkText(rawText);
-        for (const chunk of chunks) {
-            if(!chunk.trim()) continue;
-            const vector = await createEmbedding(chunk);
-            await pool.query(`INSERT INTO documents (content, metadata, embedding) VALUES ($1, $2, $3)`, [chunk, JSON.stringify({ filename: req.file.originalname }), `[${vector.join(',')}]`]);
-        }
-        res.json({ message: "Training xong!" });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/training/chat', async (req, res) => {
-    try {
-        const { query } = req.body;
-        const queryVector = await createEmbedding(query);
-        const searchResult = await pool.query(`select content from match_documents($1, 0.5, 5)`, [`[${queryVector.join(',')}]`]);
-        const context = searchResult.rows.map(r => r.content).join("\n---\n");
-        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-        const result = await model.generateContent(`Dựa vào: ${context} \nTrả lời: ${query}`);
-        res.json({ answer: result.response.text() });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
