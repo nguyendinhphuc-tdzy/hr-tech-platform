@@ -14,7 +14,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         {menuItems.map((item) => (
           <div 
             key={item.id}
-            className={`sidebar-link ${activeTab === item.id ? 'active' : ''}`}
+            className={`sidebar-link $activeTab === item.id ? 'rgba(46, 255, 123, 0.15)'}`}
             onClick={() => setActiveTab(item.id)}
             style={{
                 padding: '12px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', gap: '12px', alignItems: 'center',

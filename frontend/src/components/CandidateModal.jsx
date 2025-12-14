@@ -14,7 +14,7 @@ const CandidateModal = ({ candidate, onClose }) => {
       backdropFilter: 'blur(4px)'
     }}>
       <div style={{
-        background: 'white', width: '95%', height: '90%', borderRadius: '12px',
+        background: '#131F2E', width: '95%', height: '90%', borderRadius: '12px',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
       }}>
@@ -25,7 +25,7 @@ const CandidateModal = ({ candidate, onClose }) => {
           background: '#fff'
         }}>
           <div>
-            <h2 style={{margin: 0, fontSize: '20px', color: '#111827', display: 'flex', alignItems: 'center', gap: '10px'}}>
+            <h2 style={{margin: 0, fontSize: '20px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '10px'}}>
                {candidate.full_name} 
                <span style={{fontSize:'12px', background:'#E0E7FF', color:'#4338CA', padding:'2px 8px', borderRadius:'12px'}}>{candidate.role}</span>
             </h2>
@@ -66,7 +66,7 @@ const CandidateModal = ({ candidate, onClose }) => {
           <div style={{flex: 1, padding: '25px', overflowY: 'auto', background: '#fff', maxWidth: '600px'}}>
              
              {/* 1. Điểm số tổng quan */}
-             <div style={{display:'flex', gap:'20px', marginBottom:'30px', background:'#F9FAFB', padding:'20px', borderRadius:'12px'}}>
+             <div style={{display:'flex', gap:'20px', marginBottom:'30px', background:'#09121D', padding:'20px', borderRadius:'12px'}}>
                 <div style={{textAlign:'center', minWidth:'100px'}}>
                    <div style={{fontSize:'36px', fontWeight:'800', color: candidate.ai_rating >= 8 ? '#059669' : (candidate.ai_rating >= 5 ? '#D97706' : '#DC2626')}}>
                       {candidate.ai_rating}<span style={{fontSize:'16px', color:'#9CA3AF'}}>/10</span>

@@ -44,7 +44,7 @@ const CVUpload = ({ onUploadSuccess }) => {
     };
 
     return (
-        <div style={{padding: '20px', background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '20px'}}>
+        <div style={{padding: '20px', background: '#131F2E', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '20px'}}>
             <h3 style={{marginTop: 0, color: '#4F46E5'}}><i className="fa-solid fa-crosshairs"></i> Scan & So Khớp</h3>
             
             <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end'}}>
@@ -76,7 +76,7 @@ const CVUpload = ({ onUploadSuccess }) => {
                 <button 
                     onClick={handleUpload} 
                     disabled={loading}
-                    style={{background: loading ? '#9CA3AF' : '#4F46E5', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '6px', fontWeight: 600, height: '42px', cursor: 'pointer'}}
+                    style={{background: loading ? '#9CA3AF' : '#2EFF7B', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '6px', fontWeight: 600, height: '42px', cursor: 'pointer'}}
                 >
                     {loading ? 'Đang chấm điểm...' : 'Scan Ngay'}
                 </button>
