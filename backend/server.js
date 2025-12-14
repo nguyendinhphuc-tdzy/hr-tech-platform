@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Bản fix lỗi tên file - Giữ nguyên Model AI) */
+/* FILE: backend/server.js (Bản nâng cấp Prompt: Expert Recruiter) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -16,7 +16,6 @@ app.use(cors());
 app.use(express.json());
 
 // --- CẤU HÌNH ---
-// GIỮ NGUYÊN MODEL BẠN ĐANG DÙNG
 let ACTIVE_MODEL_NAME = "gemini-2.5-flash"; 
 
 const storage = multer.memoryStorage();
@@ -32,11 +31,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 
 // --- CÁC HÀM HỖ TRỢ ---
 
-// 1. HÀM MỚI: LÀM SẠCH TÊN FILE (Để fix lỗi Storage)
 function sanitizeFilename(filename) {
-    // Chuyển tiếng Việt có dấu thành không dấu
     const str = filename.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    // Thay thế tất cả ký tự không phải chữ/số/dấu chấm bằng gạch dưới
     return str.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
 }
 
@@ -70,16 +66,14 @@ async function createEmbedding(text) {
 }
 
 // ==========================================
-// API 1: SCAN CV & UPLOAD FILE
+// API 1: SCAN CV (VỚI PROMPT EXPERT RECRUITER)
 // ==========================================
 app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Thiếu file CV' });
         console.log(`🤖 Đang xử lý: ${req.file.originalname}`);
 
-        // --- PHẦN 1: UPLOAD FILE LÊN SUPABASE (ĐÃ SỬA TÊN FILE) ---
-        
-        // Dùng hàm sanitize để tạo tên file an toàn
+        // --- BƯỚC 1: UPLOAD STORAGE ---
         const safeName = sanitizeFilename(req.file.originalname);
         const fileName = `${Date.now()}_${safeName}`;
         
@@ -91,16 +85,13 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
                 upsert: false
             });
 
-        if (uploadError) {
-            console.error("Lỗi Storage:", uploadError);
-        }
-
+        if (uploadError) console.error("Lỗi Storage:", uploadError);
+        
         const { data: { publicUrl } } = supabase.storage.from('cv_uploads').getPublicUrl(fileName);
         const finalFileUrl = uploadError ? null : publicUrl;
         console.log("🌍 File URL:", finalFileUrl);
 
-
-        // --- PHẦN 2: XỬ LÝ AI (GIỮ NGUYÊN LOGIC CŨ) ---
+        // --- BƯỚC 2: XỬ LÝ AI (PROMPT MỚI) ---
         const jobId = req.body.job_id;
         let jobCriteria = null;
         if (jobId) {
@@ -109,26 +100,49 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         }
 
         const model = genAI.getGenerativeModel({ 
-            model: ACTIVE_MODEL_NAME, // Giữ nguyên gemini-2.5-flash
+            model: ACTIVE_MODEL_NAME,
             generationConfig: { responseMimeType: "application/json" }
         });
         
-        let prompt = `Bạn là chuyên gia HR. Trích xuất thông tin từ CV đính kèm.`;
-        if (jobCriteria) {
-            prompt += ` So sánh với JD: ${jobCriteria.title}, Kỹ năng: ${JSON.stringify(jobCriteria.requirements)}.`;
-        }
+        // --- XÂY DỰNG PROMPT THEO YÊU CẦU ---
+        
+        // 1. Xác định ngữ cảnh công việc (Nếu có Job ID thì lấy DB, không thì dùng mẫu Innovation Intern)
+        const roleContext = jobCriteria 
+            ? `Role: ${jobCriteria.title}\nTarget Skills: ${JSON.stringify(jobCriteria.requirements)}`
+            : `Role: Innovation Intern\nTarget Skill Set: Microsoft Office Suite (Excel, Word, PPT) | Visual Design (Infographics/Presentations) | Event Organization | Internal Communication | Content Creation | Undergraduate/Student`;
 
-        prompt += `
-        Output JSON format:
-        {
-            "full_name": "Tên",
-            "email": "Email",
-            "skills": ["Skill1", "Skill2"],
-            "score": 8.5,
-            "summary": "Tóm tắt",
-            "match_reason": "Lý do điểm số"
-        }
-        `;
+        let prompt = `
+# Role & Context
+You are an **Expert Recruiter and Talent Acquisition Specialist**. You are currently screening applicants for the following position:
+${roleContext}
+
+The business context involves supporting internal operations, specifically focusing on engagement, communication, and visual storytelling. Your goal is to identify candidates who possess the specific "Must-Have" organizational skills and "Nice-to-Have" creative abilities.
+
+# Task
+**1. Analyze and Map**
+Perform a deep-scan analysis of the attached CV:
+* **Skill Extraction:** Identify the presence of key skills (Microsoft Office proficiency, Design capabilities, Event coordination).
+* **Experience Mapping:** Map the candidate's past projects directly to the responsibilities. Look for experience in organizing internal events, compiling communication materials, and creating content.
+* **Gap Analysis:** Highlight any missing "Must-Have" qualifications.
+
+**2. Apply Critical Thinking**
+* **Validate Claims:** Do not just look for keywords; look for context (e.g., "Designed the yearbook layout using Canva" vs. just "Design skills").
+* **Assess Confidence:** Rate the candidate's fit based on the evidence found regarding proactivity and written communication.
+
+# Output Format
+You must return a strictly valid JSON object with the following structure:
+{
+    "full_name": "Candidate Name",
+    "email": "candidate@email.com",
+    "skills": ["Skill 1", "Skill 2", "Skill 3"],
+    "score": 0.0, 
+    "summary": "A 2-3 sentence overview of the candidate's suitability.",
+    "match_reason": "Detailed analysis: Qualifications Match, Responsibilities Match, and Creative & Proactive Fit.",
+    "recommendation": "Interview / Hold / Reject",
+    "confidence": "High / Medium / Low"
+}
+*Note: 'score' must be a number from 0 to 10.*
+`;
 
         const imageParts = [{
             inlineData: {
@@ -144,13 +158,13 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         try {
             aiResult = JSON.parse(cleanJsonString(responseText));
         } catch (parseError) {
-            aiResult = { full_name: "Ứng viên", score: 0, summary: "Lỗi đọc AI", email: null };
+            aiResult = { full_name: "Ứng viên (Lỗi đọc)", score: 0, summary: "Lỗi format AI", email: null };
         }
 
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
         const finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
 
-        // --- PHẦN 3: LƯU DATABASE ---
+        // --- BƯỚC 3: LƯU DATABASE ---
         const dbResult = await pool.query(
             `INSERT INTO candidates (organization_id, job_id, full_name, email, role, status, ai_rating, ai_analysis, cv_file_url) 
              VALUES (1, $1, $2, $3, $4, 'Screening', $5, $6, $7) RETURNING *`,
@@ -173,7 +187,7 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     }
 });
 
-// ... (CÁC API KHÁC GIỮ NGUYÊN Y HỆT BẢN CŨ CỦA BẠN) ...
+// ... (GIỮ NGUYÊN CÁC API KHÁC) ...
 app.get('/api/candidates', async (req, res) => {
     const result = await pool.query('SELECT * FROM candidates ORDER BY id DESC');
     res.json(result.rows);
@@ -188,12 +202,10 @@ app.post('/api/jobs/import', upload.single('csv_file'), async (req, res) => {
         const results = [];
         const stream = require('stream').Readable.from(req.file.buffer);
         stream.pipe(csv()).on('data', (data) => results.push({
-            title: data.Title || 'Job mới',
-            requirements: { skills: data.Skills ? data.Skills.split('|') : [], experience: data.Experience || 0 },
-            status: 'active'
+            title: data.Title, requirements: { skills: data.Skills?.split('|'), experience: data.Experience }, status: 'active'
         })).on('end', async () => {
             for (const job of results) await pool.query(`INSERT INTO job_positions (title, requirements, status) VALUES ($1, $2, 'active')`, [job.title, JSON.stringify(job.requirements)]);
-            res.json({ message: "Import Done" });
+            res.json({ message: "Import xong!" });
         });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -208,7 +220,7 @@ app.post('/api/training/upload', upload.single('doc_file'), async (req, res) => 
             const vector = await createEmbedding(chunk);
             await pool.query(`INSERT INTO documents (content, metadata, embedding) VALUES ($1, $2, $3)`, [chunk, JSON.stringify({ filename: req.file.originalname }), `[${vector.join(',')}]`]);
         }
-        res.json({ message: "Training Done" });
+        res.json({ message: "Training xong!" });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 app.post('/api/training/chat', async (req, res) => {
@@ -217,8 +229,7 @@ app.post('/api/training/chat', async (req, res) => {
         const queryVector = await createEmbedding(query);
         const searchResult = await pool.query(`select content from match_documents($1, 0.5, 5)`, [`[${queryVector.join(',')}]`]);
         const context = searchResult.rows.map(r => r.content).join("\n---\n");
-        // GIỮ NGUYÊN MODEL CỨNG Ở ĐÂY NHƯ BẠN YÊU CẦU (KHÔNG DÙNG BIẾN TOÀN CỤC)
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: ACTIVE_MODEL_NAME });
         const result = await model.generateContent(`Context: ${context} \nAnswer: ${query}`);
         res.json({ answer: result.response.text() });
     } catch (err) { res.status(500).json({ error: err.message }); }
