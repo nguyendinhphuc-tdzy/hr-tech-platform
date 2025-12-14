@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Bản nâng cấp Prompt: Expert Recruiter) */
+/* FILE: backend/server.js (Bản Prompt: Data Analyst Intern) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -66,7 +66,7 @@ async function createEmbedding(text) {
 }
 
 // ==========================================
-// API 1: SCAN CV (VỚI PROMPT EXPERT RECRUITER)
+// API 1: SCAN CV (VỚI PROMPT DATA ANALYST)
 // ==========================================
 app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     try {
@@ -86,12 +86,11 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
             });
 
         if (uploadError) console.error("Lỗi Storage:", uploadError);
-        
         const { data: { publicUrl } } = supabase.storage.from('cv_uploads').getPublicUrl(fileName);
         const finalFileUrl = uploadError ? null : publicUrl;
         console.log("🌍 File URL:", finalFileUrl);
 
-        // --- BƯỚC 2: XỬ LÝ AI (PROMPT MỚI) ---
+        // --- BƯỚC 2: XỬ LÝ AI ---
         const jobId = req.body.job_id;
         let jobCriteria = null;
         if (jobId) {
@@ -104,30 +103,30 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
             generationConfig: { responseMimeType: "application/json" }
         });
         
-        // --- XÂY DỰNG PROMPT THEO YÊU CẦU ---
+        // --- XÂY DỰNG PROMPT (DATA ANALYST) ---
         
-        // 1. Xác định ngữ cảnh công việc (Nếu có Job ID thì lấy DB, không thì dùng mẫu Innovation Intern)
+        // Xác định Role Context
         const roleContext = jobCriteria 
             ? `Role: ${jobCriteria.title}\nTarget Skills: ${JSON.stringify(jobCriteria.requirements)}`
-            : `Role: Innovation Intern\nTarget Skill Set: Microsoft Office Suite (Excel, Word, PPT) | Visual Design (Infographics/Presentations) | Event Organization | Internal Communication | Content Creation | Undergraduate/Student`;
+            : `Role: Data Analyst Intern\nTarget Skill Set: Power BI | Data Cleaning | Data Visualization | Manufacturing/Production Data Analysis | English | Proactive Attitude`;
 
         let prompt = `
 # Role & Context
-You are an **Expert Recruiter and Talent Acquisition Specialist**. You are currently screening applicants for the following position:
+You are an **Expert Technical Recruiter and Talent Acquisition Specialist**. You are currently screening applicants for the following position:
 ${roleContext}
 
-The business context involves supporting internal operations, specifically focusing on engagement, communication, and visual storytelling. Your goal is to identify candidates who possess the specific "Must-Have" organizational skills and "Nice-to-Have" creative abilities.
+The business context involves a manufacturing environment where data consolidation, cleaning, and visualization are critical. Your goal is to identify candidates who possess the specific "Must-Have" technical skills and the "Nice-to-Have" industry exposure (Manufacturing/Production datasets).
 
 # Task
 **1. Analyze and Map**
 Perform a deep-scan analysis of the attached CV:
-* **Skill Extraction:** Identify the presence of key skills (Microsoft Office proficiency, Design capabilities, Event coordination).
-* **Experience Mapping:** Map the candidate's past projects directly to the responsibilities. Look for experience in organizing internal events, compiling communication materials, and creating content.
-* **Gap Analysis:** Highlight any missing "Must-Have" qualifications.
+* **Skill Extraction:** Identify key technical skills (Power BI, Data Engineering, Industrial Systems) and soft skills (Eagerness to learn).
+* **Experience Mapping:** Map past projects directly to responsibilities. Look specifically for collecting, cleaning, consolidating data, and creating dashboards (Power BI). Prioritize experience with **Manufacturing, Production, or Operation datasets**.
+* **Gap Analysis:** Highlight any missing "Must-Have" qualifications (e.g., lack of Power BI).
 
 **2. Apply Critical Thinking**
-* **Validate Claims:** Do not just look for keywords; look for context (e.g., "Designed the yearbook layout using Canva" vs. just "Design skills").
-* **Assess Confidence:** Rate the candidate's fit based on the evidence found regarding proactivity and written communication.
+* **Validate Claims:** Look for context (e.g., "Used Power BI to optimize production flow" vs just listing "Power BI").
+* **Assess Confidence:** Rate fit based on evidence found.
 
 # Output Format
 You must return a strictly valid JSON object with the following structure:
@@ -135,9 +134,9 @@ You must return a strictly valid JSON object with the following structure:
     "full_name": "Candidate Name",
     "email": "candidate@email.com",
     "skills": ["Skill 1", "Skill 2", "Skill 3"],
-    "score": 0.0, 
-    "summary": "A 2-3 sentence overview of the candidate's suitability.",
-    "match_reason": "Detailed analysis: Qualifications Match, Responsibilities Match, and Creative & Proactive Fit.",
+    "score": 0.0,
+    "summary": "A 2-3 sentence overview of suitability for Data Analyst Intern.",
+    "match_reason": "Detailed analysis including: Qualifications Match, Responsibilities Match (Data Cleaning, Dashboards), and Manufacturing Fit (Yes/No + Details).",
     "recommendation": "Interview / Hold / Reject",
     "confidence": "High / Medium / Low"
 }
@@ -152,11 +151,9 @@ You must return a strictly valid JSON object with the following structure:
         }];
 
         const result = await model.generateContent([prompt, ...imageParts]);
-        const responseText = result.response.text();
-        
         let aiResult;
         try {
-            aiResult = JSON.parse(cleanJsonString(responseText));
+            aiResult = JSON.parse(cleanJsonString(result.response.text()));
         } catch (parseError) {
             aiResult = { full_name: "Ứng viên (Lỗi đọc)", score: 0, summary: "Lỗi format AI", email: null };
         }
