@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Bản Prompt: Data Analyst Intern) */
+/* FILE: backend/server.js (Update Prompt: Data Analyst Intern) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -66,7 +66,7 @@ async function createEmbedding(text) {
 }
 
 // ==========================================
-// API 1: SCAN CV (VỚI PROMPT DATA ANALYST)
+// API 1: SCAN CV (PROMPT DATA ANALYST MỚI)
 // ==========================================
 app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     try {
@@ -103,9 +103,8 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
             generationConfig: { responseMimeType: "application/json" }
         });
         
-        // --- XÂY DỰNG PROMPT (DATA ANALYST) ---
-        
-        // Xác định Role Context
+        // --- PROMPT DATA ANALYST INTERN ---
+        // Lấy tiêu chí từ DB nếu có, hoặc dùng tiêu chí Data Analyst mặc định
         const roleContext = jobCriteria 
             ? `Role: ${jobCriteria.title}\nTarget Skills: ${JSON.stringify(jobCriteria.requirements)}`
             : `Role: Data Analyst Intern\nTarget Skill Set: Power BI | Data Cleaning | Data Visualization | Manufacturing/Production Data Analysis | English | Proactive Attitude`;
@@ -119,28 +118,33 @@ The business context involves a manufacturing environment where data consolidati
 
 # Task
 **1. Analyze and Map**
-Perform a deep-scan analysis of the attached CV:
-* **Skill Extraction:** Identify key technical skills (Power BI, Data Engineering, Industrial Systems) and soft skills (Eagerness to learn).
-* **Experience Mapping:** Map past projects directly to responsibilities. Look specifically for collecting, cleaning, consolidating data, and creating dashboards (Power BI). Prioritize experience with **Manufacturing, Production, or Operation datasets**.
-* **Gap Analysis:** Highlight any missing "Must-Have" qualifications (e.g., lack of Power BI).
+Perform a deep-scan analysis of the CV:
+* **Must-Haves:** Look for Power BI, Data Cleaning, and Visualization skills.
+* **Nice-to-Haves:** Look for Manufacturing/Production/Operation dataset exposure.
+* **Gap Analysis:** Identify missing critical technical skills vs. the Job Description.
 
-**2. Apply Critical Thinking**
-* **Validate Claims:** Look for context (e.g., "Used Power BI to optimize production flow" vs just listing "Power BI").
-* **Assess Confidence:** Rate fit based on evidence found.
+**2. Scoring**
+Assign a suitability score from **0 to 10** based on the overlap between the CV and the Target Skill Set.
 
-# Output Format
-You must return a strictly valid JSON object with the following structure:
+# Output Format (JSON Requirement)
+You must return a **Valid JSON Object** with the following structure. 
+**IMPORTANT:** Put the detailed bullet-point analysis (Strengths, Weaknesses, Observations) into the "match_reason" field as a formatted string.
+
 {
     "full_name": "Candidate Name",
     "email": "candidate@email.com",
     "skills": ["Skill 1", "Skill 2", "Skill 3"],
     "score": 0.0,
-    "summary": "A 2-3 sentence overview of suitability for Data Analyst Intern.",
-    "match_reason": "Detailed analysis including: Qualifications Match, Responsibilities Match (Data Cleaning, Dashboards), and Manufacturing Fit (Yes/No + Details).",
+    "summary": "A 1-sentence explanation of the score based on the candidate's education and core technical stack alignment.",
+    "match_reason": "Provide the detailed analysis here using these exact headings:\n\n**1. Qualifications Match**\n[Suitability Verdict]\n[Summary]\n\n**2. Candidate Strengths (Điểm mạnh)**\n• [Strength]: [Context]\n\n**3. Candidate Weaknesses (Điểm yếu)**\n• [Missing Skill/Gap]: [Explanation]\n\n**4. Notable Observations (Điểm đáng chú ý)**\n[Details]",
     "recommendation": "Interview / Hold / Reject",
     "confidence": "High / Medium / Low"
 }
-*Note: 'score' must be a number from 0 to 10.*
+
+# RULES — Constraints
+* **Tone:** Professional, objective, and critical.
+* **Evidence-Based:** Do not invent skills. If a skill is not mentioned, assume it is missing.
+* **Language:** Output response in **English** (except for headings if specified).
 `;
 
         const imageParts = [{
