@@ -78,7 +78,7 @@ const CVUpload = ({ onUploadSuccess }) => {
                     disabled={loading}
                     style={{background: loading ? '#9CA3AF' : '#2EFF7B', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '6px', fontWeight: 600, height: '42px', cursor: 'pointer'}}
                 >
-                    {loading ? 'Đang chấm điểm...' : 'Scan Ngay'}
+                    {loading ? 'Đang chấm điểm...' : 'Scan Ngay'}   
                 </button>
             </div>
 

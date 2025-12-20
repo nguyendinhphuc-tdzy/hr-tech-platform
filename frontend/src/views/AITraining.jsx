@@ -40,46 +40,132 @@ const AITraining = () => {
 
     return (
         <div className="ai-training-view">
-            <h2 className="section-title">Quản lý Tiêu chí Tuyển dụng</h2>
+            <h2 className="section-title" style={{ color: 'var(--neon-green)', textShadow: '0 0 10px rgba(46, 255, 123, 0.3)' }}>
+                Quản lý Tiêu chí Tuyển dụng
+            </h2>
             
             {/* Khu vực Upload */}
-            <div style={{background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '30px'}}>
-                <h3 style={{marginTop: 0, fontSize: '16px'}}>📥 Nhập từ file CSV</h3>
-                <p style={{color: '#6B7280', fontSize: '14px', marginBottom: '15px'}}>
-                    Upload file CSV chứa danh sách vị trí, kỹ năng yêu cầu, kinh nghiệm...
+            <div style={{
+                background: 'var(--card-background)', 
+                padding: '25px', 
+                borderRadius: '12px', 
+                border: '1px solid var(--border-color)', 
+                marginBottom: '30px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+            }}>
+                <h3 style={{marginTop: 0, fontSize: '16px', color: 'var(--text-white)', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                    <i className="fa-solid fa-file-csv" style={{color: 'var(--neon-green)'}}></i> 
+                    Nhập từ file CSV
+                </h3>
+                <p style={{color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px'}}>
+                    Upload file CSV chứa danh sách vị trí, kỹ năng yêu cầu, kinh nghiệm để AI học tiêu chí chấm điểm.
                 </p>
-                <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+                <div style={{display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap'}}>
                     <input 
                         type="file" 
                         accept=".csv"
                         onChange={(e) => setFile(e.target.files[0])}
-                        style={{border: '1px solid #D1D5DB', padding: '8px', borderRadius: '6px'}}
+                        style={{
+                            border: '1px solid var(--border-color)', 
+                            padding: '10px', 
+                            borderRadius: '6px',
+                            background: '#09121D',
+                            color: 'var(--text-white)',
+                            flex: 1,
+                            minWidth: '250px'
+                        }}
                     />
                     <button 
                         onClick={handleImport}
                         disabled={uploading}
                         style={{
-                            background: '#4F46E5', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600
+                            background: 'var(--neon-green)', 
+                            color: '#000', /* Chữ đen trên nền Neon */
+                            border: 'none', 
+                            padding: '12px 25px', 
+                            borderRadius: '6px', 
+                            cursor: 'pointer', 
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '1px',
+                            boxShadow: '0 0 15px rgba(46, 255, 123, 0.4)',
+                            opacity: uploading ? 0.7 : 1
                         }}
                     >
-                        {uploading ? 'Đang xử lý...' : 'Import Ngay'}
+                        {uploading ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-cloud-arrow-up"></i> Import Ngay</>}
                     </button>
                 </div>
             </div>
 
             {/* Danh sách Vị trí */}
-            <h3 className="section-title">Danh sách Vị trí ({jobs.length})</h3>
-            <div style={{display: 'grid', gap: '15px', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'}}>
+            <h3 className="section-title" style={{borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px'}}>
+                Danh sách Vị trí <span style={{fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 400}}>({jobs.length} vị trí đang active)</span>
+            </h3>
+            
+            <div style={{display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))'}}>
                 {jobs.map(job => (
-                    <div key={job.id} style={{background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'}}>
-                        <h4 style={{margin: '0 0 10px 0', color: '#111827'}}>{job.title}</h4>
-                        <div style={{fontSize: '13px', color: '#4B5563'}}>
-                            <p><strong>Kỹ năng:</strong> {job.requirements?.skills?.join(', ')}</p>
-                            <p><strong>Kinh nghiệm:</strong> {job.requirements?.experience_years} năm</p>
-                            <p><strong>Học vấn:</strong> {job.requirements?.education}</p>
+                    <div key={job.id} style={{
+                        background: 'var(--card-background)', /* Nền tối */
+                        padding: '20px', 
+                        borderRadius: '12px', 
+                        border: '1px solid var(--border-color)', 
+                        transition: 'transform 0.2s',
+                        position: 'relative',
+                        overflow: 'hidden'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--neon-green)';
+                        e.currentTarget.style.transform = 'translateY(-5px)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-color)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                    >
+                        <div style={{
+                            position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', 
+                            background: 'var(--neon-green)'
+                        }}></div>
+
+                        <h4 style={{margin: '0 0 15px 0', fontSize: '18px', color: 'var(--text-white)', fontWeight: 600}}>
+                            {job.title}
+                        </h4>
+                        
+                        <div style={{fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                            <div style={{display: 'flex', gap: '10px'}}>
+                                <i className="fa-solid fa-bolt" style={{color: '#F59E0B', width: '20px'}}></i>
+                                <span style={{lineHeight: '1.4'}}>
+                                    <strong style={{color: 'var(--text-white)'}}>Skills:</strong><br/> 
+                                    {job.requirements?.skills?.join(', ') || 'Chưa cập nhật'}
+                                </span>
+                            </div>
+                            
+                            <div style={{display: 'flex', gap: '10px'}}>
+                                <i className="fa-solid fa-briefcase" style={{color: '#3B82F6', width: '20px'}}></i>
+                                <span>
+                                    <strong style={{color: 'var(--text-white)'}}>Kinh nghiệm:</strong> {job.requirements?.experience_years} năm
+                                </span>
+                            </div>
+
+                            <div style={{display: 'flex', gap: '10px'}}>
+                                <i className="fa-solid fa-graduation-cap" style={{color: '#EC4899', width: '20px'}}></i>
+                                <span>
+                                    <strong style={{color: 'var(--text-white)'}}>Học vấn:</strong> {job.requirements?.education}
+                                </span>
+                            </div>
                         </div>
-                        <div style={{marginTop: '10px', textAlign: 'right'}}>
-                            <span style={{background: '#D1FAE5', color: '#065F46', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600}}>
+
+                        <div style={{marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end'}}>
+                            <span style={{
+                                background: 'rgba(46, 255, 123, 0.1)', 
+                                color: 'var(--neon-green)', 
+                                padding: '4px 10px', 
+                                borderRadius: '20px', 
+                                fontSize: '11px', 
+                                fontWeight: 700,
+                                border: '1px solid var(--neon-green)',
+                                textTransform: 'uppercase'
+                            }}>
                                 Active
                             </span>
                         </div>
