@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/CVScanView.jsx (Eco-Futuristic Redesign) */
+/* FILE: frontend/src/views/CVScanView.jsx (Final Vietnamese Dark Mode) */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -204,29 +204,39 @@ const CVScanView = () => {
                                 </div>
                             </div>
 
-                            {/* 2. AI Analysis Content (Formatted) */}
+                            {/* 2. AI Analysis Content (Vietnamese Style) */}
                             <div style={{ display: 'grid', gap: '25px' }}>
                                 
-                                {/* SUMMARY */}
-                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '8px' }}>
-                                    <h3 style={{ margin: '0 0 10px 0', color: 'var(--neon-green)', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <i className="fa-solid fa-wand-magic-sparkles"></i> TỔNG QUAN HỒ SƠ
+                                {/* SUMMARY CARD */}
+                                <div style={{ 
+                                    background: 'rgba(46, 255, 123, 0.03)', 
+                                    padding: '20px', 
+                                    borderRadius: '8px', 
+                                    borderLeft: '3px solid var(--neon-green)' 
+                                }}>
+                                    <h3 style={{ margin: '0 0 10px 0', color: 'var(--neon-green)', fontSize: '16px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <i className="fa-solid fa-wand-magic-sparkles"></i> TỔNG QUAN
                                     </h3>
-                                    <p style={{ margin: 0, lineHeight: '1.6', color: 'var(--text-gray)', fontSize: '14px' }}>
-                                        {result.ai_analysis?.summary || "Không có tóm tắt."}
+                                    <p style={{ margin: 0, lineHeight: '1.6', color: '#E0E0E0', fontSize: '14px', fontStyle: 'italic' }}>
+                                        "{result.ai_analysis?.summary || "Không có tóm tắt."}"
                                     </p>
                                 </div>
 
-                                {/* SKILLS */}
+                                {/* SKILLS CARD */}
                                 <div>
-                                    <h3 style={{ fontSize: '16px', color: 'var(--text-white)', marginBottom: '15px' }}>
-                                        <i className="fa-solid fa-layer-group" style={{ color: '#FCD34D', marginRight: '8px' }}></i> KỸ NĂNG PHÁT HIỆN
+                                    <h3 style={{ fontSize: '16px', color: '#FFFFFF', marginBottom: '15px', fontWeight: '600' }}>
+                                        <i className="fa-solid fa-microchip" style={{ color: '#FCD34D', marginRight: '8px' }}></i> KỸ NĂNG NHẬN DIỆN
                                     </h3>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                                         {result.ai_analysis?.skills?.map((skill, idx) => (
                                             <span key={idx} style={{ 
-                                                background: '#1A2736', color: 'var(--text-white)', padding: '6px 12px', 
-                                                borderRadius: '20px', fontSize: '13px', border: '1px solid #2D3B4E'
+                                                background: '#1A2736', 
+                                                color: '#E0E0E0', 
+                                                padding: '6px 14px', 
+                                                borderRadius: '20px', 
+                                                fontSize: '13px', 
+                                                border: '1px solid #2D3B4E',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                                             }}>
                                                 {skill}
                                             </span>
@@ -234,18 +244,24 @@ const CVScanView = () => {
                                     </div>
                                 </div>
 
-                                {/* DETAILED REASONING (QUAN TRỌNG: XỬ LÝ XUỐNG DÒNG) */}
-                                <div style={{ background: '#0D1825', padding: '20px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                                    <h3 style={{ margin: '0 0 15px 0', color: '#A5B4FC', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <i className="fa-solid fa-list-check"></i> PHÂN TÍCH CHI TIẾT
+                                {/* DETAILED ANALYSIS (QUAN TRỌNG NHẤT) */}
+                                <div style={{ 
+                                    background: '#0D1825', 
+                                    padding: '25px', 
+                                    borderRadius: '12px', 
+                                    border: '1px solid var(--border-color)' 
+                                }}>
+                                    <h3 style={{ margin: '0 0 20px 0', color: '#A5B4FC', fontSize: '16px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <i className="fa-solid fa-file-signature"></i> PHÂN TÍCH CHI TIẾT
                                     </h3>
                                     
-                                    {/* Sử dụng white-space: pre-line để giữ xuống dòng */}
+                                    {/* Vùng nội dung chính - Giữ format xuống dòng */}
                                     <div style={{ 
-                                        color: 'var(--text-gray)', 
+                                        color: '#D1D5DB', // Màu xám nhạt dễ đọc
                                         fontSize: '14px', 
                                         lineHeight: '1.8', 
-                                        whiteSpace: 'pre-line' // <--- CHÌA KHÓA ĐỂ FORMAT VĂN BẢN
+                                        whiteSpace: 'pre-wrap', // Chìa khóa để giữ format
+                                        fontFamily: "'Roboto', sans-serif"
                                     }}>
                                         {result.ai_analysis?.match_reason || "Chưa có phân tích chi tiết."}
                                     </div>

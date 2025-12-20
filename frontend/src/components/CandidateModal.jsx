@@ -1,4 +1,4 @@
-/* FILE: frontend/src/components/CandidateModal.jsx */
+/* FILE: frontend/src/components/CandidateModal.jsx (Bản Full: Combobox + Skills) */
 import React, { useState } from 'react';
 import axios from 'axios';
 import API_BASE_URL from './config';
@@ -37,7 +37,7 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
         boxShadow: '0 0 40px rgba(46, 255, 123, 0.15)', background: '#0D1825', border: '1px solid var(--border-color)'
       }}>
         
-        {/* HEADER */}
+        {/* --- HEADER --- */}
         <div style={{
           padding: '15px 25px', borderBottom: '1px solid var(--border-color)', 
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--card-background)'
@@ -45,10 +45,12 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
           <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
             <div>
                 <h2 style={{margin: 0, fontSize: '20px', color: 'var(--text-white)'}}>{candidate.full_name}</h2>
-                <p style={{margin: '2px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)'}}>{candidate.role}</p>
+                <p style={{margin: '2px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                    <i className="fa-solid fa-briefcase" style={{marginRight:'5px'}}></i> {candidate.role}
+                </p>
             </div>
 
-            {/* --- COMBOBOX CHUYỂN TRẠNG THÁI --- */}
+            {/* COMBOBOX CHUYỂN TRẠNG THÁI */}
             <div style={{display:'flex', alignItems:'center', gap:'10px', background:'#1A2736', padding:'5px 15px', borderRadius:'30px', border:'1px solid var(--border-color)'}}>
                 <span style={{fontSize:'12px', color:'var(--text-secondary)'}}>Giai đoạn:</span>
                 <select 
@@ -56,7 +58,7 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                     onChange={handleStatusChange}
                     disabled={updating}
                     style={{
-                        background:'transparent', border:'none', color:'var(--neon-green)', fontWeight:'700', cursor:'pointer', fontSize:'14px', outline:'none'
+                        background:'transparent', border:'none', color:'var(--neon-green)', fontWeight:'700', cursor:'pointer', fontSize:'14px', outline:'none', padding: 0
                     }}
                 >
                     <option value="Screening">Screening</option>
@@ -77,37 +79,89 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
           </button>
         </div>
 
-        {/* BODY (Giữ nguyên logic hiển thị cũ) */}
+        {/* --- BODY --- */}
         <div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>
-          {/* TRÁI: PDF */}
+          
+          {/* TRÁI: PDF VIEWER */}
           <div style={{flex: 1, borderRight: '1px solid var(--border-color)', background: '#1A2736'}}>
             {candidate.cv_file_url ? (
               <iframe src={candidate.cv_file_url} width="100%" height="100%" style={{border: 'none'}} title="CV Preview"></iframe>
             ) : (
               <div style={{height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)'}}>
-                 <i className="fa-solid fa-file-pdf" style={{fontSize: '60px', marginBottom: '20px', opacity: 0.5}}></i>
+                 <div style={{textAlign:'center'}}>
+                    <i className="fa-solid fa-file-pdf" style={{fontSize: '60px', marginBottom: '15px', opacity: 0.5}}></i>
+                    <p>Không có file CV gốc</p>
+                 </div>
               </div>
             )}
           </div>
 
-          {/* PHẢI: AI */}
-          <div style={{flex: '0 0 450px', padding: '25px', overflowY: 'auto', background: 'var(--bg-deep-black)'}}>
-             {/* Score */}
-             <div style={{display:'flex', alignItems: 'center', gap:'20px', marginBottom:'25px', background: 'linear-gradient(135deg, rgba(46,255,123,0.05), transparent)', padding:'20px', borderRadius:'12px', border: '1px solid rgba(46, 255, 123, 0.2)'}}>
+          {/* PHẢI: AI ANALYSIS */}
+          <div style={{flex: '0 0 480px', padding: '25px', overflowY: 'auto', background: 'var(--bg-deep-black)'}}>
+             
+             {/* 1. SCORE CARD */}
+             <div style={{
+                 display:'flex', alignItems: 'center', gap:'20px', marginBottom:'25px', 
+                 background: 'linear-gradient(135deg, rgba(46,255,123,0.05), transparent)', 
+                 padding:'20px', borderRadius:'12px', border: '1px solid rgba(46, 255, 123, 0.2)'
+             }}>
                 <div style={{textAlign:'center', minWidth:'80px'}}>
-                   <div style={{fontSize:'42px', fontWeight:'800', color: candidate.ai_rating >= 8 ? 'var(--neon-green)' : '#FCD34D'}}>{candidate.ai_rating}</div>
-                   <div style={{fontSize:'11px', fontWeight:'600', color:'var(--text-secondary)'}}>MATCH</div>
+                   <div style={{
+                       fontSize:'42px', fontWeight:'800', 
+                       color: candidate.ai_rating >= 8 ? 'var(--neon-green)' : (candidate.ai_rating >= 5 ? '#FCD34D' : '#FF4D4D'),
+                       textShadow: '0 0 15px rgba(0,0,0,0.5)'
+                   }}>
+                      {candidate.ai_rating}
+                   </div>
+                   <div style={{fontSize:'11px', fontWeight:'600', color:'var(--text-secondary)', letterSpacing:'1px'}}>MATCH</div>
                 </div>
                 <div style={{paddingLeft:'20px', borderLeft:'1px solid var(--border-color)'}}>
-                   <h4 style={{margin:0, color:'var(--text-white)', fontSize: '14px'}}>AI Insight</h4>
-                   <p style={{margin:'5px 0 0', fontSize:'13px', color:'var(--text-gray)', fontStyle:'italic'}}>"{aiData.summary || "..."}"</p>
+                   <h4 style={{margin:0, color:'var(--text-white)', fontSize: '14px', textTransform:'uppercase'}}>
+                       <i className="fa-solid fa-robot" style={{marginRight:'8px', color:'#A5B4FC'}}></i> AI Summary
+                   </h4>
+                   <p style={{margin:'8px 0 0', fontSize:'13px', color:'var(--text-gray)', fontStyle:'italic', lineHeight:'1.5'}}>
+                       "{aiData.summary || "Đang chờ phân tích..."}"
+                   </p>
+                </div>
+             </div>
+
+             {/* 2. KỸ NĂNG (ĐÃ KHÔI PHỤC) */}
+             <div style={{marginBottom: '25px'}}>
+                <h4 style={{display:'flex', alignItems:'center', gap:'10px', color:'var(--text-white)', marginBottom:'15px', fontSize: '14px', textTransform: 'uppercase'}}>
+                    <i className="fa-solid fa-bolt" style={{color:'#F59E0B'}}></i> Kỹ năng nổi bật
+                </h4>
+                <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px'}}>
+                    {aiData.skills && aiData.skills.length > 0 ? (
+                        aiData.skills.map((skill, idx) => (
+                            <span key={idx} style={{
+                                background: '#131F2E', color: 'var(--text-white)', 
+                                padding: '6px 12px', borderRadius: '4px', 
+                                fontSize: '12px', fontWeight: '500', 
+                                border: '1px solid var(--border-color)',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }}>
+                                {skill}
+                            </span>
+                        ))
+                    ) : ( <span style={{color:'var(--text-secondary)', fontSize:'13px', fontStyle: 'italic'}}>Chưa xác định kỹ năng</span> )}
                 </div>
              </div>
              
-             {/* Skills & Details (Giữ nguyên) */}
-             <div style={{fontSize:'13px', lineHeight:'1.8', color:'var(--text-gray)', whiteSpace: 'pre-line'}}>
-                {aiData.match_reason}
+             {/* 3. CHI TIẾT ĐÁNH GIÁ */}
+             <div>
+                <h4 style={{display:'flex', alignItems:'center', gap:'10px', color:'var(--text-white)', marginBottom:'15px', fontSize: '14px', textTransform: 'uppercase'}}>
+                    <i className="fa-solid fa-list-check" style={{color:'#3B82F6'}}></i> Chi tiết đánh giá
+                </h4>
+                <div style={{
+                    fontSize:'13px', lineHeight:'1.8', color:'var(--text-gray)', 
+                    background:'rgba(255,255,255,0.03)', padding:'15px', borderRadius:'8px',
+                    whiteSpace: 'pre-line', // Quan trọng để xuống dòng
+                    border: '1px solid var(--border-color)'
+                }}>
+                    {aiData.match_reason || "Chưa có dữ liệu chi tiết."}
+                </div>
              </div>
+
           </div>
         </div>
       </div>

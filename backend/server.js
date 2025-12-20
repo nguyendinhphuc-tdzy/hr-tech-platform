@@ -73,24 +73,19 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         if (!req.file) return res.status(400).json({ error: 'Thiếu file CV' });
         console.log(`🤖 Đang xử lý: ${req.file.originalname}`);
 
-        // --- BƯỚC 1: UPLOAD STORAGE ---
+        // --- UPLOAD STORAGE (GIỮ NGUYÊN) ---
         const safeName = sanitizeFilename(req.file.originalname);
         const fileName = `${Date.now()}_${safeName}`;
         
         const { data: uploadData, error: uploadError } = await supabase
-            .storage
-            .from('cv_uploads')
-            .upload(fileName, req.file.buffer, {
-                contentType: req.file.mimetype,
-                upsert: false
-            });
+            .storage.from('cv_uploads')
+            .upload(fileName, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
 
         if (uploadError) console.error("Lỗi Storage:", uploadError);
         const { data: { publicUrl } } = supabase.storage.from('cv_uploads').getPublicUrl(fileName);
         const finalFileUrl = uploadError ? null : publicUrl;
-        console.log("🌍 File URL:", finalFileUrl);
 
-        // --- BƯỚC 2: XỬ LÝ AI ---
+        // --- XỬ LÝ AI ---
         const jobId = req.body.job_id;
         let jobCriteria = null;
         if (jobId) {
@@ -99,51 +94,41 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         }
 
         const model = genAI.getGenerativeModel({ 
-            model: ACTIVE_MODEL_NAME,
+            model: ACTIVE_MODEL_NAME, // gemini-2.5-flash
             generationConfig: { responseMimeType: "application/json" }
         });
         
-        // --- PROMPT MỚI: DATA ANALYST RECRUITER ---
+        // --- PROMPT TIẾNG VIỆT ---
         const roleContext = jobCriteria 
-            ? `Role: ${jobCriteria.title}\nTarget Skills: ${JSON.stringify(jobCriteria.requirements)}`
-            : `Role: Data Analyst Intern\nTarget Skill Set: Power BI | Data Cleaning | Data Visualization | Manufacturing/Production Data Analysis | English | Proactive Attitude`;
+            ? `Vị trí: ${jobCriteria.title}\nKỹ năng yêu cầu: ${JSON.stringify(jobCriteria.requirements)}`
+            : `Vị trí: Data Analyst Intern\nKỹ năng cốt lõi: Power BI, Làm sạch dữ liệu (Data Cleaning), Trực quan hóa dữ liệu (Visualization), Tiếng Anh, Thái độ chủ động. Ưu tiên có kinh nghiệm với dữ liệu Sản xuất/Vận hành.`;
 
         let prompt = `
-# Role & Context
-You are an **Expert Technical Recruiter and Talent Acquisition Specialist**. You are currently screening applicants for the following position:
+# Vai trò & Bối cảnh
+Bạn là một **Chuyên gia Tuyển dụng Kỹ thuật (Technical Recruiter)** hàng đầu. Bạn đang sàng lọc hồ sơ cho vị trí sau:
 ${roleContext}
 
-The business context involves a manufacturing environment where data consolidation, cleaning, and visualization are critical. Your goal is to identify candidates who possess the specific "Must-Have" technical skills and the "Nice-to-Have" industry exposure (Manufacturing/Production datasets).
+# Nhiệm vụ
+Phân tích sâu CV đính kèm và thực hiện các bước sau:
+1. **Quét Kỹ năng:** Tìm kiếm các kỹ năng cứng (Power BI, SQL, Python, Excel...) và kỹ năng mềm.
+2. **Đối chiếu Kinh nghiệm:** So sánh kinh nghiệm thực tế của ứng viên với yêu cầu công việc. Đặc biệt chú ý đến kinh nghiệm xử lý, làm sạch và trực quan hóa dữ liệu.
+3. **Đánh giá:** Chấm điểm độ phù hợp trên thang 10.
 
-# Task
-**1. Analyze and Map**
-Perform a deep-scan analysis of the CV:
-* **Must-Haves:** Look for Power BI, Data Cleaning, and Visualization skills.
-* **Nice-to-Haves:** Look for Manufacturing/Production/Operation dataset exposure.
-* **Gap Analysis:** Identify missing critical technical skills vs. the Job Description.
-
-**2. Scoring**
-Assign a suitability score from **0 to 10** based on the overlap between the CV and the Target Skill Set.
-
-# Output Format (JSON Requirement)
-You must return a **Valid JSON Object** with the following structure. 
-**IMPORTANT:** Put the detailed bullet-point analysis (Strengths, Weaknesses, Observations) into the "match_reason" field as a formatted string.
+# Định dạng Output (BẮT BUỘC JSON)
+Trả về kết quả dưới dạng JSON hợp lệ. 
+Quan trọng: Trường "match_reason" phải viết bằng **TIẾNG VIỆT**, trình bày gãy gọn, có xuống dòng.
 
 {
-    "full_name": "Candidate Name",
-    "email": "candidate@email.com",
-    "skills": ["Skill 1", "Skill 2", "Skill 3"],
+    "full_name": "Họ và tên ứng viên",
+    "email": "email@ungvien.com",
+    "skills": ["Kỹ năng 1", "Kỹ năng 2", "Kỹ năng 3"],
     "score": 0.0,
-    "summary": "A 1-sentence explanation of the score based on the candidate's education and core technical stack alignment.",
-    "match_reason": "Provide the detailed analysis here using these exact headings:\n\n**1. Qualifications Match**\n[Suitability Verdict]\n[Summary]\n\n**2. Candidate Strengths (Điểm mạnh)**\n• [Strength]: [Context]\n\n**3. Candidate Weaknesses (Điểm yếu)**\n• [Missing Skill/Gap]: [Explanation]\n\n**4. Notable Observations (Điểm đáng chú ý)**\n[Details]",
-    "recommendation": "Interview / Hold / Reject",
-    "confidence": "High / Medium / Low"
+    "summary": "Tóm tắt 2-3 câu về mức độ phù hợp của ứng viên (Tiếng Việt).",
+    "match_reason": "Trình bày chi tiết theo cấu trúc sau (dùng tiếng Việt):\n\n**1. Đánh giá chuyên môn:**\n- [Nhận xét về kỹ năng cứng]\n- [Nhận xét về kinh nghiệm thực tế]\n\n**2. Điểm mạnh nổi bật:**\n• [Điểm mạnh 1]\n• [Điểm mạnh 2]\n\n**3. Điểm cần cải thiện:**\n• [Điểm yếu 1]\n• [Điểm yếu 2]\n\n**4. Nhận xét chung:**\n[Lời khuyên cho nhà tuyển dụng]",
+    "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
+    "confidence": "Cao / Trung bình / Thấp"
 }
-
-# RULES — Constraints
-* **Tone:** Professional, objective, and critical.
-* **Evidence-Based:** Do not invent skills. If a skill is not mentioned, assume it is missing.
-* **Language:** Output response in **English** (except for headings if specified).
+*Lưu ý: Score là số từ 0 đến 10.*
 `;
 
         const imageParts = [{
@@ -154,17 +139,18 @@ You must return a **Valid JSON Object** with the following structure.
         }];
 
         const result = await model.generateContent([prompt, ...imageParts]);
+        // ... (Phần xử lý kết quả JSON giữ nguyên) ...
         let aiResult;
         try {
             aiResult = JSON.parse(cleanJsonString(result.response.text()));
         } catch (parseError) {
-            aiResult = { full_name: "Ứng viên (Lỗi đọc)", score: 0, summary: "Lỗi format AI", email: null };
+            aiResult = { full_name: "Lỗi đọc", score: 0, summary: "AI không thể phân tích file này.", match_reason: "Lỗi định dạng.", email: null };
         }
-
+        
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
         const finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
 
-        // --- BƯỚC 3: LƯU DATABASE ---
+        // --- LƯU DATABASE ---
         const dbResult = await pool.query(
             `INSERT INTO candidates (organization_id, job_id, full_name, email, role, status, ai_rating, ai_analysis, cv_file_url) 
              VALUES (1, $1, $2, $3, $4, 'Screening', $5, $6, $7) RETURNING *`,
