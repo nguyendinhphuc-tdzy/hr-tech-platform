@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Update Prompt: Data Analyst Intern) */
+/* FILE: backend/server.js (Bản Full: AI Recruiter + Storage + Kanban Support) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -66,7 +66,7 @@ async function createEmbedding(text) {
 }
 
 // ==========================================
-// API 1: SCAN CV (PROMPT DATA ANALYST MỚI)
+// API 1: SCAN CV & UPLOAD FILE (CẬP NHẬT PROMPT MỚI)
 // ==========================================
 app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     try {
@@ -103,8 +103,7 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
             generationConfig: { responseMimeType: "application/json" }
         });
         
-        // --- PROMPT DATA ANALYST INTERN ---
-        // Lấy tiêu chí từ DB nếu có, hoặc dùng tiêu chí Data Analyst mặc định
+        // --- PROMPT MỚI: DATA ANALYST RECRUITER ---
         const roleContext = jobCriteria 
             ? `Role: ${jobCriteria.title}\nTarget Skills: ${JSON.stringify(jobCriteria.requirements)}`
             : `Role: Data Analyst Intern\nTarget Skill Set: Power BI | Data Cleaning | Data Visualization | Manufacturing/Production Data Analysis | English | Proactive Attitude`;
@@ -185,6 +184,26 @@ You must return a **Valid JSON Object** with the following structure.
     } catch (err) { 
         console.error("🔥 Lỗi Server:", err);
         res.status(500).json({ error: "Lỗi: " + err.message }); 
+    }
+});
+
+// ==========================================
+// API 2: CẬP NHẬT TRẠNG THÁI (CHO KANBAN & MODAL)
+// ==========================================
+app.put('/api/candidates/:id/status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        
+        const result = await pool.query(
+            `UPDATE candidates SET status = $1 WHERE id = $2 RETURNING *`,
+            [status, id]
+        );
+
+        if (result.rows.length === 0) return res.status(404).json({ error: "Candidate not found" });
+        res.json({ message: "Status updated", candidate: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
