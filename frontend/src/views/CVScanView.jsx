@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/CVScanView.jsx (Final Vietnamese Dark Mode) */
+/* FILE: frontend/src/views/CVScanView.jsx */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
