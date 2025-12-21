@@ -1,8 +1,9 @@
-/* FILE: frontend/src/App.jsx (Full Flow: Auth API + Dynamic User) */
-import { useState } from 'react';
+/* FILE: frontend/src/App.jsx (Real Google Auth with Supabase) */
+import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { createClient } from '@supabase/supabase-js'; // Import Supabase
 import './index.css';
-import API_BASE_URL from './components/config'; // Đảm bảo bạn đã có file config này
+import API_BASE_URL from './components/config';
 
 // Import các Views
 import Dashboard from './views/Dashboard';
@@ -10,6 +11,12 @@ import CVScanView from './views/CVScanView';
 import AITraining from './views/AITraining';
 import InternBook from './views/InternBook';
 import Sidebar from './components/Sidebar';
+
+// --- CẤU HÌNH SUPABASE FRONTEND ---
+// Bạn nên thay thế bằng URL và KEY của bạn từ Supabase Dashboard
+const supabaseUrl = 'YOUR_SUPABASE_URL'; 
+const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ==========================================
 // 1. MÀN HÌNH TRANG CHỦ (LANDING PAGE)
@@ -22,7 +29,6 @@ const HomeView = ({ onNavigate }) => {
         display: 'flex', flexDirection: 'column',
         color: 'var(--text-white)', overflow: 'hidden'
     }}>
-        {/* Navbar */}
         <nav style={{padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
             <div style={{fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px'}}>
                 <i className="fa-solid fa-atom" style={{color: 'var(--neon-green)'}}></i>
@@ -34,7 +40,6 @@ const HomeView = ({ onNavigate }) => {
             </div>
         </nav>
 
-        {/* Hero */}
         <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 20px'}}>
             <div style={{background: 'rgba(46, 255, 123, 0.1)', color: 'var(--neon-green)', padding: '5px 15px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginBottom: '20px', border: '1px solid var(--neon-green)'}}>
                 ✨ Hệ thống Tuyển dụng tương lai 2.0
@@ -56,23 +61,38 @@ const HomeView = ({ onNavigate }) => {
 };
 
 // ==========================================
-// 2. MÀN HÌNH XÁC THỰC (KẾT NỐI API)
+// 2. MÀN HÌNH XÁC THỰC (ĐÃ SỬA NÚT GOOGLE)
 // ==========================================
 const AuthView = ({ mode, onLoginSuccess, onBack }) => {
     const isLogin = mode === 'login';
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
 
-    const [formData, setFormData] = useState({
-        fullName: '',
-        email: '',
-        password: ''
-    });
+    const [formData, setFormData] = useState({ fullName: '', email: '', password: '' });
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    // --- XỬ LÝ ĐĂNG NHẬP GOOGLE THẬT ---
+    const handleGoogleLogin = async () => {
+        setIsLoading(true);
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin // Quay lại trang hiện tại sau khi login
+                }
+            });
+            if (error) throw error;
+        } catch (err) {
+            console.error("Lỗi Google Login:", err);
+            setErrorMsg(err.message);
+            setIsLoading(false);
+        }
+    };
+
+    // --- XỬ LÝ ĐĂNG NHẬP THƯỜNG (EMAIL/PASS) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -80,20 +100,18 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
 
         try {
             if (isLogin) {
-                // --- LOGIN API ---
                 const res = await axios.post(`${API_BASE_URL}/api/auth/login`, {
                     email: formData.email,
                     password: formData.password
                 });
                 onLoginSuccess(res.data.user);
             } else {
-                // --- SIGNUP API ---
                 const res = await axios.post(`${API_BASE_URL}/api/auth/signup`, {
                     fullName: formData.fullName,
                     email: formData.email,
                     password: formData.password
                 });
-                alert("Đăng ký thành công! Đang đăng nhập...");
+                alert("Đăng ký thành công!");
                 onLoginSuccess(res.data.user);
             }
         } catch (err) {
@@ -121,7 +139,8 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
                 )}
 
                 <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px'}}>
-                    <button type="button" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', borderRadius: '6px', background: '#FFFFFF', color: '#000', border: 'none', cursor: 'pointer', fontWeight: '600'}}>
+                    {/* NÚT GOOGLE ĐÃ GẮN HÀM XỬ LÝ MỚI */}
+                    <button type="button" onClick={handleGoogleLogin} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', borderRadius: '6px', background: '#FFFFFF', color: '#000', border: 'none', cursor: 'pointer', fontWeight: '600'}}>
                         <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="20" />
                         {isLogin ? 'Đăng nhập với Google' : 'Đăng ký với Google'}
                     </button>
@@ -161,7 +180,7 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
 };
 
 // ==========================================
-// 3. DASHBOARD (HIỂN THỊ DYNAMIC USER)
+// 3. DASHBOARD LAYOUT
 // ==========================================
 const DashboardLayout = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -181,9 +200,15 @@ const DashboardLayout = ({ user, onLogout }) => {
                         {user ? user.role : 'Member'}
                     </span>
                 </div>
-                <div style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--neon-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-white)', fontWeight: 'bold'}}>
-                    {user && user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
-                </div>
+                {/* Avatar hiển thị ảnh Google nếu có, hoặc chữ cái đầu */}
+                {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="Avatar" style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--neon-green)'}} />
+                ) : (
+                    <div style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--neon-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-white)', fontWeight: 'bold'}}>
+                        {user && user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                )}
+                
                 <button onClick={onLogout} style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', color: '#EF4444', padding: '8px 15px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: '600'}}>
                     <i className="fa-solid fa-right-from-bracket"></i> Logout
                 </button>
@@ -223,15 +248,33 @@ function App() {
 
     const navigateTo = (target) => setView(target);
 
+    // Lắng nghe sự kiện login từ Google (Redirect về)
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                // Nếu có session Google, tự động vào Dashboard
+                const googleUser = {
+                    full_name: session.user.user_metadata.full_name || session.user.email,
+                    email: session.user.email,
+                    role: "Google Account",
+                    avatar_url: session.user.user_metadata.avatar_url
+                };
+                setCurrentUser(googleUser);
+                setView('dashboard');
+            }
+        });
+    }, []);
+
     const handleLoginSuccess = (userData) => {
         setCurrentUser(userData);
         setView('dashboard');
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         if(window.confirm("Bạn muốn đăng xuất?")) {
+            await supabase.auth.signOut(); // Đăng xuất khỏi Supabase
             setCurrentUser(null);
-            setView('home');
+            setView('home'); // Về trang chủ
         }
     };
 
