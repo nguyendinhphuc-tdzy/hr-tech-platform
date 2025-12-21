@@ -1,7 +1,7 @@
 /* FILE: frontend/src/views/Home.jsx */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient'; // <--- IMPORT TỪ FILE MỚI
+import { supabase } from './supabaseClient'; // <--- IMPORT TỪ FILE MỚI
 
 const Home = ({ session }) => {
   const navigate = useNavigate();
