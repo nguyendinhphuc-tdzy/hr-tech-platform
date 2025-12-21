@@ -14,12 +14,12 @@ const Sidebar = () => {
   return (
     <div className="sidebar" style={{
         width: '260px', 
-        background: '#0D1825', // Nền Sidebar
-        borderRight: '1px solid #2D3B4E', // Đường kẻ ngăn cách với nội dung chính
+        background: '#0D1825', 
+        borderRight: '1px solid #2D3B4E',
         padding: '20px',
         display: 'flex', flexDirection: 'column',
         height: '100vh',
-        flexShrink: 0 // Đảm bảo không bị co lại
+        flexShrink: 0
     }}>
       {/* LOGO */}
       <div style={{ marginBottom: '40px', paddingLeft: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -27,8 +27,8 @@ const Sidebar = () => {
         <h2 style={{ fontSize: '18px', color: '#fff', margin: 0, letterSpacing: '1px' }}>HR TECH</h2>
       </div>
 
-      {/* MENU */}
-      <nav style={{ flex: 1 }}>
+      {/* MENU - QUAN TRỌNG: Dùng Link to="..." */}
+      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -37,12 +37,14 @@ const Sidebar = () => {
               to={item.path} 
               style={{
                 display: 'flex', alignItems: 'center', gap: '15px',
-                padding: '12px 15px', marginBottom: '8px', borderRadius: '8px',
+                padding: '12px 15px', borderRadius: '8px',
                 textDecoration: 'none', transition: 'all 0.2s',
-                // Logic màu sắc: Nếu đang chọn thì sáng lên
+                // Màu nền thay đổi khi Active
                 background: isActive ? 'rgba(46, 255, 123, 0.1)' : 'transparent',
                 color: isActive ? '#2EFF7B' : '#9CA3AF',
-                borderLeft: isActive ? '3px solid #2EFF7B' : '3px solid transparent'
+                borderLeft: isActive ? '3px solid #2EFF7B' : '3px solid transparent',
+                cursor: 'pointer', // Đảm bảo con trỏ chuột hiện hình bàn tay
+                userSelect: 'none'
               }}
             >
               <i className={`fa-solid ${item.icon}`} style={{ width: '20px', textAlign: 'center' }}></i>
@@ -52,13 +54,10 @@ const Sidebar = () => {
         })}
       </nav>
 
-      {/* FOOTER (Thay thế phần Mai Anh bằng Version) */}
+      {/* FOOTER */}
       <div style={{ marginTop: 'auto', padding: '15px', background: '#131F2E', borderRadius: '12px', border: '1px solid #2D3B4E' }}>
-        <p style={{ margin: '0 0 5px 0', fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Hệ thống</p>
-        <p style={{ margin: 0, fontSize: '12px', color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{width:'8px', height:'8px', background:'#2EFF7B', borderRadius:'50%', display:'inline-block'}}></span>
-            Online v1.0
-        </p>
+        <p style={{ margin: '0 0 5px 0', fontSize: '11px', color: '#6B7280' }}>PHIÊN BẢN</p>
+        <p style={{ margin: 0, fontSize: '12px', color: '#fff' }}>Online v1.0</p>
       </div>
     </div>
   );

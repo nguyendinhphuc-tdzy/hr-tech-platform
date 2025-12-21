@@ -1,4 +1,4 @@
-/* FILE: frontend/src/App.jsx */
+/* FILE: frontend/src/App.jsx (Fix Layout Overlap) */
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -9,11 +9,12 @@ import InternBook from './views/InternBook';
 import Home from './views/Home'; 
 import { supabase } from './supabaseClient'; 
 
-// --- HEADER COMPONENT ---
+// Header (Thêm z-index thấp hơn Sidebar nếu cần)
 const Header = ({ session }) => (
     <div style={{
         padding: '15px 30px', background: '#131F2E', borderBottom: '1px solid #2D3B4E',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        height: '70px', flexShrink: 0 // Cố định chiều cao
     }}>
         <h3 style={{margin: 0, color: '#fff'}}>HR TECH DASHBOARD</h3>
         <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
@@ -38,14 +39,19 @@ const Header = ({ session }) => (
     </div>
 );
 
-// --- PROTECTED LAYOUT ---
+// ProtectedLayout (Sửa CSS Layout)
 const ProtectedLayout = ({ session }) => {
     if (!session) return <Navigate to="/" replace />;
     
     return (
         <div className="app-container" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-            <Sidebar />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09121D' }}>
+            {/* Sidebar nằm bên trái, không bị đè */}
+            <div style={{ zIndex: 100 }}>
+                <Sidebar />
+            </div>
+
+            {/* Nội dung chính bên phải */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09121D', position: 'relative' }}>
                 <Header session={session} />
                 <div className="main-content" style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
                     <Outlet />
@@ -55,6 +61,8 @@ const ProtectedLayout = ({ session }) => {
     );
 };
 
+// ... (Phần App logic giữ nguyên) ...
+// Copy lại phần App function từ code cũ của bạn vào đây
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -64,45 +72,29 @@ function App() {
         setLoading(false);
         return;
     }
-
-    // Kiểm tra session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
-
-    // Lắng nghe auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setLoading(false);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
-    return (
-        <div style={{
-            height: '100vh', background: '#09121D', display: 'flex', 
-            alignItems: 'center', justifyContent: 'center', color: '#2EFF7B'
-        }}>
-            <i className="fa-solid fa-circle-notch fa-spin" style={{fontSize: '40px'}}></i>
-        </div>
-    );
-  }
+  if (loading) return <div style={{height: '100vh', background: '#09121D'}}></div>;
 
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home session={session} />} />
-        
         <Route element={<ProtectedLayout session={session} />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/scan" element={<CVScanView />} />
             <Route path="/training" element={<AITraining />} />
             <Route path="/interns" element={<InternBook />} />
         </Route>
-
         <Route path="*" element={<Navigate to={session ? "/dashboard" : "/"} replace />} />
       </Routes>
     </Router>
