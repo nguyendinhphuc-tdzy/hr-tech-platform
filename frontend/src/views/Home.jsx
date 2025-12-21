@@ -13,8 +13,19 @@ const Home = ({ session }) => {
     }
   }, [session, navigate]);
 
+/* FILE: frontend/src/views/Home.jsx */
+// ... (Code cũ)
+
   const handleLogin = async () => {
-    if (!supabase) return alert("Lỗi cấu hình Supabase!");
+    // Log ra console để debug (F12)
+    console.log("Supabase Client Status:", supabase ? "Ready" : "Null");
+
+    if (!supabase) {
+        alert(`Lỗi cấu hình Supabase!\n\nURL: ${import.meta.env.VITE_SUPABASE_URL ? 'OK' : 'MISSING'}\nKEY: ${import.meta.env.VITE_SUPABASE_KEY ? 'OK' : 'MISSING'}`);
+        return;
+    }
+    
+    // ... (Phần đăng nhập giữ nguyên)
     
     // Tự động xác định link chuyển hướng (Localhost hoặc Vercel)
     const redirectUrl = window.location.origin + '/dashboard';

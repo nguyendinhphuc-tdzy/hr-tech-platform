@@ -1,4 +1,4 @@
-/* FILE: frontend/src/App.jsx */
+/* FILE: frontend/src/App.jsx (Fixed Supabase Init) */
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -9,15 +9,18 @@ import InternBook from './views/InternBook';
 import Home from './views/Home'; 
 import { createClient } from '@supabase/supabase-js';
 
-// --- CONFIG SUPABASE ---
+// --- KHỞI TẠO SUPABASE (FIX LỖI CẤU HÌNH) ---
+// Quan trọng: Kiểm tra kỹ xem biến có tồn tại không trước khi tạo client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
+
+console.log("Supabase URL:", supabaseUrl ? "Đã tìm thấy" : "Không tìm thấy");
+console.log("Supabase Key:", supabaseKey ? "Đã tìm thấy" : "Không tìm thấy");
+
 export const supabase = (supabaseUrl && supabaseKey) 
     ? createClient(supabaseUrl, supabaseKey) 
     : null;
 
-// --- COMPONENT BẢO VỆ ROUTE (ProtectedLayout) ---
-// Chỉ render nội dung bên trong nếu đã login. Nếu chưa, đá về Home.
 const ProtectedLayout = ({ session }) => {
     if (!session) {
         return <Navigate to="/" replace />;
@@ -27,7 +30,7 @@ const ProtectedLayout = ({ session }) => {
         <div className="app-container" style={{ display: 'flex' }}>
             <Sidebar />
             <div className="main-content" style={{ flex: 1, padding: '20px', background: '#09121D', minHeight: '100vh', overflowY: 'auto' }}>
-                <Outlet /> {/* Nơi hiển thị các trang con (Dashboard, Scan...) */}
+                <Outlet />
             </div>
         </div>
     );
@@ -38,27 +41,27 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Nếu không có supabase client -> Dừng loading ngay để hiện trang Home (sẽ báo lỗi ở Home sau)
     if (!supabase) {
+        console.error("Lỗi: Supabase Client chưa được khởi tạo do thiếu biến môi trường.");
         setLoading(false);
         return;
     }
 
-    // 1. Kiểm tra session hiện tại
+    // 1. Kiểm tra session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
 
-    // 2. Lắng nghe sự kiện đăng nhập/đăng xuất
+    // 2. Lắng nghe auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Màn hình chờ khi đang check login (Tránh bị đá về Home oan uổng)
   if (loading) {
     return (
         <div style={{
@@ -73,10 +76,8 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* ROUTE 1: TRANG CHỦ (Nếu đã login thì Home sẽ tự chuyển vào Dashboard) */}
         <Route path="/" element={<Home session={session} />} />
-
-        {/* ROUTE 2: CÁC TRANG CẦN ĐĂNG NHẬP */}
+        
         <Route element={<ProtectedLayout session={session} />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/scan" element={<CVScanView />} />
@@ -84,7 +85,6 @@ function App() {
             <Route path="/interns" element={<InternBook />} />
         </Route>
 
-        {/* Bắt tất cả các link sai -> Đá về Dashboard (nếu login) hoặc Home */}
         <Route path="*" element={<Navigate to={session ? "/dashboard" : "/"} replace />} />
       </Routes>
     </Router>
