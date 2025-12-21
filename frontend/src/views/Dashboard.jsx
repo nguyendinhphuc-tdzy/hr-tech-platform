@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/Dashboard.jsx (Kanban + Show More) */
+/* FILE: frontend/src/views/Dashboard.jsx (Updated with Hired column) */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -31,12 +31,11 @@ const Dashboard = () => {
   const onDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
 
-    // Nếu thả ra ngoài hoặc thả lại chỗ cũ -> Không làm gì
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
     // 1. Cập nhật giao diện ngay lập tức (Optimistic Update)
-    const newStatus = destination.droppableId; // ID cột là Status luôn
+    const newStatus = destination.droppableId;
     const updatedCandidates = candidates.map(c => 
         c.id.toString() === draggableId ? { ...c, status: newStatus } : c
     );
@@ -60,27 +59,30 @@ const Dashboard = () => {
   return (
     <div className="hr-dashboard" style={{ color: 'var(--text-white)' }}>
       
-      {/* KPI Section */}
+      {/* KPI Section - Đã thêm cột Hired */}
       <section className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
         <KpiCard title="Tổng hồ sơ" value={candidates.length} icon="fa-users" color="var(--text-white)" />
         <KpiCard title="Screening" value={getList('Screening').length} icon="fa-filter" color="#A5B4FC" />
         <KpiCard title="Interview" value={getList('Interview').length} icon="fa-comments" color="#FCD34D" />
-        <KpiCard title="Offer" value={getList('Offer').length} icon="fa-check-circle" color="var(--neon-green)" glow={true} />
+        <KpiCard title="Offer" value={getList('Offer').length} icon="fa-envelope-open-text" color="#6EE7B7" />
+        <KpiCard title="Hired" value={getList('Hired').length} icon="fa-handshake" color="var(--neon-green)" glow={true} />
       </section>
 
       <h2 className="section-title" style={{ color: 'var(--neon-green)', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-        <i className="fa-solid fa-layer-group" style={{marginRight:'10px'}}></i> Quy trình Tuyển dụng (Kanban)
+        <i className="fa-solid fa-layer-group" style={{marginRight:'10px'}}></i> Quy trình Tuyển dụng
       </h2>
       
-      {/* KANBAN BOARD */}
+      {/* KANBAN BOARD - 5 CỘT (Thêm Hired) */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="recruitment-pipeline" style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(4, 1fr)', // Ép cứng 4 cột đều nhau
-            gap: '20px',
-            alignItems: 'start' // Căn thẳng hàng từ trên xuống
+            gridTemplateColumns: 'repeat(5, 1fr)', // Tăng lên 5 cột
+            gap: '15px',
+            alignItems: 'start',
+            overflowX: 'auto', // Cho phép cuộn ngang nếu màn hình nhỏ
+            paddingBottom: '20px'
         }}>
-           {['Screening', 'Interview', 'Offer', 'Rejected'].map(status => (
+           {['Screening', 'Interview', 'Offer', 'Hired', 'Rejected'].map(status => (
                <PipelineColumn 
                     key={status} 
                     status={status} 
@@ -96,17 +98,17 @@ const Dashboard = () => {
         <CandidateModal 
             candidate={selectedCandidate} 
             onClose={() => setSelectedCandidate(null)} 
-            onUpdate={fetchCandidates} // Truyền hàm refresh khi update trong modal
+            onUpdate={fetchCandidates} 
         />
       )}
     </div>
   );
 };
 
-// --- SUB-COMPONENT: CỘT KANBAN (CÓ SHOW MORE) ---
+// --- SUB-COMPONENT: CỘT KANBAN ---
 const PipelineColumn = ({ status, list, onSelect }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const LIMIT = 5; // Chỉ hiện 5 người đầu tiên
+    const LIMIT = 5; 
     
     const displayList = isExpanded ? list : list.slice(0, LIMIT);
     const hiddenCount = list.length - LIMIT;
@@ -115,7 +117,8 @@ const PipelineColumn = ({ status, list, onSelect }) => {
     const getHeaderStyle = (s) => {
         if(s === 'Screening') return { icon: 'fa-magnifying-glass', color: '#A5B4FC' };
         if(s === 'Interview') return { icon: 'fa-user-tie', color: '#FCD34D' };
-        if(s === 'Offer') return { icon: 'fa-envelope-open-text', color: 'var(--neon-green)' };
+        if(s === 'Offer') return { icon: 'fa-envelope-open-text', color: '#6EE7B7' }; // Màu xanh nhẹ
+        if(s === 'Hired') return { icon: 'fa-handshake', color: 'var(--neon-green)' }; // Màu xanh Neon đậm
         return { icon: 'fa-ban', color: '#FCA5A5' };
     };
     const style = getHeaderStyle(status);
@@ -131,12 +134,13 @@ const PipelineColumn = ({ status, list, onSelect }) => {
                         background: snapshot.isDraggingOver ? 'rgba(46, 255, 123, 0.05)' : 'var(--pipeline-bg)',
                         padding: '15px', borderRadius: '12px', border: '1px solid var(--border-color)',
                         minHeight: '500px', display: 'flex', flexDirection: 'column',
-                        transition: 'background 0.2s'
+                        transition: 'background 0.2s',
+                        minWidth: '220px' // Đảm bảo cột không bị co quá nhỏ
                     }}
                 >
                     {/* Header Cột */}
                     <h3 style={{
-                        color: 'var(--text-white)', fontSize: '14px', marginBottom: '15px', textTransform: 'uppercase', 
+                        color: 'var(--text-white)', fontSize: '13px', marginBottom: '15px', textTransform: 'uppercase', 
                         borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px'
                     }}>
                         <i className={`fa-solid ${style.icon}`} style={{color: style.color}}></i>
@@ -165,7 +169,7 @@ const PipelineColumn = ({ status, list, onSelect }) => {
                         {provided.placeholder}
                     </div>
 
-                    {/* Nút Xem Thêm / Thu Gọn */}
+                    {/* Nút Xem Thêm */}
                     {list.length > LIMIT && (
                         <button 
                             onClick={() => setIsExpanded(!isExpanded)}
@@ -187,7 +191,7 @@ const PipelineColumn = ({ status, list, onSelect }) => {
     );
 };
 
-// Component KPI Card (Giữ nguyên cho đẹp)
+// Component KPI Card
 const KpiCard = ({ title, value, icon, color, glow }) => (
     <div style={{
         background: 'var(--card-background)', padding: '20px', borderRadius: '12px',
@@ -196,10 +200,10 @@ const KpiCard = ({ title, value, icon, color, glow }) => (
         display: 'flex', alignItems: 'center', justifyContent: 'space-between'
     }}>
         <div>
-            <h3 style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'uppercase', margin: '0 0 5px 0' }}>{title}</h3>
-            <p style={{ fontSize: '28px', fontWeight: '700', margin: 0, color: color }}>{value}</p>
+            <h3 style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', margin: '0 0 5px 0' }}>{title}</h3>
+            <p style={{ fontSize: '24px', fontWeight: '700', margin: 0, color: color }}>{value}</p>
         </div>
-        <div style={{ fontSize: '24px', color: color, opacity: 0.9, background: 'rgba(255,255,255,0.05)', width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+        <div style={{ fontSize: '20px', color: color, opacity: 0.9, background: 'rgba(255,255,255,0.05)', width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
             <i className={`fa-solid ${icon}`}></i>
         </div>
     </div>

@@ -1,227 +1,116 @@
-/* FILE: frontend/src/views/InternBook.jsx (Intern Management Dashboard) */
-import { useState } from 'react';
+/* FILE: frontend/src/views/InternBook.jsx */
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import API_BASE_URL from '../components/config';
 
 const InternBook = () => {
-  // MOCK DATA: Danh sách thực tập sinh đang làm việc
-  // (Sau này bạn có thể lấy từ DB những candidate có status = 'Offer' -> chuyển sang đây)
-  const [interns] = useState([
-    { 
-      id: 1, 
-      name: 'Nguyễn Văn A', 
-      role: 'Data Analyst Intern', 
-      department: 'Product Team', 
-      mentor: 'Trần Văn B (Senior DA)',
-      startDate: '2023-10-01',
-      endDate: '2024-01-01',
-      progress: 75, // % Hoàn thành kỳ thực tập
-      status: 'Active',
-      avatar: 'A'
-    },
-    { 
-      id: 2, 
-      name: 'Lê Thị C', 
-      role: 'Marketing Intern', 
-      department: 'Marketing Dept', 
-      mentor: 'Phạm Thị D (CMO)',
-      startDate: '2023-11-15',
-      endDate: '2024-02-15',
-      progress: 30, 
-      status: 'Onboarding',
-      avatar: 'L'
-    },
-    { 
-      id: 3, 
-      name: 'Hoàng Minh E', 
-      role: 'React Frontend Intern', 
-      department: 'Tech Hub', 
-      mentor: 'Nguyễn Code Dạo (Tech Lead)',
-      startDate: '2023-09-01',
-      endDate: '2023-12-31',
-      progress: 95, 
-      status: 'Graduating',
-      avatar: 'H'
-    },
-    { 
-      id: 4, 
-      name: 'Phạm Tuấn F', 
-      role: 'HR Assistant Intern', 
-      department: 'Human Resources', 
-      mentor: 'HR Manager',
-      startDate: '2023-12-01',
-      endDate: '2024-03-01',
-      progress: 10, 
-      status: 'Active',
-      avatar: 'P'
-    },
-  ]);
-
+  const [interns, setInterns] = useState([]);
   const [filter, setFilter] = useState('All');
+  const [showReviewModal, setShowReviewModal] = useState(null);
 
-  // Hàm chọn màu cho Badge Trạng thái
+  // 1. KẾT NỐI DỮ LIỆU THẬT TỪ DATABASE
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/api/candidates`)
+      .then(res => {
+        // --- LOGIC MỚI: CHỈ LẤY TRẠNG THÁI 'HIRED' ---
+        const hiredInterns = res.data.filter(c => 
+            (c.status || '').toLowerCase() === 'hired'
+        ).map(c => ({
+            ...c,
+            // Nếu thiếu thông tin thì điền mặc định để giao diện không bị lỗi
+            department: c.department || 'Chưa phân bổ',
+            mentor: c.mentor || 'Chưa có Mentor',
+            progress: c.progress || 0, 
+            startDate: c.created_at || new Date().toISOString()
+        }));
+        
+        setInterns(hiredInterns);
+      })
+      .catch(err => console.warn("Lỗi API:", err));
+  }, []);
+
   const getStatusStyle = (status) => {
-      if (status === 'Active') return { color: 'var(--neon-green)', bg: 'rgba(46, 255, 123, 0.1)', border: 'var(--neon-green)' };
-      if (status === 'Onboarding') return { color: '#FCD34D', bg: 'rgba(252, 211, 77, 0.1)', border: '#FCD34D' };
-      if (status === 'Graduating') return { color: '#A5B4FC', bg: 'rgba(165, 180, 252, 0.1)', border: '#A5B4FC' };
-      return { color: 'var(--text-gray)', bg: '#1A2736', border: 'var(--border-color)' };
+      // Vì đã vào đây thì mặc định là đang làm việc hoặc sắp làm
+      return { color: 'var(--neon-green)', bg: 'rgba(46, 255, 123, 0.1)', border: 'var(--neon-green)' };
   };
 
   return (
     <div className="intern-book-view" style={{ color: 'var(--text-white)', minHeight: 'calc(100vh - 100px)' }}>
       
-      {/* HEADER SECTION */}
-      <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
-        <div>
-            <h2 className="section-title" style={{ 
-                color: 'var(--neon-green)', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px',
-                textShadow: '0 0 10px rgba(46, 255, 123, 0.4)'
-            }}>
-                <i className="fa-solid fa-users-viewfinder" style={{marginRight: '10px'}}></i>
-                Quản lý Thực Tập Sinh
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
-                Theo dõi tiến độ, phân công mentor và đánh giá hiệu suất (Intern Tracking).
-            </p>
-        </div>
-        
-        {/* Filter Controls */}
-        <div className="card-dark" style={{ padding: '5px 10px', borderRadius: '8px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <span style={{fontSize: '12px', color: 'var(--text-secondary)'}}>Lọc theo:</span>
-            {['All', 'Active', 'Onboarding', 'Graduating'].map(f => (
-                <button 
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    style={{
-                        background: filter === f ? 'var(--neon-green)' : 'transparent',
-                        color: filter === f ? '#000' : 'var(--text-white)',
-                        border: 'none', padding: '5px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: '600', cursor: 'pointer'
-                    }}
-                >
-                    {f}
-                </button>
-            ))}
-        </div>
+      {/* HEADER */}
+      <div style={{ marginBottom: '30px' }}>
+        <h2 className="section-title" style={{ color: 'var(--neon-green)', textTransform: 'uppercase' }}>
+            <i className="fa-solid fa-users-viewfinder" style={{marginRight: '10px'}}></i> Quản lý Thực Tập Sinh (Hired)
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+            Danh sách nhân sự đã tuyển dụng chính thức.
+        </p>
       </div>
 
-      {/* STATS OVERVIEW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
-          {[
-              { label: 'Tổng số Intern', val: interns.length, icon: 'fa-users', color: 'var(--text-white)' },
-              { label: 'Đang hoạt động', val: interns.filter(i => i.status === 'Active').length, icon: 'fa-bolt', color: 'var(--neon-green)' },
-              { label: 'Mới tiếp nhận', val: interns.filter(i => i.status === 'Onboarding').length, icon: 'fa-seedling', color: '#FCD34D' },
-              { label: 'Sắp tốt nghiệp', val: interns.filter(i => i.status === 'Graduating').length, icon: 'fa-graduation-cap', color: '#A5B4FC' },
-          ].map((stat, idx) => (
-              <div key={idx} className="card-dark" style={{ padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '5px' }}>{stat.label}</p>
-                      <h3 style={{ fontSize: '24px', margin: 0, color: stat.color }}>{stat.val}</h3>
-                  </div>
-                  <div style={{ 
-                      width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', 
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: stat.color, fontSize: '18px'
-                  }}>
-                      <i className={`fa-solid ${stat.icon}`}></i>
+      {/* NẾU KHÔNG CÓ DỮ LIỆU */}
+      {interns.length === 0 && (
+          <div style={{textAlign: 'center', padding: '50px', color: '#6B7280', border: '1px dashed #2D3B4E', borderRadius: '12px'}}>
+              <i className="fa-solid fa-user-plus" style={{fontSize: '40px', marginBottom: '15px'}}></i>
+              <p>Chưa có nhân sự nào được chuyển sang trạng thái <b>"Hired"</b>.</p>
+              <p style={{fontSize: '12px'}}>Hãy vào Dashboard và kéo ứng viên sang cột Hired.</p>
+          </div>
+      )}
+
+      {/* DANH SÁCH INTERN */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
+        {interns.map(intern => (
+            <div key={intern.id} className="card-dark" style={{ padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', background: '#131F2E' }}>
+                
+                {/* Header Card */}
+                <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                    <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: 'linear-gradient(135deg, #1A2736, #09121D)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: '700', color: 'var(--neon-green)' }}>
+                        {intern.full_name ? intern.full_name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div>
+                        <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#fff' }}>{intern.full_name}</h3>
+                        <p style={{ margin: 0, fontSize: '13px', color: 'var(--neon-green)' }}>{intern.role}</p>
+                    </div>
+                    <span style={{ marginLeft: 'auto', fontSize: '10px', padding: '4px 8px', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase', height: 'fit-content', color: 'var(--neon-green)', background: 'rgba(46, 255, 123, 0.1)', border: '1px solid var(--neon-green)' }}>
+                        HIRED
+                    </span>
+                </div>
+
+                {/* Info */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#9CA3AF', marginBottom: '15px' }}>
+                    <span><i className="fa-solid fa-building-user"></i> {intern.department}</span>
+                    <span>Mentor: {intern.mentor}</span>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '10px', paddingTop: '15px', borderTop: '1px dashed #2D3B4E' }}>
+                    <button style={{ flex: 1, background: 'transparent', border: '1px solid #2D3B4E', color: '#fff', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}>Hồ sơ</button>
+                    <button 
+                        onClick={() => setShowReviewModal(intern)}
+                        style={{ flex: 1, background: 'var(--neon-green)', border: 'none', color: '#000', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                        Đánh giá
+                    </button>
+                </div>
+            </div>
+        ))}
+      </div>
+
+      {/* MODAL ĐÁNH GIÁ (Giữ nguyên như cũ) */}
+      {showReviewModal && (
+          <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+              <div style={{ background: '#131F2E', width: '500px', padding: '30px', borderRadius: '12px', border: '1px solid var(--neon-green)' }}>
+                  <h3 style={{ marginTop: 0, color: 'var(--neon-green)' }}>Đánh giá: {showReviewModal.full_name}</h3>
+                  <textarea placeholder="Nhận xét chi tiết..." style={{ width: '100%', height: '100px', background: '#09121D', border: '1px solid #2D3B4E', color: '#fff', padding: '10px', borderRadius: '6px', marginBottom: '20px' }}></textarea>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                      <button onClick={() => setShowReviewModal(null)} style={{ background: 'transparent', color: '#fff', border: 'none', cursor: 'pointer' }}>Hủy</button>
+                      <button onClick={() => { alert("Đã lưu!"); setShowReviewModal(null); }} style={{ background: 'var(--neon-green)', color: '#000', padding: '8px 20px', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Lưu</button>
                   </div>
               </div>
-          ))}
-      </div>
-
-      {/* INTERN LIST GRID */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
-        {interns.filter(i => filter === 'All' || i.status === filter).map(intern => {
-            const statusStyle = getStatusStyle(intern.status);
-            return (
-                <div key={intern.id} className="card-dark" style={{ 
-                    padding: '20px', borderRadius: '12px', position: 'relative', overflow: 'hidden',
-                    border: '1px solid var(--border-color)', transition: 'all 0.3s'
-                }}
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-5px)';
-                    e.currentTarget.style.borderColor = 'var(--neon-green)';
-                    e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.borderColor = 'var(--border-color)';
-                    e.currentTarget.style.boxShadow = 'none';
-                }}
-                >
-                    {/* Header Card */}
-                    <div style={{ display: 'flex', alignItems: 'start', gap: '15px', marginBottom: '20px' }}>
-                        <div style={{ 
-                            width: '50px', height: '50px', borderRadius: '12px', 
-                            background: 'linear-gradient(135deg, #1A2736, #09121D)', border: '1px solid var(--border-color)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                            fontSize: '20px', fontWeight: '700', color: 'var(--neon-green)'
-                        }}>
-                            {intern.avatar}
-                        </div>
-                        <div>
-                            <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: 'var(--text-white)' }}>{intern.name}</h3>
-                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--neon-green)' }}>{intern.role}</p>
-                            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                <i className="fa-solid fa-building-user" style={{marginRight:'5px'}}></i> {intern.department}
-                            </p>
-                        </div>
-                        <span style={{ 
-                            marginLeft: 'auto', fontSize: '10px', padding: '4px 8px', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase',
-                            color: statusStyle.color, background: statusStyle.bg, border: `1px solid ${statusStyle.border}`
-                        }}>
-                            {intern.status}
-                        </span>
-                    </div>
-
-                    {/* Details */}
-                    <div style={{ 
-                        background: '#09121D', padding: '15px', borderRadius: '8px', marginBottom: '20px',
-                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' 
-                    }}>
-                        <div>
-                            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '3px' }}>Mentor hướng dẫn</p>
-                            <p style={{ fontSize: '13px', color: 'var(--text-white)', fontWeight: '500' }}>{intern.mentor}</p>
-                        </div>
-                        <div style={{textAlign: 'right'}}>
-                            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '3px' }}>Thời hạn</p>
-                            <p style={{ fontSize: '13px', color: 'var(--text-white)', fontWeight: '500' }}>
-                                {new Date(intern.endDate).toLocaleDateString('vi-VN')}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
-                            <span style={{color: 'var(--text-secondary)'}}>Tiến độ thực tập</span>
-                            <span style={{color: 'var(--neon-green)', fontWeight: '700'}}>{intern.progress}%</span>
-                        </div>
-                        <div style={{ width: '100%', height: '6px', background: '#1A2736', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ 
-                                width: `${intern.progress}%`, height: '100%', 
-                                background: 'linear-gradient(90deg, var(--neon-green), #009E49)',
-                                boxShadow: '0 0 10px var(--neon-green)'
-                            }}></div>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px dashed var(--border-color)', display: 'flex', gap: '10px' }}>
-                        <button style={{ 
-                            flex: 1, background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-white)', 
-                            padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' 
-                        }}>
-                            Xem chi tiết
-                        </button>
-                        <button style={{ 
-                            flex: 1, background: 'rgba(46, 255, 123, 0.1)', border: 'none', color: 'var(--neon-green)', 
-                            padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600'
-                        }}>
-                            Đánh giá
-                        </button>
-                    </div>
-
-                </div>
-            );
-        })}
-      </div>
+          </div>
+      )}
     </div>
   );
 };

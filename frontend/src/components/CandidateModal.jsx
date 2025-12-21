@@ -1,4 +1,4 @@
-/* FILE: frontend/src/components/CandidateModal.jsx (Bản Full: Combobox + Skills) */
+/* FILE: frontend/src/components/CandidateModal.jsx (Đã thêm trạng thái Hired) */
 import React, { useState } from 'react';
 import axios from 'axios';
 import API_BASE_URL from './config';
@@ -64,6 +64,7 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                     <option value="Screening">Screening</option>
                     <option value="Interview">Interview</option>
                     <option value="Offer">Offer</option>
+                    <option value="Hired">✅ Hired (Tuyển dụng)</option> {/* Thêm option Hired */}
                     <option value="Rejected">Rejected</option>
                 </select>
                 {updating && <i className="fa-solid fa-circle-notch fa-spin" style={{fontSize:'12px', color:'var(--text-white)'}}></i>}
@@ -125,7 +126,7 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                 </div>
              </div>
 
-             {/* 2. KỸ NĂNG (ĐÃ KHÔI PHỤC) */}
+             {/* 2. KỸ NĂNG */}
              <div style={{marginBottom: '25px'}}>
                 <h4 style={{display:'flex', alignItems:'center', gap:'10px', color:'var(--text-white)', marginBottom:'15px', fontSize: '14px', textTransform: 'uppercase'}}>
                     <i className="fa-solid fa-bolt" style={{color:'#F59E0B'}}></i> Kỹ năng nổi bật
