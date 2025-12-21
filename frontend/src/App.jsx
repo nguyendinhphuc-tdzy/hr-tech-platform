@@ -1,6 +1,8 @@
-/* FILE: frontend/src/App.jsx (Fix: Dynamic User Profile) */
+/* FILE: frontend/src/App.jsx (Full Flow: Auth API + Dynamic User) */
 import { useState } from 'react';
+import axios from 'axios';
 import './index.css';
+import API_BASE_URL from './components/config'; // Đảm bảo bạn đã có file config này
 
 // Import các Views
 import Dashboard from './views/Dashboard';
@@ -54,13 +56,13 @@ const HomeView = ({ onNavigate }) => {
 };
 
 // ==========================================
-// 2. MÀN HÌNH XÁC THỰC (LOGIN / SIGNUP) - CÓ LẤY DỮ LIỆU INPUT
+// 2. MÀN HÌNH XÁC THỰC (KẾT NỐI API)
 // ==========================================
 const AuthView = ({ mode, onLoginSuccess, onBack }) => {
     const isLogin = mode === 'login';
     const [isLoading, setIsLoading] = useState(false);
-    
-    // State lưu dữ liệu form
+    const [errorMsg, setErrorMsg] = useState('');
+
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
@@ -71,36 +73,34 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        
-        // Giả lập API call
-        setTimeout(() => {
-            setIsLoading(false);
-            
-            // Tạo thông tin user giả lập từ input
-            const userProfile = {
-                name: isLogin ? (formData.email.split('@')[0]) : formData.fullName, // Nếu login thì lấy tên từ email, nếu signup thì lấy tên thật
-                email: formData.email,
-                role: 'Admin Access'
-            };
-            
-            // Gửi thông tin user lên App
-            onLoginSuccess(userProfile);
-        }, 1000);
-    };
+        setErrorMsg('');
 
-    const handleGoogleLogin = () => {
-        setIsLoading(true);
-        setTimeout(() => {
+        try {
+            if (isLogin) {
+                // --- LOGIN API ---
+                const res = await axios.post(`${API_BASE_URL}/api/auth/login`, {
+                    email: formData.email,
+                    password: formData.password
+                });
+                onLoginSuccess(res.data.user);
+            } else {
+                // --- SIGNUP API ---
+                const res = await axios.post(`${API_BASE_URL}/api/auth/signup`, {
+                    fullName: formData.fullName,
+                    email: formData.email,
+                    password: formData.password
+                });
+                alert("Đăng ký thành công! Đang đăng nhập...");
+                onLoginSuccess(res.data.user);
+            }
+        } catch (err) {
+            setErrorMsg(err.response?.data?.error || "Lỗi kết nối Server!");
+        } finally {
             setIsLoading(false);
-            onLoginSuccess({
-                name: "Google User",
-                email: "user@gmail.com",
-                role: "Standard Access"
-            });
-        }, 1000);
+        }
     };
 
     return (
@@ -114,8 +114,14 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
                     <h2 style={{fontSize: '28px', color: 'var(--text-white)', marginBottom: '10px'}}>{isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}</h2>
                 </div>
 
+                {errorMsg && (
+                    <div style={{background: 'rgba(239, 68, 68, 0.2)', color: '#FCA5A5', padding: '10px', borderRadius: '6px', fontSize: '13px', marginBottom: '15px', border: '1px solid #EF4444', textAlign: 'center'}}>
+                        <i className="fa-solid fa-circle-exclamation"></i> {errorMsg}
+                    </div>
+                )}
+
                 <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px'}}>
-                    <button onClick={handleGoogleLogin} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', borderRadius: '6px', background: '#FFFFFF', color: '#000', border: 'none', cursor: 'pointer', fontWeight: '600'}}>
+                    <button type="button" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', borderRadius: '6px', background: '#FFFFFF', color: '#000', border: 'none', cursor: 'pointer', fontWeight: '600'}}>
                         <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="20" />
                         {isLogin ? 'Đăng nhập với Google' : 'Đăng ký với Google'}
                     </button>
@@ -128,37 +134,16 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
                     {!isLogin && (
                          <div>
                             <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>HỌ VÀ TÊN</label>
-                            <input 
-                                name="fullName" 
-                                type="text" 
-                                placeholder="Ví dụ: Nguyễn Văn A" 
-                                required 
-                                onChange={handleChange}
-                                style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid var(--border-color)', color: 'white'}} 
-                            />
+                            <input name="fullName" type="text" placeholder="Ví dụ: Nguyễn Văn A" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid var(--border-color)', color: 'white'}} />
                         </div>
                     )}
                     <div>
                         <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>EMAIL</label>
-                        <input 
-                            name="email" 
-                            type="email" 
-                            placeholder="admin@hrtech.com" 
-                            required 
-                            onChange={handleChange}
-                            style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid var(--border-color)', color: 'white'}} 
-                        />
+                        <input name="email" type="email" placeholder="admin@hrtech.com" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid var(--border-color)', color: 'white'}} />
                     </div>
                     <div>
                         <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>MẬT KHẨU</label>
-                        <input 
-                            name="password" 
-                            type="password" 
-                            placeholder="••••••" 
-                            required 
-                            onChange={handleChange}
-                            style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid var(--border-color)', color: 'white'}} 
-                        />
+                        <input name="password" type="password" placeholder="••••••" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid var(--border-color)', color: 'white'}} />
                     </div>
 
                     <button type="submit" style={{marginTop: '10px', background: 'var(--neon-green)', color: '#000', fontWeight: '700', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', opacity: isLoading ? 0.7 : 1}} disabled={isLoading}>
@@ -176,12 +161,11 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
 };
 
 // ==========================================
-// 3. LAYOUT DASHBOARD CHÍNH (HIỂN THỊ DYNAMIC USER)
+// 3. DASHBOARD (HIỂN THỊ DYNAMIC USER)
 // ==========================================
 const DashboardLayout = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
 
-    // Header nhận props 'user'
     const DashboardHeader = () => (
         <header className="main-header">
             <div className="logo">
@@ -190,19 +174,15 @@ const DashboardLayout = ({ user, onLogout }) => {
             </div>
             <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
                 <div style={{textAlign: 'right'}}>
-                    {/* HIỂN THỊ TÊN NGƯỜI DÙNG TỪ PROPS */}
                     <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-white)'}}>
-                        {user ? user.name : 'Khách'} 
+                        {user ? user.full_name : 'User'}
                     </span>
                     <span style={{fontSize: '11px', color: 'var(--neon-green)'}}>
-                        {user ? user.email : ''}
+                        {user ? user.role : 'Member'}
                     </span>
                 </div>
-                <div style={{
-                    width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--neon-green)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-white)', fontWeight: 'bold'
-                }}>
-                    {user && user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                <div style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--neon-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-white)', fontWeight: 'bold'}}>
+                    {user && user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <button onClick={onLogout} style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', color: '#EF4444', padding: '8px 15px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: '600'}}>
                     <i className="fa-solid fa-right-from-bracket"></i> Logout
@@ -239,35 +219,24 @@ const DashboardLayout = ({ user, onLogout }) => {
 // ==========================================
 function App() {
     const [view, setView] = useState('home'); 
-    
-    // State lưu thông tin người dùng hiện tại
     const [currentUser, setCurrentUser] = useState(null);
 
     const navigateTo = (target) => setView(target);
 
-    // Khi đăng nhập thành công, nhận object user từ AuthView
     const handleLoginSuccess = (userData) => {
         setCurrentUser(userData);
         setView('dashboard');
     };
 
     const handleLogout = () => {
-        const confirm = window.confirm("Bạn muốn đăng xuất về trang chủ?");
-        if(confirm) {
+        if(window.confirm("Bạn muốn đăng xuất?")) {
             setCurrentUser(null);
             setView('home');
         }
     };
 
-    // --- RENDER ---
-    if (view === 'dashboard') {
-        // Truyền currentUser xuống DashboardLayout
-        return <DashboardLayout user={currentUser} onLogout={handleLogout} />;
-    }
-
-    if (view === 'login' || view === 'signup') {
-        return <AuthView mode={view} onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
-    }
+    if (view === 'dashboard') return <DashboardLayout user={currentUser} onLogout={handleLogout} />;
+    if (view === 'login' || view === 'signup') return <AuthView mode={view} onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
 
     return <HomeView onNavigate={navigateTo} />;
 }
