@@ -7,7 +7,7 @@ import CVScanView from './views/CVScanView';
 import AITraining from './views/AITraining';
 import InternBook from './views/InternBook';
 import Home from './views/Home'; 
-import { supabase } from './supabaseClient'; // <--- IMPORT TỪ FILE MỚI
+import { supabase } from './supabaseClient'; 
 
 // --- HEADER COMPONENT ---
 const Header = ({ session }) => (
