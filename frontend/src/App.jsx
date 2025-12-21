@@ -1,4 +1,4 @@
-/* FILE: frontend/src/App.jsx (Fix Layout Overlap) */
+/* FILE: frontend/src/App.jsx */
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -9,12 +9,12 @@ import InternBook from './views/InternBook';
 import Home from './views/Home'; 
 import { supabase } from './supabaseClient'; 
 
-// Header (Thêm z-index thấp hơn Sidebar nếu cần)
+// --- HEADER ---
 const Header = ({ session }) => (
     <div style={{
         padding: '15px 30px', background: '#131F2E', borderBottom: '1px solid #2D3B4E',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        height: '70px', flexShrink: 0 // Cố định chiều cao
+        height: '70px', flexShrink: 0 
     }}>
         <h3 style={{margin: 0, color: '#fff'}}>HR TECH DASHBOARD</h3>
         <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
@@ -39,19 +39,18 @@ const Header = ({ session }) => (
     </div>
 );
 
-// ProtectedLayout (Sửa CSS Layout)
+// --- PROTECTED LAYOUT (SỬA LỖI Z-INDEX) ---
 const ProtectedLayout = ({ session }) => {
     if (!session) return <Navigate to="/" replace />;
     
     return (
         <div className="app-container" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-            {/* Sidebar nằm bên trái, không bị đè */}
-            <div style={{ zIndex: 100 }}>
+            {/* THÊM position: 'relative' ĐỂ SIDEBAR KHÔNG BỊ ĐÈ */}
+            <div style={{ zIndex: 100, position: 'relative' }}>
                 <Sidebar />
             </div>
 
-            {/* Nội dung chính bên phải */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09121D', position: 'relative' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09121D', position: 'relative', zIndex: 1 }}>
                 <Header session={session} />
                 <div className="main-content" style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
                     <Outlet />
@@ -61,17 +60,13 @@ const ProtectedLayout = ({ session }) => {
     );
 };
 
-// ... (Phần App logic giữ nguyên) ...
-// Copy lại phần App function từ code cũ của bạn vào đây
+// ... (Phần App function giữ nguyên như cũ) ...
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!supabase) {
-        setLoading(false);
-        return;
-    }
+    if (!supabase) { setLoading(false); return; }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
