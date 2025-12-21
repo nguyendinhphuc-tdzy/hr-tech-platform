@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Bản Full: AI Recruiter + Storage + Kanban Support) */
+/* FILE: backend/server.js (Bản Full: Auth + AI Recruiter Tiếng Việt + Kanban) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -32,6 +32,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 // --- CÁC HÀM HỖ TRỢ ---
 
 function sanitizeFilename(filename) {
+    // Chuyển tiếng Việt có dấu thành không dấu, xóa ký tự lạ
     const str = filename.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return str.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
 }
@@ -66,14 +67,62 @@ async function createEmbedding(text) {
 }
 
 // ==========================================
-// API 1: SCAN CV & UPLOAD FILE (CẬP NHẬT PROMPT MỚI)
+// API AUTH: ĐĂNG KÝ & ĐĂNG NHẬP
+// ==========================================
+
+// 1. Đăng ký (Sign Up)
+app.post('/api/auth/signup', async (req, res) => {
+    try {
+        const { fullName, email, password } = req.body;
+        
+        // Kiểm tra email tồn tại
+        const checkUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        if (checkUser.rows.length > 0) {
+            return res.status(400).json({ error: "Email này đã được sử dụng!" });
+        }
+
+        // Tạo user mới (Mặc định role Admin Access cho demo)
+        const result = await pool.query(
+            `INSERT INTO users (full_name, email, password, role) VALUES ($1, $2, $3, 'Admin Access') RETURNING *`,
+            [fullName, email, password]
+        );
+
+        res.json({ message: "Đăng ký thành công!", user: result.rows[0] });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Lỗi Server: " + err.message });
+    }
+});
+
+// 2. Đăng nhập (Login)
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        if (result.rows.length === 0) return res.status(400).json({ error: "Email không tồn tại!" });
+
+        const user = result.rows[0];
+        // So sánh password (Lưu ý: Demo nên so sánh plain text, Production cần dùng bcrypt)
+        if (user.password !== password) return res.status(400).json({ error: "Sai mật khẩu!" });
+
+        res.json({ message: "Đăng nhập thành công!", user: user });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Lỗi Server: " + err.message });
+    }
+});
+
+
+// ==========================================
+// API CV: SCAN & UPLOAD (PROMPT TIẾNG VIỆT)
 // ==========================================
 app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Thiếu file CV' });
         console.log(`🤖 Đang xử lý: ${req.file.originalname}`);
 
-        // --- UPLOAD STORAGE (GIỮ NGUYÊN) ---
+        // 1. Upload Storage (Tên file an toàn)
         const safeName = sanitizeFilename(req.file.originalname);
         const fileName = `${Date.now()}_${safeName}`;
         
@@ -85,7 +134,7 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         const { data: { publicUrl } } = supabase.storage.from('cv_uploads').getPublicUrl(fileName);
         const finalFileUrl = uploadError ? null : publicUrl;
 
-        // --- XỬ LÝ AI ---
+        // 2. Xử lý AI
         const jobId = req.body.job_id;
         let jobCriteria = null;
         if (jobId) {
@@ -94,14 +143,14 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         }
 
         const model = genAI.getGenerativeModel({ 
-            model: ACTIVE_MODEL_NAME, // gemini-2.5-flash
+            model: ACTIVE_MODEL_NAME,
             generationConfig: { responseMimeType: "application/json" }
         });
         
-        // --- PROMPT TIẾNG VIỆT ---
+        // Context Tiếng Việt
         const roleContext = jobCriteria 
             ? `Vị trí: ${jobCriteria.title}\nKỹ năng yêu cầu: ${JSON.stringify(jobCriteria.requirements)}`
-            : `Vị trí: Data Analyst Intern\nKỹ năng cốt lõi: Power BI, Làm sạch dữ liệu (Data Cleaning), Trực quan hóa dữ liệu (Visualization), Tiếng Anh, Thái độ chủ động. Ưu tiên có kinh nghiệm với dữ liệu Sản xuất/Vận hành.`;
+            : `Vị trí: Data Analyst Intern\nKỹ năng cốt lõi: Power BI, Data Cleaning, Visualization, Tiếng Anh, Thái độ chủ động. Ưu tiên kinh nghiệm sản xuất.`;
 
         let prompt = `
 # Vai trò & Bối cảnh
@@ -110,25 +159,23 @@ ${roleContext}
 
 # Nhiệm vụ
 Phân tích sâu CV đính kèm và thực hiện các bước sau:
-1. **Quét Kỹ năng:** Tìm kiếm các kỹ năng cứng (Power BI, SQL, Python, Excel...) và kỹ năng mềm.
-2. **Đối chiếu Kinh nghiệm:** So sánh kinh nghiệm thực tế của ứng viên với yêu cầu công việc. Đặc biệt chú ý đến kinh nghiệm xử lý, làm sạch và trực quan hóa dữ liệu.
+1. **Quét Kỹ năng:** Tìm kiếm các kỹ năng cứng và mềm quan trọng.
+2. **Đối chiếu Kinh nghiệm:** So sánh kinh nghiệm thực tế với yêu cầu.
 3. **Đánh giá:** Chấm điểm độ phù hợp trên thang 10.
 
-# Định dạng Output (BẮT BUỘC JSON)
-Trả về kết quả dưới dạng JSON hợp lệ. 
-Quan trọng: Trường "match_reason" phải viết bằng **TIẾNG VIỆT**, trình bày gãy gọn, có xuống dòng.
+# Định dạng Output (JSON Bắt buộc)
+Trả về JSON hợp lệ. Trường "match_reason" phải viết bằng **TIẾNG VIỆT**, trình bày gãy gọn.
 
 {
     "full_name": "Họ và tên ứng viên",
     "email": "email@ungvien.com",
-    "skills": ["Kỹ năng 1", "Kỹ năng 2", "Kỹ năng 3"],
+    "skills": ["Skill 1", "Skill 2", "Skill 3"],
     "score": 0.0,
-    "summary": "Tóm tắt 2-3 câu về mức độ phù hợp của ứng viên (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết theo cấu trúc sau (dùng tiếng Việt):\n\n**1. Đánh giá chuyên môn:**\n- [Nhận xét về kỹ năng cứng]\n- [Nhận xét về kinh nghiệm thực tế]\n\n**2. Điểm mạnh nổi bật:**\n• [Điểm mạnh 1]\n• [Điểm mạnh 2]\n\n**3. Điểm cần cải thiện:**\n• [Điểm yếu 1]\n• [Điểm yếu 2]\n\n**4. Nhận xét chung:**\n[Lời khuyên cho nhà tuyển dụng]",
+    "summary": "Tóm tắt 2-3 câu về mức độ phù hợp (Tiếng Việt).",
+    "match_reason": "Trình bày chi tiết theo cấu trúc (Tiếng Việt):\n\n**1. Đánh giá chuyên môn:**\n- [Nhận xét]\n\n**2. Điểm mạnh nổi bật:**\n• [Điểm mạnh]\n\n**3. Điểm cần cải thiện:**\n• [Điểm yếu]\n\n**4. Nhận xét chung:**\n[Lời khuyên]",
     "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
     "confidence": "Cao / Trung bình / Thấp"
 }
-*Lưu ý: Score là số từ 0 đến 10.*
 `;
 
         const imageParts = [{
@@ -139,18 +186,17 @@ Quan trọng: Trường "match_reason" phải viết bằng **TIẾNG VIỆT**, 
         }];
 
         const result = await model.generateContent([prompt, ...imageParts]);
-        // ... (Phần xử lý kết quả JSON giữ nguyên) ...
         let aiResult;
         try {
             aiResult = JSON.parse(cleanJsonString(result.response.text()));
         } catch (parseError) {
-            aiResult = { full_name: "Lỗi đọc", score: 0, summary: "AI không thể phân tích file này.", match_reason: "Lỗi định dạng.", email: null };
+            aiResult = { full_name: "Lỗi đọc AI", score: 0, summary: "Không thể phân tích.", email: null };
         }
-        
+
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
         const finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
 
-        // --- LƯU DATABASE ---
+        // 3. Lưu Database
         const dbResult = await pool.query(
             `INSERT INTO candidates (organization_id, job_id, full_name, email, role, status, ai_rating, ai_analysis, cv_file_url) 
              VALUES (1, $1, $2, $3, $4, 'Screening', $5, $6, $7) RETURNING *`,
@@ -174,34 +220,30 @@ Quan trọng: Trường "match_reason" phải viết bằng **TIẾNG VIỆT**, 
 });
 
 // ==========================================
-// API 2: CẬP NHẬT TRẠNG THÁI (CHO KANBAN & MODAL)
+// API KHÁC: UPDATE STATUS, JOBS, TRAINING
 // ==========================================
+
+// Cập nhật trạng thái (Cho Kanban Board)
 app.put('/api/candidates/:id/status', async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
-        
-        const result = await pool.query(
-            `UPDATE candidates SET status = $1 WHERE id = $2 RETURNING *`,
-            [status, id]
-        );
-
-        if (result.rows.length === 0) return res.status(404).json({ error: "Candidate not found" });
-        res.json({ message: "Status updated", candidate: result.rows[0] });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+        const result = await pool.query(`UPDATE candidates SET status = $1 WHERE id = $2 RETURNING *`, [status, id]);
+        if (result.rows.length === 0) return res.status(404).json({ error: "Không tìm thấy" });
+        res.json({ message: "Updated", candidate: result.rows[0] });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ... (GIỮ NGUYÊN CÁC API KHÁC) ...
 app.get('/api/candidates', async (req, res) => {
     const result = await pool.query('SELECT * FROM candidates ORDER BY id DESC');
     res.json(result.rows);
 });
+
 app.get('/api/jobs', async (req, res) => {
     const result = await pool.query('SELECT * FROM job_positions ORDER BY id DESC');
     res.json(result.rows);
 });
+
 app.post('/api/jobs/import', upload.single('csv_file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Thiếu CSV' });
@@ -215,6 +257,7 @@ app.post('/api/jobs/import', upload.single('csv_file'), async (req, res) => {
         });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 app.post('/api/training/upload', upload.single('doc_file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Thiếu file' });
@@ -229,6 +272,7 @@ app.post('/api/training/upload', upload.single('doc_file'), async (req, res) => 
         res.json({ message: "Training xong!" });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 app.post('/api/training/chat', async (req, res) => {
     try {
         const { query } = req.body;
