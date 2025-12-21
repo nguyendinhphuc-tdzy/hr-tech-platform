@@ -19,23 +19,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         display: 'flex', flexDirection: 'column',
         position: 'sticky', top: '80px', left: 0
     }}>
-      {/* User Profile Mini trong Sidebar */}
-      <div style={{
-          display: 'flex', alignItems: 'center', gap: '12px', 
-          padding: '15px', marginBottom: '30px', 
-          background: '#131F2E', borderRadius: '12px', border: '1px solid var(--border-color)'
-      }}>
-          <div style={{
-              width: '40px', height: '40px', borderRadius: '50%', background: 'var(--neon-green)', 
-              color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
-          }}>
-              HR
-          </div>
-          <div>
-              <h4 style={{margin: 0, color: 'var(--text-white)', fontSize: '14px'}}></h4>
-              <p style={{margin: 0, color: 'var(--text-secondary)', fontSize: '11px'}}></p>
-          </div>
-      </div>
+
 
       {/* MENU ITEMS */}
       <nav style={{display: 'flex', flexDirection: 'column', gap: '10px', flex: 1}}>
