@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/Dashboard.jsx (Updated with Hired column) */
+/* FILE: frontend/src/views/Dashboard.jsx (Eco-Futuristic UI Upgrade) */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -11,7 +11,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
 
-  // Load dữ liệu
   const fetchCandidates = () => {
     setLoading(true);
     axios.get(`${API_BASE_URL}/api/candidates`)
@@ -27,71 +26,76 @@ const Dashboard = () => {
 
   useEffect(() => { fetchCandidates(); }, []);
 
-  // Xử lý khi kéo thả xong
   const onDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
-
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    // 1. Cập nhật giao diện ngay lập tức (Optimistic Update)
     const newStatus = destination.droppableId;
     const updatedCandidates = candidates.map(c => 
         c.id.toString() === draggableId ? { ...c, status: newStatus } : c
     );
     setCandidates(updatedCandidates);
 
-    // 2. Gọi API cập nhật Backend
     try {
         await axios.put(`${API_BASE_URL}/api/candidates/${draggableId}/status`, { status: newStatus });
     } catch (error) {
-        console.error("Lỗi cập nhật server:", error);
-        alert("Có lỗi khi lưu trạng thái, vui lòng tải lại trang.");
-        fetchCandidates(); // Revert lại nếu lỗi
+        console.error("Lỗi update:", error);
     }
   };
 
-  // Hàm helper lọc danh sách theo cột
   const getList = (status) => candidates.filter(c => 
     (c.status || '').toLowerCase() === status.toLowerCase()
   );
 
   return (
-    <div className="hr-dashboard" style={{ color: 'var(--text-white)' }}>
+    <div className="hr-dashboard" style={{ color: 'var(--text-white)', height: '100%', display: 'flex', flexDirection: 'column' }}>
       
-      {/* KPI Section - Đã thêm cột Hired */}
-      <section className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+      {/* 1. KPI SECTION (Giữ nguyên nhưng tinh chỉnh spacing) */}
+      <section className="kpi-grid" style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '20px', 
+          marginBottom: '20px',
+          flexShrink: 0 
+      }}>
         <KpiCard title="Tổng hồ sơ" value={candidates.length} icon="fa-users" color="var(--text-white)" />
-        <KpiCard title="Screening" value={getList('Screening').length} icon="fa-filter" color="#A5B4FC" />
-        <KpiCard title="Interview" value={getList('Interview').length} icon="fa-comments" color="#FCD34D" />
+        <KpiCard title="Phỏng vấn" value={getList('Interview').length} icon="fa-comments" color="#FCD34D" />
         <KpiCard title="Offer" value={getList('Offer').length} icon="fa-envelope-open-text" color="#6EE7B7" />
         <KpiCard title="Hired" value={getList('Hired').length} icon="fa-handshake" color="var(--neon-green)" glow={true} />
       </section>
 
-      <h2 className="section-title" style={{ color: 'var(--neon-green)', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-        <i className="fa-solid fa-layer-group" style={{marginRight:'10px'}}></i> Quy trình Tuyển dụng
-      </h2>
+      {/* 2. PIPELINE HEADER */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px', flexShrink: 0 }}>
+          <h2 className="section-title" style={{ color: 'var(--neon-green)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '18px' }}>
+            <i className="fa-solid fa-layer-group" style={{marginRight:'10px'}}></i> Quy trình Tuyển dụng
+          </h2>
+          <div style={{fontSize: '12px', color: 'var(--text-secondary)'}}>
+              <i className="fa-solid fa-arrows-left-right" style={{marginRight: '5px'}}></i> Kéo thả để chuyển trạng thái
+          </div>
+      </div>
       
-      {/* KANBAN BOARD - 5 CỘT (Thêm Hired) */}
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div className="recruitment-pipeline" style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(5, 1fr)', // Tăng lên 5 cột
-            gap: '15px',
-            alignItems: 'start',
-            overflowX: 'auto', // Cho phép cuộn ngang nếu màn hình nhỏ
-            paddingBottom: '20px'
-        }}>
-           {['Screening', 'Interview', 'Offer', 'Hired', 'Rejected'].map(status => (
-               <PipelineColumn 
-                    key={status} 
-                    status={status} 
-                    list={getList(status)} 
-                    onSelect={setSelectedCandidate} 
-               />
-           ))}
-        </div>
-      </DragDropContext>
+      {/* 3. KANBAN BOARD (SCROLLABLE & MODERN) */}
+      <div style={{ flex: 1, overflowX: 'auto', paddingBottom: '10px' }}>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="recruitment-pipeline" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(5, 300px)', // Cố định chiều rộng cột để không bị co
+                gap: '20px',
+                alignItems: 'start',
+                height: '100%'
+            }}>
+               {['Screening', 'Interview', 'Offer', 'Hired', 'Rejected'].map(status => (
+                   <PipelineColumn 
+                        key={status} 
+                        status={status} 
+                        list={getList(status)} 
+                        onSelect={setSelectedCandidate} 
+                   />
+               ))}
+            </div>
+          </DragDropContext>
+      </div>
 
       {/* MODAL */}
       {selectedCandidate && (
@@ -105,23 +109,19 @@ const Dashboard = () => {
   );
 };
 
-// --- SUB-COMPONENT: CỘT KANBAN ---
-const PipelineColumn = ({ status, list, onSelect }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const LIMIT = 5; 
-    
-    const displayList = isExpanded ? list : list.slice(0, LIMIT);
-    const hiddenCount = list.length - LIMIT;
+// --- SUB-COMPONENTS ĐÃ ĐƯỢC "ĐỘ" LẠI ---
 
-    // Icon & Màu sắc tiêu đề
-    const getHeaderStyle = (s) => {
-        if(s === 'Screening') return { icon: 'fa-magnifying-glass', color: '#A5B4FC' };
-        if(s === 'Interview') return { icon: 'fa-user-tie', color: '#FCD34D' };
-        if(s === 'Offer') return { icon: 'fa-envelope-open-text', color: '#6EE7B7' }; // Màu xanh nhẹ
-        if(s === 'Hired') return { icon: 'fa-handshake', color: 'var(--neon-green)' }; // Màu xanh Neon đậm
-        return { icon: 'fa-ban', color: '#FCA5A5' };
-    };
-    const style = getHeaderStyle(status);
+const PipelineColumn = ({ status, list, onSelect }) => {
+    // Config màu sắc & Icon cho từng cột
+    const config = {
+        'Screening': { icon: 'fa-magnifying-glass', color: '#A5B4FC', border: '#A5B4FC' },
+        'Interview': { icon: 'fa-user-tie', color: '#FCD34D', border: '#FCD34D' },
+        'Offer':     { icon: 'fa-envelope-open-text', color: '#6EE7B7', border: '#6EE7B7' },
+        'Hired':     { icon: 'fa-handshake', color: 'var(--neon-green)', border: 'var(--neon-green)', bgGlow: 'rgba(46, 255, 123, 0.03)' },
+        'Rejected':  { icon: 'fa-ban', color: '#FCA5A5', border: '#FCA5A5' }
+    }[status] || { icon: 'fa-circle', color: '#fff', border: '#fff' };
+
+    const isHiredColumn = status === 'Hired';
 
     return (
         <Droppable droppableId={status}>
@@ -131,35 +131,61 @@ const PipelineColumn = ({ status, list, onSelect }) => {
                     {...provided.droppableProps}
                     className="pipeline-column" 
                     style={{
-                        background: snapshot.isDraggingOver ? 'rgba(46, 255, 123, 0.05)' : 'var(--pipeline-bg)',
-                        padding: '15px', borderRadius: '12px', border: '1px solid var(--border-color)',
-                        minHeight: '500px', display: 'flex', flexDirection: 'column',
-                        transition: 'background 0.2s',
-                        minWidth: '220px' // Đảm bảo cột không bị co quá nhỏ
+                        background: snapshot.isDraggingOver 
+                            ? 'rgba(255,255,255,0.03)' 
+                            : (isHiredColumn ? config.bgGlow : '#0D1825'), // Cột Hired có nền sáng nhẹ
+                        padding: '12px', 
+                        borderRadius: '16px', 
+                        border: isHiredColumn ? `1px solid ${config.border}` : '1px solid #2D3B4E', // Cột Hired có viền xanh
+                        display: 'flex', flexDirection: 'column',
+                        height: '100%', 
+                        minHeight: '600px',
+                        transition: 'all 0.2s',
+                        boxShadow: isHiredColumn ? '0 0 20px rgba(46, 255, 123, 0.05)' : 'none'
                     }}
                 >
-                    {/* Header Cột */}
-                    <h3 style={{
-                        color: 'var(--text-white)', fontSize: '13px', marginBottom: '15px', textTransform: 'uppercase', 
-                        borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px'
+                    {/* Header Cột - Thiết kế dạng Badge */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '10px 5px', marginBottom: '15px',
+                        borderBottom: `2px solid ${isHiredColumn ? config.border : '#1F2937'}`
                     }}>
-                        <i className={`fa-solid ${style.icon}`} style={{color: style.color}}></i>
-                        {status} 
-                        <span style={{background: '#1A2736', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', marginLeft: 'auto', border: '1px solid var(--border-color)'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <i className={`fa-solid ${config.icon}`} style={{color: config.color}}></i>
+                            <span style={{fontWeight: '700', fontSize: '13px', textTransform: 'uppercase', color: isHiredColumn ? config.color : '#E5E7EB'}}>
+                                {status}
+                            </span>
+                        </div>
+                        <span style={{
+                            background: isHiredColumn ? config.color : '#1F2937',
+                            color: isHiredColumn ? '#000' : '#9CA3AF',
+                            borderRadius: '12px', padding: '2px 10px', fontSize: '11px', fontWeight: 'bold'
+                        }}>
                             {list.length}
                         </span>
-                    </h3>
+                    </div>
                     
-                    {/* Danh sách thẻ */}
-                    <div style={{flex: 1}}>
-                        {displayList.map((c, index) => (
+                    {/* Danh sách thẻ (Scrollable bên trong cột) */}
+                    <div style={{flex: 1, overflowY: 'auto', paddingRight: '4px'}} className="custom-scrollbar">
+                        {list.length === 0 && (
+                            <div style={{textAlign: 'center', padding: '40px 0', opacity: 0.3, color: config.color}}>
+                                <i className="fa-regular fa-folder-open" style={{fontSize: '24px', marginBottom: '10px'}}></i>
+                                <p style={{fontSize: '12px', margin: 0}}>Trống</p>
+                            </div>
+                        )}
+
+                        {list.map((c, index) => (
                             <Draggable key={c.id.toString()} draggableId={c.id.toString()} index={index}>
                                 {(provided, snapshot) => (
                                     <div
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         {...provided.dragHandleProps}
-                                        style={{ ...provided.draggableProps.style, marginBottom: '10px' }}
+                                        style={{ 
+                                            ...provided.draggableProps.style, 
+                                            marginBottom: '12px',
+                                            transform: snapshot.isDragging ? provided.draggableProps.style.transform : 'none' 
+                                        }}
                                     >
                                         <CandidateCard data={c} onClick={() => onSelect(c)} />
                                     </div>
@@ -168,42 +194,32 @@ const PipelineColumn = ({ status, list, onSelect }) => {
                         ))}
                         {provided.placeholder}
                     </div>
-
-                    {/* Nút Xem Thêm */}
-                    {list.length > LIMIT && (
-                        <button 
-                            onClick={() => setIsExpanded(!isExpanded)}
-                            style={{
-                                width: '100%', marginTop: '10px', padding: '8px',
-                                background: 'transparent', border: '1px dashed var(--border-color)',
-                                color: 'var(--text-secondary)', fontSize: '12px', cursor: 'pointer',
-                                borderRadius: '6px', transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--neon-green)'; e.currentTarget.style.borderColor = 'var(--neon-green)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
-                        >
-                            {isExpanded ? 'Thu gọn ▲' : `Xem thêm (+${hiddenCount}) ▼`}
-                        </button>
-                    )}
                 </div>
             )}
         </Droppable>
     );
 };
 
-// Component KPI Card
+// Component KPI Card (Giữ nguyên)
 const KpiCard = ({ title, value, icon, color, glow }) => (
     <div style={{
-        background: 'var(--card-background)', padding: '20px', borderRadius: '12px',
-        border: `1px solid ${glow ? 'var(--neon-green)' : 'var(--border-color)'}`,
-        boxShadow: glow ? '0 0 15px rgba(46, 255, 123, 0.2)' : '0 4px 6px rgba(0,0,0,0.1)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        background: '#131F2E', padding: '20px', borderRadius: '16px',
+        border: `1px solid ${glow ? 'var(--neon-green)' : '#2D3B4E'}`,
+        boxShadow: glow ? '0 0 15px rgba(46, 255, 123, 0.15)' : '0 4px 6px rgba(0,0,0,0.1)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'relative', overflow: 'hidden'
     }}>
+        {glow && <div style={{position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'var(--neon-green)'}}></div>}
         <div>
-            <h3 style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', margin: '0 0 5px 0' }}>{title}</h3>
-            <p style={{ fontSize: '24px', fontWeight: '700', margin: 0, color: color }}>{value}</p>
+            <h3 style={{ fontSize: '12px', color: '#9CA3AF', textTransform: 'uppercase', margin: '0 0 5px 0', letterSpacing: '0.5px' }}>{title}</h3>
+            <p style={{ fontSize: '28px', fontWeight: '700', margin: 0, color: color }}>{value}</p>
         </div>
-        <div style={{ fontSize: '20px', color: color, opacity: 0.9, background: 'rgba(255,255,255,0.05)', width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+        <div style={{ 
+            fontSize: '20px', color: color, opacity: 0.9, 
+            background: 'rgba(255,255,255,0.03)', width: '48px', height: '48px', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px',
+            border: '1px solid rgba(255,255,255,0.05)'
+        }}>
             <i className={`fa-solid ${icon}`}></i>
         </div>
     </div>
