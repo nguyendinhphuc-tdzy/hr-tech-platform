@@ -1,98 +1,73 @@
 /* FILE: frontend/src/App.jsx */
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
+import { useState } from 'react';
+import './index.css'; // Đảm bảo đã import file CSS mới
+
+// Import các Views
 import Dashboard from './views/Dashboard';
 import CVScanView from './views/CVScanView';
 import AITraining from './views/AITraining';
 import InternBook from './views/InternBook';
-import Home from './views/Home'; 
-import { supabase } from './supabaseClient'; 
 
-// --- HEADER ---
-const Header = ({ session }) => (
-    <div style={{
-        padding: '15px 30px', background: '#131F2E', borderBottom: '1px solid #2D3B4E',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        height: '70px', flexShrink: 0 
-    }}>
-        <h3 style={{margin: 0, color: '#fff'}}>HR TECH DASHBOARD</h3>
-        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-            <div style={{textAlign: 'right'}}>
-                <div style={{color: '#fff', fontSize: '14px', fontWeight: 'bold'}}>
-                    {session?.user?.user_metadata?.full_name || session?.user?.email}
-                </div>
-                <div style={{color: '#2EFF7B', fontSize: '11px'}}>Admin</div>
-            </div>
-            <img 
-                src={session?.user?.user_metadata?.avatar_url || "https://via.placeholder.com/40"} 
-                alt="Avatar" 
-                style={{width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #2EFF7B'}}
-            />
-            <button 
-                onClick={() => supabase.auth.signOut()}
-                style={{background: 'transparent', border: '1px solid #FF4D4D', color: '#FF4D4D', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px'}}
-            >
-                Logout
-            </button>
+// Component Header (Tách nhỏ ra cho gọn)
+const MainHeader = () => (
+    <header className="main-header">
+        <div className="logo">
+            <i className="fa-solid fa-atom fa-spin" style={{color: 'var(--neon-green)', fontSize: '24px'}}></i>
+            <h1>HR TECH <span style={{color: 'var(--neon-green)'}}>DASHBOARD</span></h1>
         </div>
-    </div>
+        <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
+            <div style={{textAlign: 'right'}}>
+                <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-white)'}}>Tường Vy Trần</span>
+                <span style={{fontSize: '11px', color: 'var(--neon-green)'}}>Admin Access</span>
+            </div>
+            <div style={{
+                width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--neon-green)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-white)'
+            }}>T</div>
+            <button style={{
+                background: 'transparent', border: '1px solid #EF4444', color: '#EF4444',
+                padding: '5px 15px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer'
+            }}>Logout</button>
+        </div>
+    </header>
 );
 
-// --- PROTECTED LAYOUT (SỬA LỖI Z-INDEX) ---
-const ProtectedLayout = ({ session }) => {
-    if (!session) return <Navigate to="/" replace />;
-    
-    return (
-        <div className="app-container" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-            {/* THÊM position: 'relative' ĐỂ SIDEBAR KHÔNG BỊ ĐÈ */}
-            <div style={{ zIndex: 100, position: 'relative' }}>
-                <Sidebar />
-            </div>
+// Import Sidebar mới
+import Sidebar from './components/Sidebar';
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09121D', position: 'relative', zIndex: 1 }}>
-                <Header session={session} />
-                <div className="main-content" style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
-                    <Outlet />
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// ... (Phần App function giữ nguyên như cũ) ...
 function App() {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // State quản lý trang đang xem (Mặc định là dashboard)
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  useEffect(() => {
-    if (!supabase) { setLoading(false); return; }
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setLoading(false);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (loading) return <div style={{height: '100vh', background: '#09121D'}}></div>;
+  // Hàm render nội dung chính dựa theo Tab
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard': return <Dashboard />;
+      case 'ai-scan': return <CVScanView />;
+      case 'intern-book': return <InternBook />;
+      case 'ai-training': return <AITraining />;
+      default: return <Dashboard />;
+    }
+  };
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home session={session} />} />
-        <Route element={<ProtectedLayout session={session} />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/scan" element={<CVScanView />} />
-            <Route path="/training" element={<AITraining />} />
-            <Route path="/interns" element={<InternBook />} />
-        </Route>
-        <Route path="*" element={<Navigate to={session ? "/dashboard" : "/"} replace />} />
-      </Routes>
-    </Router>
+    <div className="app-container" style={{background: 'var(--bg-deep-black)', minHeight: '100vh'}}>
+      {/* 1. Header Cố định */}
+      <MainHeader />
+
+      {/* 2. Layout Chính (Flexbox: Sidebar trái - Nội dung phải) */}
+      <div className="hr-layout" style={{display: 'flex', width: '100%', maxWidth: '1400px', margin: '0 auto'}}>
+          
+          {/* Sidebar nhận props để điều khiển activeTab */}
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+          
+          {/* Khu vực nội dung thay đổi dynamic */}
+          <main className="main-content" style={{flex: 1, padding: '30px', overflowY: 'auto', height: 'calc(100vh - 80px)'}}>
+              {renderContent()}
+          </main>
+      
+      </div>
+    </div>
   );
 }
 
