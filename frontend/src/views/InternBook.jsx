@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/InternBook.jsx (Pro UI Upgrade) */
+/* FILE: frontend/src/views/InternBook.jsx (Compact & Editable Version) */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -6,37 +6,30 @@ import API_BASE_URL from '../components/config';
 const InternBook = () => {
   const [interns, setInterns] = useState([]);
   const [filter, setFilter] = useState('All');
+  
+  // State quản lý Modal
   const [showReviewModal, setShowReviewModal] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(null); // Modal chỉnh sửa thông tin
 
-  // --- HÀM GIẢ LẬP THÔNG TIN (Dùng để lấp đầy dữ liệu thiếu từ DB) ---
+  // --- HÀM LÀM GIÀU DỮ LIỆU ---
   const enrichInternData = (candidate) => {
-      // Tự động đoán phòng ban dựa trên vị trí
-      let dept = 'General Dept';
+      let dept = 'General';
       let mentor = 'HR Manager';
       const role = (candidate.role || '').toLowerCase();
 
-      if (role.includes('data')) { dept = 'Product Data Team'; mentor = 'Trần Văn Senior'; }
-      else if (role.includes('marketing')) { dept = 'Marketing & Growth'; mentor = 'Lê Thị CMO'; }
-      else if (role.includes('engineer') || role.includes('dev')) { dept = 'Engineering Hub'; mentor = 'Nguyễn Tech Lead'; }
-      else if (role.includes('security')) { dept = 'Cyber Security Center'; mentor = 'Phạm CISO'; }
+      if (role.includes('data')) { dept = 'Product Team'; mentor = 'Trần Data Lead'; }
+      else if (role.includes('marketing')) { dept = 'Marketing'; mentor = 'Lê CMO'; }
+      else if (role.includes('dev')) { dept = 'Tech Hub'; mentor = 'Nguyễn Tech Lead'; }
 
-      // Giả lập ngày bắt đầu là ngày tạo hồ sơ
       const startDate = new Date(candidate.created_at || Date.now());
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + 3); // Kỳ thực tập 3 tháng
-
-      // Tính % tiến độ giả định (dựa trên ngày hiện tại)
-      const totalTime = endDate - startDate;
-      const elapsedTime = new Date() - startDate;
-      let progress = Math.round((elapsedTime / totalTime) * 100);
-      if (progress < 0) progress = 0; if (progress > 100) progress = 100;
+      // Random progress demo
+      let progress = Math.floor(Math.random() * 80) + 10; 
 
       return {
           ...candidate,
-          department: dept,
-          mentor: mentor,
+          department: candidate.department || dept,
+          mentor: candidate.mentor || mentor,
           startDate: startDate.toLocaleDateString('vi-VN'),
-          endDate: endDate.toLocaleDateString('vi-VN'),
           progress: progress
       };
   };
@@ -44,7 +37,6 @@ const InternBook = () => {
   useEffect(() => {
     axios.get(`${API_BASE_URL}/api/candidates`)
       .then(res => {
-        // Chỉ lấy trạng thái 'Hired' và bổ sung thông tin
         const hiredList = res.data
             .filter(c => (c.status || '').toLowerCase() === 'hired')
             .map(c => enrichInternData(c));
@@ -53,28 +45,33 @@ const InternBook = () => {
       .catch(err => console.warn("Lỗi API:", err));
   }, []);
 
+  // Xử lý Lưu chỉnh sửa
+  const handleSaveEdit = () => {
+      // Cập nhật lại danh sách local (Ở đây bạn có thể gọi API PUT để lưu thật)
+      const updatedList = interns.map(i => 
+          i.id === showEditModal.id ? showEditModal : i
+      );
+      setInterns(updatedList);
+      setShowEditModal(null);
+      alert("Đã cập nhật thông tin thành công!");
+  };
+
   return (
     <div className="intern-book-view" style={{ color: 'var(--text-white)', minHeight: 'calc(100vh - 100px)' }}>
       
-      {/* HEADER & STATS */}
-      <div style={{ marginBottom: '30px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-            <h2 className="section-title" style={{ color: 'var(--neon-green)', textTransform: 'uppercase', marginBottom: '5px' }}>
-                <i className="fa-solid fa-address-card" style={{marginRight: '10px'}}></i> Hồ Sơ Thực Tập Sinh
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
-                Danh sách nhân sự HIRED ({interns.length})
-            </p>
-        </div>
+      {/* HEADER NHỎ GỌN */}
+      <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom:'1px solid #2D3B4E', paddingBottom:'15px' }}>
+        <h2 className="section-title" style={{ color: 'var(--neon-green)', textTransform: 'uppercase', margin: 0, fontSize: '18px' }}>
+            <i className="fa-solid fa-address-book" style={{marginRight: '10px'}}></i> Sổ Tay Thực Tập ({interns.length})
+        </h2>
         
-        {/* Bộ lọc nhanh */}
-        <div style={{background: '#131F2E', padding: '5px', borderRadius: '8px', border: '1px solid #2D3B4E'}}>
+        <div style={{background: '#131F2E', padding: '3px', borderRadius: '6px', border: '1px solid #2D3B4E', display:'flex', gap:'5px'}}>
             {['All', 'Active', 'Onboarding'].map(f => (
                 <button key={f} onClick={() => setFilter(f)} 
                     style={{
-                        background: filter === f ? 'var(--neon-green)' : 'transparent',
-                        color: filter === f ? '#000' : '#fff',
-                        border: 'none', padding: '6px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '12px'
+                        background: filter === f ? 'rgba(46, 255, 123, 0.15)' : 'transparent',
+                        color: filter === f ? 'var(--neon-green)' : '#9CA3AF',
+                        border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: '600', fontSize: '11px'
                     }}>
                     {f}
                 </button>
@@ -82,124 +79,128 @@ const InternBook = () => {
         </div>
       </div>
 
-      {/* --- GRID VIEW (THẺ NHÂN VIÊN) --- */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '25px' }}>
-        {interns.length === 0 ? (
-            <div style={{gridColumn: '1/-1', textAlign:'center', padding:'50px', border:'2px dashed #2D3B4E', borderRadius:'12px', color:'#6B7280'}}>
-                <i className="fa-solid fa-user-slash" style={{fontSize:'40px', marginBottom:'15px'}}></i>
-                <p>Chưa có nhân sự nào. Hãy vào Dashboard kéo ứng viên sang cột <b>HIRED</b>.</p>
-            </div>
-        ) : (
-            interns.map(intern => (
-                <div key={intern.id} className="intern-card" style={{ 
-                    background: '#131F2E', borderRadius: '16px', overflow: 'hidden', 
-                    border: '1px solid #2D3B4E', position: 'relative',
-                    transition: 'transform 0.2s', boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'var(--neon-green)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#2D3B4E'; }}
-                >
-                    {/* Header Card (Màu Gradient) */}
-                    <div style={{ height: '80px', background: 'linear-gradient(90deg, rgba(46,255,123,0.1) 0%, rgba(13,24,37,1) 100%)', borderBottom: '1px solid #2D3B4E' }}></div>
-                    
-                    {/* Avatar & Info */}
-                    <div style={{ padding: '0 25px 25px', marginTop: '-40px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '15px' }}>
-                            <div style={{ 
-                                width: '80px', height: '80px', borderRadius: '50%', 
-                                background: '#0D1825', border: '3px solid var(--neon-green)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: '30px', fontWeight: 'bold', color: '#fff',
-                                boxShadow: '0 0 20px rgba(46,255,123,0.2)'
-                            }}>
-                                {intern.full_name ? intern.full_name.charAt(0).toUpperCase() : 'U'}
-                            </div>
-                            <span style={{ 
-                                background: 'rgba(46, 255, 123, 0.15)', color: 'var(--neon-green)', 
-                                padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', 
-                                border: '1px solid var(--neon-green)', textTransform: 'uppercase', marginBottom: '5px'
-                            }}>
-                                Active Intern
-                            </span>
-                        </div>
+      {/* --- GRID VIEW (COMPACT CARD) --- */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
+        {interns.map(intern => (
+            <div key={intern.id} style={{ 
+                background: '#131F2E', borderRadius: '10px', padding: '15px',
+                border: '1px solid #2D3B4E', position: 'relative',
+                transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '12px'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--neon-green)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2D3B4E'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+                {/* 1. Header Card: Avatar + Tên + Nút Edit */}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ 
+                        width: '45px', height: '45px', borderRadius: '50%', 
+                        background: '#0D1825', border: '2px solid var(--neon-green)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '18px', fontWeight: 'bold', color: '#fff'
+                    }}>
+                        {intern.full_name ? intern.full_name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div style={{flex: 1, overflow: 'hidden'}}>
+                        <h3 style={{ margin: 0, color: '#fff', fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{intern.full_name}</h3>
+                        <p style={{ margin: '2px 0 0', color: 'var(--neon-green)', fontSize: '11px' }}>{intern.role}</p>
+                    </div>
+                    <button 
+                        onClick={() => setShowEditModal(intern)}
+                        style={{ background: 'transparent', border: '1px solid #2D3B4E', color: '#9CA3AF', width: '30px', height: '30px', borderRadius: '6px', cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}
+                        title="Chỉnh sửa thông tin"
+                    >
+                        <i className="fa-solid fa-pen" style={{fontSize: '12px'}}></i>
+                    </button>
+                </div>
 
-                        <h3 style={{ margin: '0 0 5px 0', color: '#fff', fontSize: '18px' }}>{intern.full_name}</h3>
-                        <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px', display:'flex', alignItems:'center', gap:'5px' }}>
-                            <i className="fa-solid fa-briefcase" style={{color: 'var(--neon-green)'}}></i> {intern.role}
-                        </p>
-
-                        {/* Thông tin chi tiết (Grid 2 cột) */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '20px', padding: '15px', background: '#0D1825', borderRadius: '10px', border: '1px solid #2D3B4E' }}>
-                            <div>
-                                <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 3px' }}>PHÒNG BAN</p>
-                                <p style={{ fontSize: '13px', color: '#E0E0E0', fontWeight: '500', margin: 0 }}>{intern.department}</p>
-                            </div>
-                            <div>
-                                <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 3px' }}>MENTOR</p>
-                                <p style={{ fontSize: '13px', color: '#E0E0E0', fontWeight: '500', margin: 0 }}>{intern.mentor}</p>
-                            </div>
-                            <div>
-                                <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 3px' }}>NGÀY BẮT ĐẦU</p>
-                                <p style={{ fontSize: '13px', color: '#E0E0E0', fontWeight: '500', margin: 0 }}>{intern.startDate}</p>
-                            </div>
-                            <div>
-                                <p style={{ fontSize: '11px', color: '#6B7280', margin: '0 0 3px' }}>EMAIL</p>
-                                <p style={{ fontSize: '13px', color: '#E0E0E0', fontWeight: '500', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{intern.email}</p>
-                            </div>
-                        </div>
-
-                        {/* Thanh Tiến Độ */}
-                        <div style={{ marginTop: '20px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '5px', color: '#9CA3AF' }}>
-                                <span>Tiến độ thực tập</span>
-                                <span style={{ color: 'var(--neon-green)' }}>{intern.progress}%</span>
-                            </div>
-                            <div style={{ width: '100%', height: '6px', background: '#2D3B4E', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ width: `${intern.progress}%`, height: '100%', background: 'var(--neon-green)', boxShadow: '0 0 10px var(--neon-green)' }}></div>
-                            </div>
-                        </div>
-
-                        {/* Nút hành động */}
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
-                            <button onClick={() => setShowReviewModal(intern)} style={{ flex: 1, padding: '10px', background: 'var(--neon-green)', border: 'none', borderRadius: '6px', fontWeight: '700', cursor: 'pointer', color: '#000' }}>
-                                <i className="fa-regular fa-star"></i> Đánh giá
-                            </button>
-                            <button style={{ width: '40px', background: 'transparent', border: '1px solid #2D3B4E', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}>
-                                <i className="fa-solid fa-ellipsis"></i>
-                            </button>
-                        </div>
+                {/* 2. Info Grid (Nhỏ gọn) */}
+                <div style={{ background: '#0D1825', padding: '10px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div style={{display:'flex', flexDirection:'column'}}>
+                        <span style={{fontSize:'10px', color:'#6B7280'}}>PHÒNG BAN</span>
+                        <span style={{fontSize:'12px', color:'#E0E0E0', fontWeight:'500'}}>{intern.department}</span>
+                    </div>
+                    <div style={{display:'flex', flexDirection:'column'}}>
+                        <span style={{fontSize:'10px', color:'#6B7280'}}>MENTOR</span>
+                        <span style={{fontSize:'12px', color:'#E0E0E0', fontWeight:'500'}}>{intern.mentor}</span>
                     </div>
                 </div>
-            ))
-        )}
+
+                {/* 3. Progress & Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: 'auto' }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '3px', color: '#9CA3AF' }}>
+                            <span>Tiến độ</span>
+                            <span>{intern.progress}%</span>
+                        </div>
+                        <div style={{ width: '100%', height: '4px', background: '#2D3B4E', borderRadius: '2px' }}>
+                            <div style={{ width: `${intern.progress}%`, height: '100%', background: 'var(--neon-green)' }}></div>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setShowReviewModal(intern)}
+                        style={{ background: 'rgba(46, 255, 123, 0.1)', border: '1px solid var(--neon-green)', color: 'var(--neon-green)', padding: '5px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
+                    >
+                        Đánh giá
+                    </button>
+                </div>
+            </div>
+        ))}
       </div>
 
-      {/* MODAL ĐÁNH GIÁ (GIỮ NGUYÊN) */}
-      {showReviewModal && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter:'blur(5px)' }}>
-              <div style={{ background: '#131F2E', width: '500px', padding: '30px', borderRadius: '16px', border: '1px solid var(--neon-green)', boxShadow: '0 0 50px rgba(46,255,123,0.1)' }}>
-                  <h3 style={{ marginTop: 0, color: 'var(--neon-green)', fontSize: '20px' }}>Đánh giá: {showReviewModal.full_name}</h3>
-                  <p style={{fontSize:'13px', color:'#9CA3AF', marginBottom:'20px'}}>Đánh giá hiệu suất định kỳ tháng này.</p>
+      {/* --- MODAL CHỈNH SỬA THÔNG TIN (EDIT) --- */}
+      {showEditModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter:'blur(5px)' }}>
+              <div style={{ background: '#131F2E', width: '400px', padding: '25px', borderRadius: '12px', border: '1px solid #2D3B4E' }}>
+                  <h3 style={{ margin: '0 0 20px 0', color: '#fff', fontSize: '18px' }}>Chỉnh sửa: {showEditModal.full_name}</h3>
                   
-                  {['Kỹ năng chuyên môn', 'Thái độ & Kỷ luật', 'Khả năng Teamwork'].map(c => (
-                      <div key={c} style={{marginBottom:'15px'}}>
-                          <div style={{display:'flex', justifyContent:'space-between', fontSize:'13px', color:'#fff', marginBottom:'5px'}}>
-                              <span>{c}</span>
-                              <span style={{color:'var(--neon-green)'}}>8/10</span>
-                          </div>
-                          <input type="range" style={{width:'100%', accentColor:'var(--neon-green)'}} />
-                      </div>
-                  ))}
-                  
-                  <textarea placeholder="Nhận xét chi tiết của Mentor..." style={{ width: '100%', height: '100px', background: '#0D1825', border: '1px solid #2D3B4E', color: '#fff', padding: '12px', borderRadius: '8px', marginBottom: '20px', resize:'none' }}></textarea>
-                  
+                  <div style={{marginBottom:'15px'}}>
+                      <label style={{display:'block', fontSize:'12px', color:'#9CA3AF', marginBottom:'5px'}}>Phòng ban</label>
+                      <input 
+                        value={showEditModal.department} 
+                        onChange={(e) => setShowEditModal({...showEditModal, department: e.target.value})}
+                        style={{width:'100%', padding:'8px', background:'#0D1825', border:'1px solid #2D3B4E', color:'#fff', borderRadius:'6px'}} 
+                      />
+                  </div>
+                  <div style={{marginBottom:'20px'}}>
+                      <label style={{display:'block', fontSize:'12px', color:'#9CA3AF', marginBottom:'5px'}}>Mentor hướng dẫn</label>
+                      <input 
+                        value={showEditModal.mentor} 
+                        onChange={(e) => setShowEditModal({...showEditModal, mentor: e.target.value})}
+                        style={{width:'100%', padding:'8px', background:'#0D1825', border:'1px solid #2D3B4E', color:'#fff', borderRadius:'6px'}} 
+                      />
+                  </div>
+
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                      <button onClick={() => setShowReviewModal(null)} style={{ background: 'transparent', color: '#9CA3AF', border: 'none', cursor: 'pointer' }}>Hủy bỏ</button>
-                      <button onClick={() => { alert("Đã lưu đánh giá!"); setShowReviewModal(null); }} style={{ background: 'var(--neon-green)', color: '#000', padding: '10px 25px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Lưu Kết Quả</button>
+                      <button onClick={() => setShowEditModal(null)} style={{ background: 'transparent', color: '#9CA3AF', border: 'none', cursor: 'pointer' }}>Hủy</button>
+                      <button onClick={handleSaveEdit} style={{ background: 'var(--neon-green)', color: '#000', padding: '8px 20px', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Lưu thay đổi</button>
                   </div>
               </div>
           </div>
       )}
+
+      {/* --- MODAL ĐÁNH GIÁ (REVIEW) --- */}
+      {showReviewModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter:'blur(5px)' }}>
+              <div style={{ background: '#131F2E', width: '450px', padding: '30px', borderRadius: '16px', border: '1px solid var(--neon-green)' }}>
+                  <h3 style={{ marginTop: 0, color: 'var(--neon-green)' }}>Đánh giá hiệu suất</h3>
+                  <p style={{fontSize:'13px', color:'#9CA3AF', marginBottom:'20px'}}>Nhân sự: <b>{showReviewModal.full_name}</b></p>
+                  
+                  {['Kỹ năng chuyên môn', 'Thái độ & Kỷ luật', 'Teamwork'].map(c => (
+                      <div key={c} style={{marginBottom:'15px'}}>
+                          <div style={{display:'flex', justifyContent:'space-between', fontSize:'12px', color:'#fff', marginBottom:'5px'}}>
+                              <span>{c}</span><span style={{color:'var(--neon-green)'}}>Tốt</span>
+                          </div>
+                          <input type="range" style={{width:'100%', accentColor:'var(--neon-green)'}} />
+                      </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop:'20px' }}>
+                      <button onClick={() => setShowReviewModal(null)} style={{ background: 'transparent', color: '#fff', border: 'none', cursor: 'pointer' }}>Đóng</button>
+                      <button onClick={() => { alert("Đã lưu!"); setShowReviewModal(null); }} style={{ background: 'var(--neon-green)', color: '#000', padding: '8px 20px', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Gửi đánh giá</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
     </div>
   );
 };
