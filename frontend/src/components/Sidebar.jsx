@@ -1,63 +1,82 @@
 /* FILE: frontend/src/components/Sidebar.jsx */
-import { Link, useLocation } from 'react-router-dom';
+import React from 'react';
 
-const Sidebar = () => {
-  const location = useLocation();
-  
+const Sidebar = ({ activeTab, setActiveTab }) => {
   const menuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: 'fa-layer-group' },
-    { path: '/scan', label: 'AI Scan CV', icon: 'fa-radar' },
-    { path: '/interns', label: 'Sổ tay Thực tập', icon: 'fa-users-viewfinder' },
-    { path: '/training', label: 'Huấn luyện AI', icon: 'fa-brain' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
+    { id: 'ai-scan', label: 'AI Scan CV', icon: 'fa-radar' },
+    { id: 'intern-book', label: 'Sổ tay Thực tập', icon: 'fa-book-open-reader' },
+    { id: 'ai-training', label: 'Huấn luyện AI', icon: 'fa-robot' },
   ];
 
   return (
     <div className="sidebar" style={{
-        width: '260px', 
-        background: '#0D1825', 
-        borderRight: '1px solid #2D3B4E',
+        width: '260px',
+        height: 'calc(100vh - 80px)', // Trừ đi chiều cao Header
+        background: 'var(--sidebar-bg)', // #0D1825
+        borderRight: '1px solid var(--border-color)',
         padding: '20px',
         display: 'flex', flexDirection: 'column',
-        height: '100vh',
-        flexShrink: 0
+        position: 'sticky', top: '80px', left: 0
     }}>
-      {/* LOGO */}
-      <div style={{ marginBottom: '40px', paddingLeft: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{ width: '32px', height: '32px', background: '#2EFF7B', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#000' }}>HR</div>
-        <h2 style={{ fontSize: '18px', color: '#fff', margin: 0, letterSpacing: '1px' }}>HR TECH</h2>
+      {/* User Profile Mini trong Sidebar */}
+      <div style={{
+          display: 'flex', alignItems: 'center', gap: '12px', 
+          padding: '15px', marginBottom: '30px', 
+          background: '#131F2E', borderRadius: '12px', border: '1px solid var(--border-color)'
+      }}>
+          <div style={{
+              width: '40px', height: '40px', borderRadius: '50%', background: 'var(--neon-green)', 
+              color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+          }}>
+              HR
+          </div>
+          <div>
+              <h4 style={{margin: 0, color: 'var(--text-white)', fontSize: '14px'}}>Mai Anh</h4>
+              <p style={{margin: 0, color: 'var(--text-secondary)', fontSize: '11px'}}>HR Manager</p>
+          </div>
       </div>
 
-      {/* MENU - QUAN TRỌNG: Dùng Link to="..." */}
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+      {/* MENU ITEMS */}
+      <nav style={{display: 'flex', flexDirection: 'column', gap: '10px', flex: 1}}>
         {menuItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link 
-              key={item.path} 
-              to={item.path} 
-              style={{
-                display: 'flex', alignItems: 'center', gap: '15px',
-                padding: '12px 15px', borderRadius: '8px',
-                textDecoration: 'none', transition: 'all 0.2s',
-                // Màu nền thay đổi khi Active
-                background: isActive ? 'rgba(46, 255, 123, 0.1)' : 'transparent',
-                color: isActive ? '#2EFF7B' : '#9CA3AF',
-                borderLeft: isActive ? '3px solid #2EFF7B' : '3px solid transparent',
-                cursor: 'pointer', // Đảm bảo con trỏ chuột hiện hình bàn tay
-                userSelect: 'none'
-              }}
-            >
-              <i className={`fa-solid ${item.icon}`} style={{ width: '20px', textAlign: 'center' }}></i>
-              <span style={{ fontSize: '14px', fontWeight: '500' }}>{item.label}</span>
-            </Link>
-          );
+            const isActive = activeTab === item.id;
+            return (
+                <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)} // <--- QUAN TRỌNG: Gọi hàm chuyển trang
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '15px',
+                        padding: '12px 20px',
+                        background: isActive ? 'rgba(46, 255, 123, 0.1)' : 'transparent', // Nền xanh mờ khi Active
+                        border: isActive ? '1px solid var(--neon-green)' : '1px solid transparent',
+                        borderRadius: '8px',
+                        color: isActive ? 'var(--neon-green)' : 'var(--text-secondary)',
+                        fontSize: '14px', fontWeight: isActive ? '600' : '400',
+                        cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left'
+                    }}
+                    onMouseEnter={(e) => {
+                        if(!isActive) {
+                            e.currentTarget.style.color = 'var(--text-white)';
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        if(!isActive) {
+                            e.currentTarget.style.color = 'var(--text-secondary)';
+                            e.currentTarget.style.background = 'transparent';
+                        }
+                    }}
+                >
+                    <i className={`fa-solid ${item.icon}`} style={{width: '20px', textAlign: 'center'}}></i>
+                    {item.label}
+                </button>
+            );
         })}
       </nav>
 
-      {/* FOOTER */}
-      <div style={{ marginTop: 'auto', padding: '15px', background: '#131F2E', borderRadius: '12px', border: '1px solid #2D3B4E' }}>
-        <p style={{ margin: '0 0 5px 0', fontSize: '11px', color: '#6B7280' }}>PHIÊN BẢN</p>
-        <p style={{ margin: 0, fontSize: '12px', color: '#fff' }}>Online v1.0</p>
+      <div style={{marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '11px', textAlign: 'center'}}>
+          HR Tech Platform v2.0 <br/> Eco-Futuristic Edition
       </div>
     </div>
   );
