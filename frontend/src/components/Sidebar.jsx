@@ -74,12 +74,12 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
             );
         })}
       </nav>
-
-      <div style={{marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '11px', textAlign: 'center'}}>
-          HR Tech Platform v2.0 <br/> Eco-Futuristic Edition
+{/* FOOTER (Đã xóa Mai Anh - Thay bằng Version) */}
+      <div style={{ marginTop: 'auto', padding: '15px', background: '#131F2E', borderRadius: '12px', border: '1px solid #2D3B4E' }}>
+        <p style={{ margin: '0 0 5px 0', fontSize: '11px', color: '#6B7280' }}>HỆ THỐNG</p>
+        <p style={{ margin: 0, fontSize: '12px', color: '#fff' }}>Online v1.0</p>
       </div>
     </div>
   );
 };
-
 export default Sidebar;
