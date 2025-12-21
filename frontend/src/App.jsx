@@ -14,8 +14,8 @@ import Sidebar from './components/Sidebar';
 
 // --- CẤU HÌNH SUPABASE FRONTEND ---
 // Bạn nên thay thế bằng URL và KEY của bạn từ Supabase Dashboard
-const supabaseUrl = 'YOUR_SUPABASE_URL'; 
-const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabaseUrl = 'https://yymkszsrnlfkcsnjgcly.supabase.co'; 
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5bWtzenNybmxma2NzbmpnY2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjU2OTEsImV4cCI6MjA3OTQwMTY5MX0.-o0GwJb2_ZRssCxrQu6wWpEGGL-LCckQiUTGx6nEWO8';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ==========================================
