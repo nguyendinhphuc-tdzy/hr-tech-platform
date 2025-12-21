@@ -1,45 +1,67 @@
-import { useState } from 'react';
-import './index.css';
-
-// Import Components
+/* FILE: frontend/src/App.jsx */
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-
-// Import Views
 import Dashboard from './views/Dashboard';
 import CVScanView from './views/CVScanView';
+import AITraining from './views/AITraining';
 import InternBook from './views/InternBook';
-import AITraining from './views/AITraining'; // Import view mới
+import Home from './views/Home'; // Import trang Home mới
+import { createClient } from '@supabase/supabase-js';
+
+// Khởi tạo Supabase Client (nên tách ra file riêng nếu có thể)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "LINK_SUPABASE";
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY || "KEY_SUPABASE";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 function App() {
-  // Quản lý tab đang hiển thị
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Kiểm tra phiên đăng nhập
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Lắng nghe thay đổi auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) return <div style={{background: '#09121D', height: '100vh'}}></div>;
 
   return (
-    <div className="container">
-      {/* Header dùng chung */}
-      <header className="main-header">
-        <div className="logo">
-          <i className="fa-brands fa-react" style={{fontSize: '24px', color: '#4F46E5'}}></i>
-          <h1>Talent Analytics Platform</h1>
-        </div>
-        <div>
-            {/* Có thể thêm nút thông báo hoặc setting ở đây */}
-        </div>
-      </header>
+    <Router>
+      <Routes>
+        {/* Route Công khai: Landing Page */}
+        <Route path="/" element={<Home />} />
 
-      <div className="hr-layout">
-        {/* Sidebar điều hướng */}
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-
-        {/* Nội dung chính thay đổi theo Tab */}
-        <main className="main-content">
-          {activeTab === 'dashboard' && <Dashboard />}
-          {activeTab === 'cv-scan' && <CVScanView />}
-          {activeTab === 'intern-book' && <InternBook />}
-          {activeTab === 'ai-training' && <AITraining />}
-        </main>
-      </div>
-    </div>
+        {/* Route Bảo mật: Dashboard & Các tính năng */}
+        <Route path="/*" element={
+          session ? (
+            <div className="app-container" style={{ display: 'flex' }}>
+              <Sidebar />
+              <div className="main-content" style={{ flex: 1, padding: '20px', background: '#09121D', minHeight: '100vh' }}>
+                <Routes>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/scan" element={<CVScanView />} />
+                  <Route path="/training" element={<AITraining />} />
+                  <Route path="/interns" element={<InternBook />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </div>
+            </div>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } />
+      </Routes>
+    </Router>
   );
 }
 
