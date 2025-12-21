@@ -32,8 +32,8 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
               HR
           </div>
           <div>
-              <h4 style={{margin: 0, color: 'var(--text-white)', fontSize: '14px'}}>Mai Anh</h4>
-              <p style={{margin: 0, color: 'var(--text-secondary)', fontSize: '11px'}}>HR Manager</p>
+              <h4 style={{margin: 0, color: 'var(--text-white)', fontSize: '14px'}}></h4>
+              <p style={{margin: 0, color: 'var(--text-secondary)', fontSize: '11px'}}></p>
           </div>
       </div>
 
