@@ -23,13 +23,26 @@ const Home = () => {
   }, [navigate]);
 
   // Xử lý Login Google
+// Trong frontend/src/views/Home.jsx
+
   const handleLogin = async () => {
+    if (!supabase) {
+        alert("Chưa kết nối được với Server (Lỗi Config).");
+        return;
+    }
+
+    // Tự động lấy URL hiện tại của trình duyệt (Localhost hoặc Vercel)
+    // Nếu đang ở vercel.app -> redirect về vercel.app/dashboard
+    // Nếu đang ở localhost:3000 -> redirect về localhost:3000/dashboard
+    const redirectUrl = window.location.origin + '/dashboard';
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/dashboard', // Chuyển hướng sau khi login
+        redirectTo: redirectUrl, 
       }
     });
+
     if (error) alert("Lỗi đăng nhập: " + error.message);
   };
 
