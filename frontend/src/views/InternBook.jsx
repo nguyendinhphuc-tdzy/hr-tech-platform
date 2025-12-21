@@ -1,194 +1,226 @@
-/* FILE: frontend/src/views/InternBook.jsx (Eco-Futuristic Style) */
+/* FILE: frontend/src/views/InternBook.jsx (Intern Management Dashboard) */
 import { useState } from 'react';
 
 const InternBook = () => {
-  // Mock Data - Nội dung sổ tay (Bạn có thể thay bằng API sau này)
-  const chapters = [
+  // MOCK DATA: Danh sách thực tập sinh đang làm việc
+  // (Sau này bạn có thể lấy từ DB những candidate có status = 'Offer' -> chuyển sang đây)
+  const [interns] = useState([
     { 
       id: 1, 
-      title: 'Văn hóa Doanh nghiệp', 
-      icon: 'fa-building',
-      content: `
-        # Chào mừng bạn đến với Công ty!
-        
-        Chúng tôi xây dựng môi trường làm việc dựa trên 3 giá trị cốt lõi:
-        
-        **1. Sáng tạo (Innovation):**
-        Luôn tìm kiếm giải pháp mới, không ngại thử nghiệm và chấp nhận thất bại để trưởng thành.
-        
-        **2. Minh bạch (Transparency):**
-        Mọi thông tin đều được chia sẻ cởi mở. Chúng tôi tin rằng sự tin tưởng bắt nguồn từ sự rõ ràng.
-        
-        **3. Tốc độ (Speed):**
-        Trong kỷ nguyên số, chậm trễ là thất bại. Hãy hành động nhanh, phản hồi nhanh và học hỏi nhanh.
-      ` 
+      name: 'Nguyễn Văn A', 
+      role: 'Data Analyst Intern', 
+      department: 'Product Team', 
+      mentor: 'Trần Văn B (Senior DA)',
+      startDate: '2023-10-01',
+      endDate: '2024-01-01',
+      progress: 75, // % Hoàn thành kỳ thực tập
+      status: 'Active',
+      avatar: 'A'
     },
     { 
       id: 2, 
-      title: 'Quy trình Làm việc (Workflow)', 
-      icon: 'fa-diagram-project',
-      content: `
-        # Quy trình Agile & Scrum
-        
-        Chúng ta làm việc theo mô hình Sprint 2 tuần:
-        
-        - **Daily Standup:** 9:00 AM mỗi sáng (15 phút). Báo cáo: Hôm qua làm gì? Hôm nay làm gì? Có vướng mắc gì không?
-        - **Sprint Planning:** Đầu mỗi Sprint để chốt task.
-        - **Review & Retrospective:** Cuối Sprint để demo sản phẩm và rút kinh nghiệm.
-        
-        **Công cụ sử dụng:**
-        - Jira: Quản lý Task.
-        - Slack/Discord: Giao tiếp nhanh.
-        - Notion: Tài liệu hóa (Documentation).
-      ` 
+      name: 'Lê Thị C', 
+      role: 'Marketing Intern', 
+      department: 'Marketing Dept', 
+      mentor: 'Phạm Thị D (CMO)',
+      startDate: '2023-11-15',
+      endDate: '2024-02-15',
+      progress: 30, 
+      status: 'Onboarding',
+      avatar: 'L'
     },
     { 
       id: 3, 
-      title: 'Chế độ & Quyền lợi', 
-      icon: 'fa-gift',
-      content: `
-        # Quyền lợi Thực tập sinh
-        
-        - **Trợ cấp:** Theo năng lực và thời gian làm việc thực tế.
-        - **Đào tạo:** Được tham gia các buổi Workshop nội bộ về AI, Data, và Product Management.
-        - **Cơ hội:** 80% thực tập sinh có cơ hội trở thành nhân viên chính thức sau 3 tháng.
-        
-        **Lưu ý:**
-        Vui lòng chấm công đúng giờ qua hệ thống FaceID tại cửa ra vào.
-      ` 
+      name: 'Hoàng Minh E', 
+      role: 'React Frontend Intern', 
+      department: 'Tech Hub', 
+      mentor: 'Nguyễn Code Dạo (Tech Lead)',
+      startDate: '2023-09-01',
+      endDate: '2023-12-31',
+      progress: 95, 
+      status: 'Graduating',
+      avatar: 'H'
     },
     { 
       id: 4, 
-      title: 'Hướng dẫn Bảo mật', 
-      icon: 'fa-shield-halved',
-      content: `
-        # An toàn thông tin là số 1
-        
-        1. Không chia sẻ tài khoản nội bộ cho người ngoài.
-        2. Khóa màn hình máy tính khi rời khỏi chỗ ngồi.
-        3. Không upload dữ liệu khách hàng lên các công cụ AI công cộng chưa được phê duyệt.
-        4. Báo cáo ngay cho IT nếu thấy dấu hiệu đáng ngờ (Phishing email, máy chậm bất thường).
-      ` 
-    }
-  ];
+      name: 'Phạm Tuấn F', 
+      role: 'HR Assistant Intern', 
+      department: 'Human Resources', 
+      mentor: 'HR Manager',
+      startDate: '2023-12-01',
+      endDate: '2024-03-01',
+      progress: 10, 
+      status: 'Active',
+      avatar: 'P'
+    },
+  ]);
 
-  const [selectedChapter, setSelectedChapter] = useState(chapters[0]);
+  const [filter, setFilter] = useState('All');
+
+  // Hàm chọn màu cho Badge Trạng thái
+  const getStatusStyle = (status) => {
+      if (status === 'Active') return { color: 'var(--neon-green)', bg: 'rgba(46, 255, 123, 0.1)', border: 'var(--neon-green)' };
+      if (status === 'Onboarding') return { color: '#FCD34D', bg: 'rgba(252, 211, 77, 0.1)', border: '#FCD34D' };
+      if (status === 'Graduating') return { color: '#A5B4FC', bg: 'rgba(165, 180, 252, 0.1)', border: '#A5B4FC' };
+      return { color: 'var(--text-gray)', bg: '#1A2736', border: 'var(--border-color)' };
+  };
 
   return (
-    <div className="intern-book-view" style={{ 
-        color: 'var(--text-white)', 
-        minHeight: 'calc(100vh - 100px)',
-        display: 'flex', flexDirection: 'column'
-    }}>
+    <div className="intern-book-view" style={{ color: 'var(--text-white)', minHeight: 'calc(100vh - 100px)' }}>
       
-      {/* HEADER */}
-      <div style={{ marginBottom: '30px' }}>
-        <h2 className="section-title" style={{ 
-            color: 'var(--neon-green)', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px',
-            textShadow: '0 0 10px rgba(46, 255, 123, 0.4)'
-        }}>
-            <i className="fa-solid fa-book-open-reader" style={{marginRight: '10px'}}></i>
-            Sổ Tay Thực Tập Sinh
-        </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
-            Cẩm nang hội nhập và kiến thức nền tảng cho nhân sự mới.
-        </p>
+      {/* HEADER SECTION */}
+      <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
+        <div>
+            <h2 className="section-title" style={{ 
+                color: 'var(--neon-green)', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px',
+                textShadow: '0 0 10px rgba(46, 255, 123, 0.4)'
+            }}>
+                <i className="fa-solid fa-users-viewfinder" style={{marginRight: '10px'}}></i>
+                Quản lý Thực Tập Sinh
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
+                Theo dõi tiến độ, phân công mentor và đánh giá hiệu suất (Intern Tracking).
+            </p>
+        </div>
+        
+        {/* Filter Controls */}
+        <div className="card-dark" style={{ padding: '5px 10px', borderRadius: '8px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <span style={{fontSize: '12px', color: 'var(--text-secondary)'}}>Lọc theo:</span>
+            {['All', 'Active', 'Onboarding', 'Graduating'].map(f => (
+                <button 
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    style={{
+                        background: filter === f ? 'var(--neon-green)' : 'transparent',
+                        color: filter === f ? '#000' : 'var(--text-white)',
+                        border: 'none', padding: '5px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: '600', cursor: 'pointer'
+                    }}
+                >
+                    {f}
+                </button>
+            ))}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '25px', flex: 1 }}>
-        
-        {/* --- CỘT TRÁI: DANH MỤC (MENU) --- */}
-        <div className="card-dark" style={{ 
-            flex: '0 0 300px', 
-            borderRadius: '12px', 
-            padding: '20px',
-            border: '1px solid var(--border-color)',
-            background: 'var(--card-background)',
-            height: 'fit-content'
-        }}>
-            <h3 style={{
-                color: 'var(--text-white)', fontSize: '14px', textTransform: 'uppercase', 
-                borderBottom: '1px solid var(--border-color)', paddingBottom: '15px', marginBottom: '15px'
-            }}>
-                Mục lục
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {chapters.map(chapter => (
-                    <div 
-                        key={chapter.id}
-                        onClick={() => setSelectedChapter(chapter)}
-                        style={{
-                            padding: '12px 15px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '12px',
-                            transition: 'all 0.2s',
-                            background: selectedChapter.id === chapter.id ? 'rgba(46, 255, 123, 0.1)' : 'transparent',
-                            color: selectedChapter.id === chapter.id ? 'var(--neon-green)' : 'var(--text-secondary)',
-                            border: selectedChapter.id === chapter.id ? '1px solid var(--neon-green)' : '1px solid transparent'
-                        }}
-                        onMouseEnter={(e) => {
-                            if(selectedChapter.id !== chapter.id) {
-                                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                                e.currentTarget.style.color = 'var(--text-white)';
-                            }
-                        }}
-                        onMouseLeave={(e) => {
-                            if(selectedChapter.id !== chapter.id) {
-                                e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.color = 'var(--text-secondary)';
-                            }
-                        }}
-                    >
-                        <i className={`fa-solid ${chapter.icon}`} style={{width: '20px', textAlign: 'center'}}></i>
-                        <span style={{fontSize: '14px', fontWeight: '500'}}>{chapter.title}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
+      {/* STATS OVERVIEW */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
+          {[
+              { label: 'Tổng số Intern', val: interns.length, icon: 'fa-users', color: 'var(--text-white)' },
+              { label: 'Đang hoạt động', val: interns.filter(i => i.status === 'Active').length, icon: 'fa-bolt', color: 'var(--neon-green)' },
+              { label: 'Mới tiếp nhận', val: interns.filter(i => i.status === 'Onboarding').length, icon: 'fa-seedling', color: '#FCD34D' },
+              { label: 'Sắp tốt nghiệp', val: interns.filter(i => i.status === 'Graduating').length, icon: 'fa-graduation-cap', color: '#A5B4FC' },
+          ].map((stat, idx) => (
+              <div key={idx} className="card-dark" style={{ padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '5px' }}>{stat.label}</p>
+                      <h3 style={{ fontSize: '24px', margin: 0, color: stat.color }}>{stat.val}</h3>
+                  </div>
+                  <div style={{ 
+                      width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: stat.color, fontSize: '18px'
+                  }}>
+                      <i className={`fa-solid ${stat.icon}`}></i>
+                  </div>
+              </div>
+          ))}
+      </div>
 
-        {/* --- CỘT PHẢI: NỘI DUNG (READER) --- */}
-        <div className="card-dark" style={{ 
-            flex: 1, 
-            borderRadius: '12px', 
-            padding: '40px',
-            border: '1px solid var(--border-color)',
-            background: '#0D1825', // Nền tối hơn nền card một chút để làm nổi nội dung
-            boxShadow: 'inset 0 0 50px rgba(0,0,0,0.5)', // Đổ bóng trong tạo chiều sâu
-            position: 'relative',
-            overflow: 'hidden'
-        }}>
-            {/* Hiệu ứng trang trí góc */}
-            <div style={{position: 'absolute', top: 0, right: 0, width: '100px', height: '100px', background: 'radial-gradient(circle, rgba(46,255,123,0.1) 0%, transparent 70%)', pointerEvents: 'none'}}></div>
-
-            <div className="content-reader fade-in">
-                {/* Header Bài viết */}
-                <div style={{marginBottom: '30px', borderBottom: '1px dashed var(--border-color)', paddingBottom: '20px'}}>
-                    <h1 style={{color: 'var(--text-white)', fontSize: '28px', margin: 0, display: 'flex', alignItems: 'center', gap: '15px'}}>
-                        <span style={{
-                            background: 'var(--neon-green)', color: '#000', width: '40px', height: '40px', 
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', fontSize: '20px'
+      {/* INTERN LIST GRID */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
+        {interns.filter(i => filter === 'All' || i.status === filter).map(intern => {
+            const statusStyle = getStatusStyle(intern.status);
+            return (
+                <div key={intern.id} className="card-dark" style={{ 
+                    padding: '20px', borderRadius: '12px', position: 'relative', overflow: 'hidden',
+                    border: '1px solid var(--border-color)', transition: 'all 0.3s'
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-5px)';
+                    e.currentTarget.style.borderColor = 'var(--neon-green)';
+                    e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.boxShadow = 'none';
+                }}
+                >
+                    {/* Header Card */}
+                    <div style={{ display: 'flex', alignItems: 'start', gap: '15px', marginBottom: '20px' }}>
+                        <div style={{ 
+                            width: '50px', height: '50px', borderRadius: '12px', 
+                            background: 'linear-gradient(135deg, #1A2736, #09121D)', border: '1px solid var(--border-color)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                            fontSize: '20px', fontWeight: '700', color: 'var(--neon-green)'
                         }}>
-                            <i className={`fa-solid ${selectedChapter.icon}`}></i>
+                            {intern.avatar}
+                        </div>
+                        <div>
+                            <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: 'var(--text-white)' }}>{intern.name}</h3>
+                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--neon-green)' }}>{intern.role}</p>
+                            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                <i className="fa-solid fa-building-user" style={{marginRight:'5px'}}></i> {intern.department}
+                            </p>
+                        </div>
+                        <span style={{ 
+                            marginLeft: 'auto', fontSize: '10px', padding: '4px 8px', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase',
+                            color: statusStyle.color, background: statusStyle.bg, border: `1px solid ${statusStyle.border}`
+                        }}>
+                            {intern.status}
                         </span>
-                        {selectedChapter.title}
-                    </h1>
-                </div>
+                    </div>
 
-                {/* Nội dung bài viết */}
-                <div style={{
-                    color: '#D1D5DB', // Màu chữ xám bạc dễ đọc
-                    fontSize: '15px',
-                    lineHeight: '1.8',
-                    whiteSpace: 'pre-line', // Quan trọng: giữ xuống dòng
-                    fontFamily: "'Roboto', sans-serif"
-                }}>
-                    {selectedChapter.content}
-                </div>
-            </div>
-        </div>
+                    {/* Details */}
+                    <div style={{ 
+                        background: '#09121D', padding: '15px', borderRadius: '8px', marginBottom: '20px',
+                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' 
+                    }}>
+                        <div>
+                            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '3px' }}>Mentor hướng dẫn</p>
+                            <p style={{ fontSize: '13px', color: 'var(--text-white)', fontWeight: '500' }}>{intern.mentor}</p>
+                        </div>
+                        <div style={{textAlign: 'right'}}>
+                            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '3px' }}>Thời hạn</p>
+                            <p style={{ fontSize: '13px', color: 'var(--text-white)', fontWeight: '500' }}>
+                                {new Date(intern.endDate).toLocaleDateString('vi-VN')}
+                            </p>
+                        </div>
+                    </div>
 
+                    {/* Progress Bar */}
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
+                            <span style={{color: 'var(--text-secondary)'}}>Tiến độ thực tập</span>
+                            <span style={{color: 'var(--neon-green)', fontWeight: '700'}}>{intern.progress}%</span>
+                        </div>
+                        <div style={{ width: '100%', height: '6px', background: '#1A2736', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ 
+                                width: `${intern.progress}%`, height: '100%', 
+                                background: 'linear-gradient(90deg, var(--neon-green), #009E49)',
+                                boxShadow: '0 0 10px var(--neon-green)'
+                            }}></div>
+                        </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px dashed var(--border-color)', display: 'flex', gap: '10px' }}>
+                        <button style={{ 
+                            flex: 1, background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-white)', 
+                            padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' 
+                        }}>
+                            Xem chi tiết
+                        </button>
+                        <button style={{ 
+                            flex: 1, background: 'rgba(46, 255, 123, 0.1)', border: 'none', color: 'var(--neon-green)', 
+                            padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600'
+                        }}>
+                            Đánh giá
+                        </button>
+                    </div>
+
+                </div>
+            );
+        })}
       </div>
     </div>
   );
