@@ -1,44 +1,66 @@
-import React from 'react';
+/* FILE: frontend/src/components/Sidebar.jsx */
+import { Link, useLocation } from 'react-router-dom';
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = () => {
+  const location = useLocation();
+  
   const menuItems = [
-    { id: 'dashboard', icon: 'fa-table-columns', label: 'Dashboard' },
-    { id: 'cv-scan', icon: 'fa-robot', label: 'AI Scan CV' },
-    { id: 'intern-book', icon: 'fa-book-open', label: 'Sổ tay Thực tập' },
-    { id: 'ai-training', icon: 'fa-brain', label: 'Huấn luyện AI' },
+    { path: '/dashboard', label: 'Dashboard', icon: 'fa-layer-group' },
+    { path: '/scan', label: 'AI Scan CV', icon: 'fa-radar' },
+    { path: '/interns', label: 'Sổ tay Thực tập', icon: 'fa-users-viewfinder' },
+    { path: '/training', label: 'Huấn luyện AI', icon: 'fa-brain' },
   ];
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-top" style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
-        {menuItems.map((item) => (
-          <div 
-            key={item.id}
-            className={`sidebar-link $activeTab === item.id ? 'rgba(46, 255, 123, 0.15)'}`}
-            onClick={() => setActiveTab(item.id)}
-            style={{
-                padding: '12px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', gap: '12px', alignItems: 'center',
-                background: activeTab === item.id ? '#E0E7FF' : 'transparent',
-                color: activeTab === item.id ? '#4F46E5' : '#6B7280',
-                fontWeight: activeTab === item.id ? 600 : 500
-            }}
-          >
-            <i className={`fa-solid ${item.icon}`} style={{width: '20px', textAlign:'center'}}></i>
-            <span>{item.label}</span>
-          </div>
-        ))}
+    <div className="sidebar" style={{
+        width: '260px', 
+        background: '#0D1825', // Nền Sidebar
+        borderRight: '1px solid #2D3B4E', // Đường kẻ ngăn cách với nội dung chính
+        padding: '20px',
+        display: 'flex', flexDirection: 'column',
+        height: '100vh',
+        flexShrink: 0 // Đảm bảo không bị co lại
+    }}>
+      {/* LOGO */}
+      <div style={{ marginBottom: '40px', paddingLeft: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ width: '32px', height: '32px', background: '#2EFF7B', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#000' }}>HR</div>
+        <h2 style={{ fontSize: '18px', color: '#fff', margin: 0, letterSpacing: '1px' }}>HR TECH</h2>
       </div>
-      
-      <div className="sidebar-bottom" style={{marginTop: 'auto', borderTop: '1px solid #E5E7EB', paddingTop: '15px'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-            <div style={{width:'36px', height:'36px', background:'#F3F4F6', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'bold', color:'#374151'}}>HR</div>
-            <div>
-                <div style={{fontWeight: 600, fontSize: '14px'}}>Mai Anh</div>
-                <div style={{fontSize: '12px', color: '#6B7280'}}>HR Manager</div>
-            </div>
-        </div>
+
+      {/* MENU */}
+      <nav style={{ flex: 1 }}>
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link 
+              key={item.path} 
+              to={item.path} 
+              style={{
+                display: 'flex', alignItems: 'center', gap: '15px',
+                padding: '12px 15px', marginBottom: '8px', borderRadius: '8px',
+                textDecoration: 'none', transition: 'all 0.2s',
+                // Logic màu sắc: Nếu đang chọn thì sáng lên
+                background: isActive ? 'rgba(46, 255, 123, 0.1)' : 'transparent',
+                color: isActive ? '#2EFF7B' : '#9CA3AF',
+                borderLeft: isActive ? '3px solid #2EFF7B' : '3px solid transparent'
+              }}
+            >
+              <i className={`fa-solid ${item.icon}`} style={{ width: '20px', textAlign: 'center' }}></i>
+              <span style={{ fontSize: '14px', fontWeight: '500' }}>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* FOOTER (Thay thế phần Mai Anh bằng Version) */}
+      <div style={{ marginTop: 'auto', padding: '15px', background: '#131F2E', borderRadius: '12px', border: '1px solid #2D3B4E' }}>
+        <p style={{ margin: '0 0 5px 0', fontSize: '11px', color: '#6B7280', textTransform: 'uppercase' }}>Hệ thống</p>
+        <p style={{ margin: 0, fontSize: '12px', color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{width:'8px', height:'8px', background:'#2EFF7B', borderRadius:'50%', display:'inline-block'}}></span>
+            Online v1.0
+        </p>
       </div>
-    </aside>
+    </div>
   );
 };
 
