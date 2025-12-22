@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/InternBook.jsx (Ultimate Version) */
+/* FILE: frontend/src/views/InternBook.jsx (Aesthetic Upgrade) */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -8,24 +8,64 @@ const InternBook = () => {
   const [filter, setFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // State quản lý Modal
+  // State Modal
   const [showReviewModal, setShowReviewModal] = useState(null);
   const [showEditModal, setShowEditModal] = useState(null);
 
-  // --- HÀM LÀM GIÀU DỮ LIỆU (Tự động điền thông tin nếu DB thiếu) ---
+  // State đánh giá (Review)
+  const [ratings, setRatings] = useState({ skill: 8, attitude: 9, teamwork: 7 });
+  const [reviewNote, setReviewNote] = useState('');
+
+  // --- STYLE CSS NÂNG CAO (Custom Slider & Animations) ---
+  const customStyles = `
+    .glass-modal {
+        background: rgba(13, 24, 37, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(46, 255, 123, 0.2);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        animation: modalFadeIn 0.3s ease-out forwards;
+    }
+    @keyframes modalFadeIn {
+        from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    /* Custom Range Slider */
+    .neon-range {
+        -webkit-appearance: none; width: 100%; height: 6px; background: #1A2736; border-radius: 3px; outline: none;
+    }
+    .neon-range::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+        background: var(--neon-green); cursor: pointer; box-shadow: 0 0 10px var(--neon-green);
+        margin-top: -6px; /* Căn giữa thumb */
+    }
+    .neon-range::-webkit-slider-runnable-track {
+        width: 100%; height: 6px; cursor: pointer; background: #2D3B4E; border-radius: 3px;
+    }
+    /* Textarea đẹp */
+    .neon-textarea {
+        width: 100%; background: rgba(255,255,255,0.03); border: 1px solid #2D3B4E;
+        color: #fff; padding: 15px; border-radius: 12px; resize: none; font-family: inherit; line-height: 1.6;
+        transition: all 0.3s;
+    }
+    .neon-textarea:focus {
+        border-color: var(--neon-green); outline: none; background: rgba(46,255,123,0.02);
+        box-shadow: 0 0 15px rgba(46, 255, 123, 0.1);
+    }
+  `;
+
+  // Logic làm giàu dữ liệu (Giữ nguyên logic thông minh cũ)
   const enrichInternData = (candidate) => {
       let dept = 'General';
       let mentor = 'HR Manager';
       const role = (candidate.role || '').toLowerCase();
 
-      // Logic đoán phòng ban thông minh
       if (role.includes('data')) { dept = 'Product Data'; mentor = 'Trần Data Lead'; }
       else if (role.includes('marketing')) { dept = 'Growth Marketing'; mentor = 'Lê CMO'; }
       else if (role.includes('dev') || role.includes('engineer')) { dept = 'Engineering'; mentor = 'Nguyễn Tech Lead'; }
-      else if (role.includes('hr') || role.includes('human')) { dept = 'Human Resources'; mentor = 'Phạm HRD'; }
+      else if (role.includes('hr')) { dept = 'Human Resources'; mentor = 'Phạm HRD'; }
 
       const startDate = new Date(candidate.created_at || Date.now());
-      // Random progress demo (trong thực tế sẽ lấy từ DB)
       let progress = candidate.progress || Math.floor(Math.random() * 70) + 20; 
 
       return {
@@ -41,7 +81,6 @@ const InternBook = () => {
   useEffect(() => {
     axios.get(`${API_BASE_URL}/api/candidates`)
       .then(res => {
-        // Chỉ lấy những người đã HIRED
         const hiredList = res.data
             .filter(c => (c.status || '').toLowerCase() === 'hired')
             .map(c => enrichInternData(c));
@@ -50,18 +89,13 @@ const InternBook = () => {
       .catch(err => console.warn("Lỗi API:", err));
   }, []);
 
-  // Xử lý Lưu chỉnh sửa (Cập nhật UI ngay lập tức)
   const handleSaveEdit = () => {
-      const updatedList = interns.map(i => 
-          i.id === showEditModal.id ? showEditModal : i
-      );
+      const updatedList = interns.map(i => i.id === showEditModal.id ? showEditModal : i);
       setInterns(updatedList);
       setShowEditModal(null);
-      // TODO: Sau này bạn cần gọi API PUT để lưu vào DB thật ở đây
-      alert(`Đã cập nhật thông tin cho ${showEditModal.full_name}!`);
   };
 
-  // Filter & Search Logic
+  // Filter
   const filteredInterns = interns.filter(intern => {
       const matchFilter = filter === 'All' || (intern.status || 'Active') === filter;
       const matchSearch = intern.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -71,220 +105,211 @@ const InternBook = () => {
 
   return (
     <div className="intern-book-view" style={{ color: 'var(--text-white)', minHeight: 'calc(100vh - 100px)' }}>
+      <style>{customStyles}</style>
       
-      {/* 1. TOP STATS (Thống kê nhanh) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '25px' }}>
-          {[
-              { label: 'Tổng nhân sự', val: interns.length, icon: 'fa-users', color: '#fff' },
-              { label: 'Đang Onboarding', val: interns.filter(i => i.progress < 30).length, icon: 'fa-seedling', color: '#FCD34D' },
-              { label: 'Sắp tốt nghiệp', val: interns.filter(i => i.progress > 80).length, icon: 'fa-graduation-cap', color: '#A5B4FC' },
-              { label: 'Hiệu suất cao', val: interns.filter(i => parseFloat(i.ai_rating) > 8).length, icon: 'fa-bolt', color: 'var(--neon-green)' },
-          ].map((stat, idx) => (
-              <div key={idx} style={{ background: '#131F2E', padding: '15px 20px', borderRadius: '12px', border: '1px solid #2D3B4E', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                      <div style={{ fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', marginBottom: '5px' }}>{stat.label}</div>
-                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: stat.color }}>{stat.val}</div>
-                  </div>
-                  <div style={{ fontSize: '20px', color: stat.color, opacity: 0.8 }}><i className={`fa-solid ${stat.icon}`}></i></div>
-              </div>
-          ))}
-      </div>
-
-      {/* 2. TOOLBAR (Search & Filter) */}
-      <div style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-        <h2 className="section-title" style={{ color: 'var(--neon-green)', textTransform: 'uppercase', margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <i className="fa-solid fa-address-book"></i> Danh Sách Thực Tập
-        </h2>
+      {/* TOOLBAR */}
+      <div style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+            <h2 className="section-title" style={{ color: 'var(--neon-green)', textTransform: 'uppercase', margin: 0, fontSize: '20px', letterSpacing: '1px' }}>
+                <i className="fa-solid fa-address-book" style={{marginRight: '10px'}}></i> Sổ Tay Thực Tập
+            </h2>
+            <p style={{margin:'5px 0 0', fontSize:'13px', color:'#9CA3AF'}}>Quản lý {interns.length} nhân sự đang làm việc</p>
+        </div>
         
-        <div style={{ display: 'flex', gap: '15px', flex: 1, justifyContent: 'flex-end' }}>
-            {/* Search Box */}
-            <div style={{ position: 'relative', width: '300px' }}>
-                <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6B7280', fontSize: '14px' }}></i>
+        <div style={{ display: 'flex', gap: '15px' }}>
+            {/* Search */}
+            <div style={{ position: 'relative' }}>
+                <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6B7280', fontSize: '13px' }}></i>
                 <input 
-                    type="text" 
-                    placeholder="Tìm kiếm theo tên hoặc email..." 
-                    value={searchTerm}
+                    type="text" placeholder="Tìm kiếm..." value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ 
-                        width: '100%', padding: '10px 10px 10px 35px', borderRadius: '8px', 
-                        background: '#0D1825', border: '1px solid #2D3B4E', color: '#fff', fontSize: '13px' 
-                    }}
+                    style={{ padding: '8px 15px 8px 35px', borderRadius: '20px', background: '#0D1825', border: '1px solid #2D3B4E', color: '#fff', fontSize: '13px', width: '250px' }}
                 />
-            </div>
-            
-            {/* Filter Tabs */}
-            <div style={{ background: '#131F2E', padding: '4px', borderRadius: '8px', border: '1px solid #2D3B4E', display: 'flex', gap: '5px' }}>
-                {['All', 'Active', 'Onboarding'].map(f => (
-                    <button key={f} onClick={() => setFilter(f)} 
-                        style={{
-                            background: filter === f ? 'rgba(46, 255, 123, 0.15)' : 'transparent',
-                            color: filter === f ? 'var(--neon-green)' : '#9CA3AF',
-                            border: 'none', padding: '6px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '12px', transition: 'all 0.2s'
-                        }}>
-                        {f}
-                    </button>
-                ))}
             </div>
         </div>
       </div>
 
-      {/* 3. GRID VIEW (IMPROVED CARDS) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-        {filteredInterns.length === 0 ? (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', border: '2px dashed #2D3B4E', borderRadius: '12px', color: '#6B7280' }}>
-                <i className="fa-solid fa-user-slash" style={{ fontSize: '40px', marginBottom: '15px' }}></i>
-                <p>Không tìm thấy nhân sự phù hợp.</p>
-            </div>
-        ) : (
-            filteredInterns.map(intern => (
-                <div key={intern.id} style={{ 
-                    background: '#131F2E', borderRadius: '12px', padding: '20px',
-                    border: '1px solid #2D3B4E', position: 'relative',
-                    transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '15px',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--neon-green)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2D3B4E'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                >
-                    {/* Header: Avatar + Info + Edit Button */}
-                    <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
+      {/* --- CARD GRID (Modern UI) --- */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
+        {filteredInterns.map(intern => (
+            <div key={intern.id} style={{ 
+                background: 'linear-gradient(145deg, #131F2E 0%, #0D1825 100%)', borderRadius: '16px', padding: '20px',
+                border: '1px solid #2D3B4E', position: 'relative', overflow: 'hidden',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'var(--neon-green)'; e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#2D3B4E'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
+                {/* Decorative Blob */}
+                <div style={{position:'absolute', top:'-20px', right:'-20px', width:'100px', height:'100px', background:'var(--neon-green)', filter:'blur(60px)', opacity:'0.1', borderRadius:'50%'}}></div>
+
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', position:'relative', zIndex: 1 }}>
+                    <div style={{ position: 'relative' }}>
                         <div style={{ 
-                            width: '50px', height: '50px', borderRadius: '12px', flexShrink: 0,
-                            background: 'linear-gradient(135deg, #0D1825, #1A2736)', border: '1px solid var(--neon-green)',
+                            width: '55px', height: '55px', borderRadius: '14px', 
+                            background: '#09121D', border: '1px solid #2D3B4E',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '20px', fontWeight: 'bold', color: '#fff',
-                            boxShadow: '0 0 10px rgba(46, 255, 123, 0.2)'
+                            fontSize: '22px', fontWeight: '800', color: '#fff',
+                            boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)'
                         }}>
                             {intern.avatarChar}
                         </div>
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                            <h3 style={{ margin: 0, color: '#fff', fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{intern.full_name}</h3>
-                            <p style={{ margin: '3px 0 0', color: 'var(--neon-green)', fontSize: '12px', fontWeight: '500' }}>{intern.role}</p>
-                        </div>
-                        
-                        {/* NÚT CHỈNH SỬA (Đã làm nổi bật) */}
-                        <button 
-                            onClick={() => setShowEditModal(intern)}
-                            title="Chỉnh sửa thông tin"
-                            style={{ 
-                                background: 'rgba(46, 255, 123, 0.1)', border: '1px solid var(--neon-green)', 
-                                color: 'var(--neon-green)', width: '32px', height: '32px', borderRadius: '8px', 
-                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--neon-green)'; e.currentTarget.style.color = '#000'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(46, 255, 123, 0.1)'; e.currentTarget.style.color = 'var(--neon-green)'; }}
-                        >
-                            <i className="fa-solid fa-pen" style={{ fontSize: '14px' }}></i>
-                        </button>
-                    </div>
-
-                    {/* Data Grid */}
-                    <div style={{ background: '#0D1825', padding: '12px', borderRadius: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', border: '1px solid #1F2937' }}>
-                        <div>
-                            <span style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase' }}>Phòng ban</span>
-                            <div style={{ fontSize: '13px', color: '#E0E0E0', fontWeight: '500', marginTop: '2px' }}>{intern.department}</div>
-                        </div>
-                        <div>
-                            <span style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase' }}>Mentor</span>
-                            <div style={{ fontSize: '13px', color: '#E0E0E0', fontWeight: '500', marginTop: '2px' }}>{intern.mentor}</div>
-                        </div>
-                        <div style={{ gridColumn: '1/-1', borderTop: '1px dashed #2D3B4E', paddingTop: '8px', marginTop: '5px' }}>
-                            <span style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase' }}>Email liên hệ</span>
-                            <div style={{ fontSize: '13px', color: '#E0E0E0', marginTop: '2px' }}>{intern.email}</div>
+                        <div style={{position:'absolute', bottom:'-5px', right:'-5px', width:'20px', height:'20px', background:'#0D1825', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                            <div style={{width:'12px', height:'12px', background:'var(--neon-green)', borderRadius:'50%', boxShadow:'0 0 5px var(--neon-green)'}}></div>
                         </div>
                     </div>
+                    
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <h3 style={{ margin: 0, color: '#fff', fontSize: '16px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{intern.full_name}</h3>
+                        <p style={{ margin: '4px 0 0', color: 'var(--neon-green)', fontSize: '12px', fontWeight: '600', letterSpacing:'0.5px' }}>{intern.role}</p>
+                    </div>
 
-                    {/* Footer: Progress & Review */}
-                    <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px', color: '#9CA3AF' }}>
-                                <span>Tiến độ</span>
-                                <span style={{ color: 'var(--neon-green)' }}>{intern.progress}%</span>
-                            </div>
-                            <div style={{ width: '100%', height: '5px', background: '#2D3B4E', borderRadius: '3px' }}>
-                                <div style={{ width: `${intern.progress}%`, height: '100%', background: 'var(--neon-green)', borderRadius: '3px' }}></div>
-                            </div>
+                    {/* Edit Button (Fixed Visibility) */}
+                    <button 
+                        onClick={() => setShowEditModal(intern)}
+                        style={{ 
+                            background: 'rgba(255,255,255,0.05)', border: '1px solid #2D3B4E', color: '#9CA3AF', 
+                            width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--neon-green)'; e.currentTarget.style.color = '#000'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#9CA3AF'; }}
+                    >
+                        <i className="fa-solid fa-pen" style={{ fontSize: '12px' }}></i>
+                    </button>
+                </div>
+
+                <div style={{ marginTop: '20px', background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '10px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                        <div>
+                            <div style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight:'700' }}>Phòng ban</div>
+                            <div style={{ fontSize: '13px', color: '#E0E0E0', marginTop: '4px' }}>{intern.department}</div>
                         </div>
-                        <button 
-                            onClick={() => setShowReviewModal(intern)}
-                            style={{ 
-                                background: '#2D3B4E', border: 'none', color: '#fff', 
-                                padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', cursor: 'pointer',
-                                whiteSpace: 'nowrap'
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = '#4B5563'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = '#2D3B4E'; }}
-                        >
-                            Đánh giá
-                        </button>
+                        <div>
+                            <div style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight:'700' }}>Mentor</div>
+                            <div style={{ fontSize: '13px', color: '#E0E0E0', marginTop: '4px' }}>{intern.mentor}</div>
+                        </div>
                     </div>
                 </div>
-            ))
-        )}
+
+                <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{flex:1}}>
+                        <div style={{display:'flex', justifyContent:'space-between', fontSize:'11px', marginBottom:'5px'}}>
+                            <span style={{color:'#9CA3AF'}}>Tiến độ</span>
+                            <span style={{color:'var(--neon-green)', fontWeight:'bold'}}>{intern.progress}%</span>
+                        </div>
+                        <div style={{width:'100%', height:'4px', background:'#2D3B4E', borderRadius:'2px', overflow:'hidden'}}>
+                            <div style={{width:`${intern.progress}%`, height:'100%', background:'var(--neon-green)', boxShadow:'0 0 10px var(--neon-green)'}}></div>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setShowReviewModal(intern)}
+                        style={{
+                            background: 'transparent', border: '1px solid var(--neon-green)', color: 'var(--neon-green)',
+                            padding: '6px 15px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer',
+                            textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--neon-green)'; e.currentTarget.style.color = '#000'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--neon-green)'; }}
+                    >
+                        Đánh giá
+                    </button>
+                </div>
+            </div>
+        ))}
       </div>
 
-      {/* --- MODAL EDIT (Chỉnh sửa thông tin) --- */}
-      {showEditModal && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
-              <div style={{ background: '#131F2E', width: '400px', padding: '25px', borderRadius: '12px', border: '1px solid #2D3B4E', boxShadow: '0 0 30px rgba(0,0,0,0.5)' }}>
-                  <h3 style={{ margin: '0 0 20px 0', color: '#fff', fontSize: '18px', borderBottom: '1px solid #2D3B4E', paddingBottom: '10px' }}>
-                      <i className="fa-solid fa-pen-to-square" style={{ color: 'var(--neon-green)', marginRight: '10px' }}></i>
-                      Cập nhật thông tin
-                  </h3>
-                  
-                  <div style={{ marginBottom: '15px' }}>
-                      <label style={{ display: 'block', fontSize: '12px', color: '#9CA3AF', marginBottom: '5px' }}>Họ và tên</label>
-                      <input 
-                        value={showEditModal.full_name} disabled
-                        style={{ width: '100%', padding: '10px', background: '#0D1825', border: '1px solid #2D3B4E', color: '#6B7280', borderRadius: '6px', cursor: 'not-allowed' }} 
-                      />
+      {/* --- AESTHETIC MODAL: REVIEW --- */}
+      {showReviewModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background:'rgba(0,0,0,0.6)', backdropFilter:'blur(5px)' }}>
+              <div className="glass-modal" style={{ width: '500px', borderRadius: '20px', overflow: 'hidden' }}>
+                  {/* Modal Header */}
+                  <div style={{ padding: '25px', background: 'linear-gradient(90deg, rgba(46,255,123,0.1) 0%, transparent 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <div>
+                          <h3 style={{ margin: 0, color: '#fff', fontSize: '20px' }}>Đánh giá hiệu suất</h3>
+                          <p style={{ margin: '5px 0 0', color: 'var(--neon-green)', fontSize: '13px' }}>Nhân sự: {showReviewModal.full_name}</p>
+                      </div>
+                      <div style={{ width:'40px', height:'40px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px' }}>📝</div>
                   </div>
 
-                  <div style={{ marginBottom: '15px' }}>
-                      <label style={{ display: 'block', fontSize: '12px', color: '#fff', marginBottom: '5px' }}>Phòng ban / Bộ phận</label>
-                      <input 
-                        value={showEditModal.department} 
-                        onChange={(e) => setShowEditModal({...showEditModal, department: e.target.value})}
-                        style={{ width: '100%', padding: '10px', background: '#0D1825', border: '1px solid #2D3B4E', color: '#fff', borderRadius: '6px', fontSize: '14px' }} 
-                      />
+                  {/* Modal Body */}
+                  <div style={{ padding: '30px' }}>
+                      <div style={{ display:'grid', gap:'25px' }}>
+                          {['Kỹ năng chuyên môn', 'Thái độ & Kỷ luật', 'Khả năng Teamwork'].map((criteria, idx) => {
+                              const key = idx === 0 ? 'skill' : idx === 1 ? 'attitude' : 'teamwork';
+                              return (
+                                  <div key={key}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                          <span style={{ fontSize: '13px', color: '#E0E0E0', fontWeight: '500' }}>{criteria}</span>
+                                          <span style={{ fontSize: '13px', color: 'var(--neon-green)', fontWeight: 'bold' }}>{ratings[key]}/10</span>
+                                      </div>
+                                      <input 
+                                        type="range" min="1" max="10" 
+                                        value={ratings[key]} 
+                                        onChange={(e) => setRatings({...ratings, [key]: parseInt(e.target.value)})}
+                                        className="neon-range"
+                                      />
+                                  </div>
+                              );
+                          })}
+                          
+                          <div>
+                              <label style={{display:'block', fontSize:'13px', color:'#E0E0E0', marginBottom:'10px', fontWeight:'500'}}>Nhận xét chi tiết</label>
+                              <textarea 
+                                className="neon-textarea" 
+                                rows="3" 
+                                placeholder="Ghi chú về điểm mạnh, điểm yếu..."
+                                value={reviewNote}
+                                onChange={(e) => setReviewNote(e.target.value)}
+                              ></textarea>
+                          </div>
+                      </div>
                   </div>
 
-                  <div style={{ marginBottom: '25px' }}>
-                      <label style={{ display: 'block', fontSize: '12px', color: '#fff', marginBottom: '5px' }}>Mentor hướng dẫn</label>
-                      <input 
-                        value={showEditModal.mentor} 
-                        onChange={(e) => setShowEditModal({...showEditModal, mentor: e.target.value})}
-                        style={{ width: '100%', padding: '10px', background: '#0D1825', border: '1px solid #2D3B4E', color: '#fff', borderRadius: '6px', fontSize: '14px' }} 
-                      />
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                      <button onClick={() => setShowEditModal(null)} style={{ background: 'transparent', color: '#9CA3AF', border: 'none', cursor: 'pointer', padding: '8px 15px' }}>Hủy bỏ</button>
-                      <button onClick={handleSaveEdit} style={{ background: 'var(--neon-green)', color: '#000', padding: '10px 25px', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Lưu thay đổi</button>
+                  {/* Modal Footer */}
+                  <div style={{ padding: '20px 30px', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'flex-end', gap: '15px' }}>
+                      <button onClick={() => setShowReviewModal(null)} style={{ background: 'transparent', color: '#9CA3AF', border: 'none', cursor: 'pointer', fontSize:'13px', fontWeight:'600' }}>Hủy bỏ</button>
+                      <button onClick={() => { alert("Đã lưu đánh giá thành công!"); setShowReviewModal(null); }} style={{ 
+                          background: 'var(--neon-green)', color: '#000', padding: '10px 25px', borderRadius: '10px', 
+                          border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize:'13px',
+                          boxShadow: '0 0 20px rgba(46, 255, 123, 0.3)'
+                      }}>
+                          Lưu & Gửi
+                      </button>
                   </div>
               </div>
           </div>
       )}
 
-      {/* --- MODAL REVIEW (Đánh giá) --- */}
-      {showReviewModal && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
-              <div style={{ background: '#131F2E', width: '450px', padding: '30px', borderRadius: '16px', border: '1px solid var(--neon-green)' }}>
-                  <h3 style={{ marginTop: 0, color: 'var(--neon-green)' }}>Đánh giá hiệu suất</h3>
-                  <p style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '20px' }}>Nhân sự: <b>{showReviewModal.full_name}</b></p>
+      {/* --- AESTHETIC MODAL: EDIT (Similar Style) --- */}
+      {showEditModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background:'rgba(0,0,0,0.6)', backdropFilter:'blur(5px)' }}>
+              <div className="glass-modal" style={{ width: '420px', borderRadius: '20px', padding:'30px' }}>
+                  <h3 style={{ margin: '0 0 25px 0', color: '#fff', fontSize: '20px', display:'flex', alignItems:'center', gap:'10px' }}>
+                      <i className="fa-solid fa-pen-to-square" style={{color:'var(--neon-green)'}}></i> Cập nhật thông tin
+                  </h3>
                   
-                  {['Kỹ năng chuyên môn', 'Thái độ & Kỷ luật', 'Teamwork'].map(c => (
-                      <div key={c} style={{ marginBottom: '15px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff', marginBottom: '5px' }}>
-                              <span>{c}</span><span style={{ color: 'var(--neon-green)' }}>Tốt</span>
-                          </div>
-                          <input type="range" style={{ width: '100%', accentColor: 'var(--neon-green)' }} />
-                      </div>
-                  ))}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                      <button onClick={() => setShowReviewModal(null)} style={{ background: 'transparent', color: '#fff', border: 'none', cursor: 'pointer' }}>Đóng</button>
-                      <button onClick={() => { alert("Đã lưu!"); setShowReviewModal(null); }} style={{ background: 'var(--neon-green)', color: '#000', padding: '8px 20px', borderRadius: '6px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Gửi đánh giá</button>
+                  <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', fontSize: '12px', color: '#9CA3AF', marginBottom: '8px' }}>Phòng ban / Bộ phận</label>
+                      <input 
+                        value={showEditModal.department} 
+                        onChange={(e) => setShowEditModal({...showEditModal, department: e.target.value})}
+                        style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid #2D3B4E', color: '#fff', borderRadius: '8px', outline:'none' }} 
+                      />
+                  </div>
+                  <div style={{ marginBottom: '30px' }}>
+                      <label style={{ display: 'block', fontSize: '12px', color: '#9CA3AF', marginBottom: '8px' }}>Mentor hướng dẫn</label>
+                      <input 
+                        value={showEditModal.mentor} 
+                        onChange={(e) => setShowEditModal({...showEditModal, mentor: e.target.value})}
+                        style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid #2D3B4E', color: '#fff', borderRadius: '8px', outline:'none' }} 
+                      />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                      <button onClick={() => setShowEditModal(null)} style={{ background: 'transparent', color: '#9CA3AF', border: 'none', cursor: 'pointer', padding: '10px' }}>Hủy</button>
+                      <button onClick={handleSaveEdit} style={{ background: 'var(--neon-green)', color: '#000', padding: '10px 25px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Lưu thay đổi</button>
                   </div>
               </div>
           </div>
