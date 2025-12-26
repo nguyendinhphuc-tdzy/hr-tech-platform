@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/Dashboard.jsx (Eco-Futuristic UI Upgrade) */
+/* FILE: frontend/src/views/Dashboard.jsx (Eco-Futuristic + Quick Actions) */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -12,7 +12,7 @@ const Dashboard = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
 
   const fetchCandidates = () => {
-    setLoading(true);
+    // setLoading(true); // Tắt loading khi refresh ngầm để tránh nháy trang
     axios.get(`${API_BASE_URL}/api/candidates`)
       .then(response => {
         setCandidates(response.data);
@@ -24,24 +24,36 @@ const Dashboard = () => {
       });
   };
 
-  useEffect(() => { fetchCandidates(); }, []);
+  useEffect(() => { 
+      setLoading(true); // Chỉ hiện loading lần đầu
+      fetchCandidates(); 
+  }, []);
 
-  const onDragEnd = async (result) => {
-    const { source, destination, draggableId } = result;
+  // --- HÀM XỬ LÝ CHUYỂN TRẠNG THÁI (DÙNG CHUNG) ---
+  const updateCandidateStatus = async (id, newStatus) => {
+      // 1. Optimistic Update (Cập nhật giao diện ngay lập tức)
+      const updatedCandidates = candidates.map(c => 
+          c.id.toString() === id.toString() ? { ...c, status: newStatus } : c
+      );
+      setCandidates(updatedCandidates);
+
+      // 2. Gọi API cập nhật Backend
+      try {
+          await axios.put(`${API_BASE_URL}/api/candidates/${id}/status`, { status: newStatus });
+      } catch (error) {
+          console.error("Lỗi cập nhật server:", error);
+          alert("Có lỗi khi lưu trạng thái, vui lòng tải lại trang.");
+          fetchCandidates(); // Revert lại dữ liệu cũ nếu lỗi
+      }
+  };
+
+  const onDragEnd = (result) => {
+    const { destination, draggableId } = result;
     if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+    if (result.source.droppableId === destination.droppableId && result.source.index === destination.index) return;
 
-    const newStatus = destination.droppableId;
-    const updatedCandidates = candidates.map(c => 
-        c.id.toString() === draggableId ? { ...c, status: newStatus } : c
-    );
-    setCandidates(updatedCandidates);
-
-    try {
-        await axios.put(`${API_BASE_URL}/api/candidates/${draggableId}/status`, { status: newStatus });
-    } catch (error) {
-        console.error("Lỗi update:", error);
-    }
+    // Gọi hàm xử lý chung
+    updateCandidateStatus(draggableId, destination.droppableId);
   };
 
   const getList = (status) => candidates.filter(c => 
@@ -51,7 +63,7 @@ const Dashboard = () => {
   return (
     <div className="hr-dashboard" style={{ color: 'var(--text-white)', height: '100%', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 1. KPI SECTION (Giữ nguyên nhưng tinh chỉnh spacing) */}
+      {/* 1. KPI SECTION */}
       <section className="kpi-grid" style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
@@ -71,16 +83,16 @@ const Dashboard = () => {
             <i className="fa-solid fa-layer-group" style={{marginRight:'10px'}}></i> Quy trình Tuyển dụng
           </h2>
           <div style={{fontSize: '12px', color: 'var(--text-secondary)'}}>
-              <i className="fa-solid fa-arrows-left-right" style={{marginRight: '5px'}}></i> Kéo thả để chuyển trạng thái
+              <i className="fa-solid fa-arrows-left-right" style={{marginRight: '5px'}}></i> Kéo thả hoặc chọn menu để chuyển
           </div>
       </div>
       
-      {/* 3. KANBAN BOARD (SCROLLABLE & MODERN) */}
+      {/* 3. KANBAN BOARD */}
       <div style={{ flex: 1, overflowX: 'auto', paddingBottom: '10px' }}>
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="recruitment-pipeline" style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(5, 300px)', // Cố định chiều rộng cột để không bị co
+                gridTemplateColumns: 'repeat(5, 300px)', // Giữ độ rộng 300px để thẻ thoáng
                 gap: '20px',
                 alignItems: 'start',
                 height: '100%'
@@ -91,6 +103,7 @@ const Dashboard = () => {
                         status={status} 
                         list={getList(status)} 
                         onSelect={setSelectedCandidate} 
+                        onStatusChange={updateCandidateStatus} // Truyền hàm xuống dưới
                    />
                ))}
             </div>
@@ -109,9 +122,8 @@ const Dashboard = () => {
   );
 };
 
-// --- SUB-COMPONENTS ĐÃ ĐƯỢC "ĐỘ" LẠI ---
-
-const PipelineColumn = ({ status, list, onSelect }) => {
+// --- SUB-COMPONENT: PIPELINE COLUMN ---
+const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
     // Config màu sắc & Icon cho từng cột
     const config = {
         'Screening': { icon: 'fa-magnifying-glass', color: '#A5B4FC', border: '#A5B4FC' },
@@ -133,10 +145,10 @@ const PipelineColumn = ({ status, list, onSelect }) => {
                     style={{
                         background: snapshot.isDraggingOver 
                             ? 'rgba(255,255,255,0.03)' 
-                            : (isHiredColumn ? config.bgGlow : '#0D1825'), // Cột Hired có nền sáng nhẹ
+                            : (isHiredColumn ? config.bgGlow : '#0D1825'), 
                         padding: '12px', 
                         borderRadius: '16px', 
-                        border: isHiredColumn ? `1px solid ${config.border}` : '1px solid #2D3B4E', // Cột Hired có viền xanh
+                        border: isHiredColumn ? `1px solid ${config.border}` : '1px solid #2D3B4E', 
                         display: 'flex', flexDirection: 'column',
                         height: '100%', 
                         minHeight: '600px',
@@ -144,7 +156,7 @@ const PipelineColumn = ({ status, list, onSelect }) => {
                         boxShadow: isHiredColumn ? '0 0 20px rgba(46, 255, 123, 0.05)' : 'none'
                     }}
                 >
-                    {/* Header Cột - Thiết kế dạng Badge */}
+                    {/* Header Cột */}
                     <div style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '10px 5px', marginBottom: '15px',
@@ -165,7 +177,7 @@ const PipelineColumn = ({ status, list, onSelect }) => {
                         </span>
                     </div>
                     
-                    {/* Danh sách thẻ (Scrollable bên trong cột) */}
+                    {/* Danh sách thẻ */}
                     <div style={{flex: 1, overflowY: 'auto', paddingRight: '4px'}} className="custom-scrollbar">
                         {list.length === 0 && (
                             <div style={{textAlign: 'center', padding: '40px 0', opacity: 0.3, color: config.color}}>
@@ -187,7 +199,12 @@ const PipelineColumn = ({ status, list, onSelect }) => {
                                             transform: snapshot.isDragging ? provided.draggableProps.style.transform : 'none' 
                                         }}
                                     >
-                                        <CandidateCard data={c} onClick={() => onSelect(c)} />
+                                        {/* TRUYỀN onStatusChange VÀO CARD ĐỂ KÍCH HOẠT MENU */}
+                                        <CandidateCard 
+                                            data={c} 
+                                            onClick={() => onSelect(c)} 
+                                            onStatusChange={onStatusChange} 
+                                        />
                                     </div>
                                 )}
                             </Draggable>
@@ -200,7 +217,7 @@ const PipelineColumn = ({ status, list, onSelect }) => {
     );
 };
 
-// Component KPI Card (Giữ nguyên)
+// Component KPI Card
 const KpiCard = ({ title, value, icon, color, glow }) => (
     <div style={{
         background: '#131F2E', padding: '20px', borderRadius: '16px',
