@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/Dashboard.jsx (With Date Filter) */
+/* FILE: frontend/src/views/Dashboard.jsx (Advanced Date Range Filter) */
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -11,8 +11,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   
-  // State bộ lọc ngày
-  const [dateFilter, setDateFilter] = useState('all');
+  // --- STATE QUẢN LÝ BỘ LỌC NGÀY ---
+  const [dateFilterType, setDateFilterType] = useState('all'); // 'all' | 'today' | 'week' | 'month' | 'custom'
+  const [customRange, setCustomRange] = useState({ start: '', end: '' });
 
   const fetchCandidates = () => {
     setLoading(true);
@@ -45,29 +46,44 @@ const Dashboard = () => {
     } catch (error) { console.error("Lỗi update:", error); }
   };
 
-  // --- LOGIC LỌC ỨNG VIÊN THEO NGÀY ---
-  // Sử dụng useMemo để tối ưu hiệu năng, chỉ lọc lại khi candidates hoặc dateFilter thay đổi
+  // --- LOGIC LỌC ỨNG VIÊN NÂNG CAO ---
   const filteredCandidates = useMemo(() => {
-      if (dateFilter === 'all') return candidates;
+      if (candidates.length === 0) return [];
 
-      const now = new Date();
       return candidates.filter(c => {
           const createdDate = new Date(c.created_at || Date.now());
-          // Reset giờ về 00:00:00 để so sánh ngày chính xác
-          const d1 = new Date(createdDate.setHours(0,0,0,0));
-          const d2 = new Date(now.setHours(0,0,0,0));
-          
-          const diffTime = Math.abs(d2 - d1);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          createdDate.setHours(0, 0, 0, 0); // Reset giờ để so sánh ngày chuẩn
+          const now = new Date();
+          now.setHours(0, 0, 0, 0);
 
-          if (dateFilter === 'today') return diffDays === 0;
-          if (dateFilter === 'week') return diffDays <= 7;
-          if (dateFilter === 'month') return diffDays <= 30;
+          // 1. Lọc theo Preset (Hôm nay, Tuần này...)
+          if (dateFilterType !== 'custom') {
+              const diffTime = Math.abs(now - createdDate);
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+              if (dateFilterType === 'all') return true;
+              if (dateFilterType === 'today') return diffDays === 0;
+              if (dateFilterType === 'week') return diffDays <= 7;
+              if (dateFilterType === 'month') return diffDays <= 30;
+          }
+
+          // 2. Lọc theo Custom Range (Từ ngày - Đến ngày)
+          if (dateFilterType === 'custom') {
+              if (!customRange.start && !customRange.end) return true; // Chưa chọn gì thì hiện hết
+              
+              const start = customRange.start ? new Date(customRange.start) : new Date('1970-01-01');
+              const end = customRange.end ? new Date(customRange.end) : new Date('2100-01-01');
+              
+              // Đảm bảo so sánh bao gồm cả ngày cuối cùng
+              end.setHours(23, 59, 59, 999); 
+
+              return createdDate >= start && createdDate <= end;
+          }
+
           return true;
       });
-  }, [candidates, dateFilter]);
+  }, [candidates, dateFilterType, customRange]);
 
-  // Lấy danh sách theo trạng thái (từ tập đã lọc)
   const getList = (status) => filteredCandidates.filter(c => 
     (c.status || '').toLowerCase() === status.toLowerCase()
   );
@@ -75,7 +91,7 @@ const Dashboard = () => {
   return (
     <div className="hr-dashboard" style={{ color: 'var(--text-primary)', height: '100%', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 1. KPI SECTION (Số liệu nhảy theo bộ lọc) */}
+      {/* 1. KPI SECTION */}
       <section className="kpi-grid" style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
@@ -87,53 +103,66 @@ const Dashboard = () => {
         <KpiCard title="Hired" value={getList('Hired').length} icon="fa-handshake" color="var(--accent-color)" glow={true} />
       </section>
 
-      {/* 2. PIPELINE HEADER & TOOLBAR */}
+      {/* 2. TOOLBAR & FILTER */}
       <div style={{ 
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-          marginBottom: '15px', flexShrink: 0, flexWrap: 'wrap', gap: '10px'
+          marginBottom: '15px', flexShrink: 0, flexWrap: 'wrap', gap: '15px'
       }}>
           <h2 className="section-title" style={{ color: 'var(--accent-color)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '16px' }}>
             <i className="fa-solid fa-layer-group" style={{marginRight:'10px'}}></i> Quy trình Tuyển dụng
           </h2>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              {/* COMBOBOX LỌC NGÀY (Mới) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-tertiary)', padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              
+              {/* Dropdown loại bộ lọc */}
               <div style={{position: 'relative'}}>
-                  <i className="fa-regular fa-calendar" style={{
-                      position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', 
-                      color: 'var(--accent-color)', fontSize: '13px', pointerEvents: 'none'
-                  }}></i>
+                  <i className="fa-solid fa-filter" style={{position:'absolute', left:'10px', top:'50%', transform:'translateY(-50%)', color:'var(--accent-color)', fontSize:'12px'}}></i>
                   <select 
-                      value={dateFilter}
-                      onChange={(e) => setDateFilter(e.target.value)}
+                      value={dateFilterType}
+                      onChange={(e) => setDateFilterType(e.target.value)}
                       style={{
-                          appearance: 'none',
-                          padding: '8px 15px 8px 35px',
-                          borderRadius: '8px',
-                          background: 'var(--bg-input)',
-                          border: '1px solid var(--border-color)',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px', fontWeight: '500',
-                          cursor: 'pointer', outline: 'none',
-                          minWidth: '160px'
+                          padding: '8px 10px 8px 30px', borderRadius: '6px',
+                          background: 'var(--bg-input)', border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)', fontSize: '12px', fontWeight: '600',
+                          cursor: 'pointer', outline: 'none'
                       }}
                   >
                       <option value="all">Tất cả thời gian</option>
                       <option value="today">Hôm nay</option>
                       <option value="week">7 ngày qua</option>
                       <option value="month">Tháng này</option>
+                      <option value="custom">📅 Tùy chọn ngày...</option>
                   </select>
-                  {/* Mũi tên dropdown custom */}
-                  <i className="fa-solid fa-chevron-down" style={{
-                      position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', 
-                      color: 'var(--text-secondary)', fontSize: '10px', pointerEvents: 'none'
-                  }}></i>
               </div>
 
-              {/* Hướng dẫn (Ẩn trên mobile để gọn) */}
-              <div style={{fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px'}} className="hide-on-mobile">
-                  <i className="fa-solid fa-arrows-left-right"></i> Kéo thả
-              </div>
+              {/* Ô chọn ngày (Chỉ hiện khi chọn Custom) */}
+              {dateFilterType === 'custom' && (
+                  <div className="fade-in" style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
+                      <input 
+                          type="date" 
+                          value={customRange.start}
+                          onChange={(e) => setCustomRange({...customRange, start: e.target.value})}
+                          style={{
+                              padding: '7px 10px', borderRadius: '6px',
+                              background: 'var(--bg-input)', border: '1px solid var(--border-color)',
+                              color: 'var(--text-primary)', fontSize: '12px',
+                              colorScheme: 'dark' /* Để icon lịch màu trắng trên nền tối */
+                          }}
+                      />
+                      <span style={{color: 'var(--text-secondary)'}}>-</span>
+                      <input 
+                          type="date" 
+                          value={customRange.end}
+                          onChange={(e) => setCustomRange({...customRange, end: e.target.value})}
+                          style={{
+                              padding: '7px 10px', borderRadius: '6px',
+                              background: 'var(--bg-input)', border: '1px solid var(--border-color)',
+                              color: 'var(--text-primary)', fontSize: '12px',
+                              colorScheme: 'dark'
+                          }}
+                      />
+                  </div>
+              )}
           </div>
       </div>
       
@@ -146,7 +175,9 @@ const Dashboard = () => {
             }}>
                {['Screening', 'Interview', 'Offer', 'Hired', 'Rejected'].map(status => (
                    <PipelineColumn 
-                        key={status} status={status} list={getList(status)} onSelect={setSelectedCandidate} 
+                        key={status} status={status} 
+                        list={getList(status)} 
+                        onSelect={setSelectedCandidate} 
                    />
                ))}
             </div>
@@ -161,7 +192,7 @@ const Dashboard = () => {
   );
 };
 
-// --- SUB-COMPONENTS (Giữ nguyên giao diện đẹp từ bước trước) ---
+// --- SUB-COMPONENTS (Compact & Aesthetic) ---
 const PipelineColumn = ({ status, list, onSelect }) => {
     const config = {
         'Screening': { icon: 'fa-magnifying-glass', color: '#A5B4FC', border: '#A5B4FC' },
