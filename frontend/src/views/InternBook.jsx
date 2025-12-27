@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/InternBook.jsx (Theme Aware + Aesthetic Upgrade) */
+/* FILE: frontend/src/views/InternBook.jsx (Theme Compatible Fix) */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -12,58 +12,52 @@ const InternBook = () => {
   const [showReviewModal, setShowReviewModal] = useState(null);
   const [showEditModal, setShowEditModal] = useState(null);
 
-  // State đánh giá (Review)
+  // State đánh giá
   const [ratings, setRatings] = useState({ skill: 8, attitude: 9, teamwork: 7 });
   const [reviewNote, setReviewNote] = useState('');
 
-  // --- STYLE CSS NÂNG CAO (Theme Variables) ---
+  // --- CSS STYLE (ĐÃ FIX MÀU CỨNG) ---
   const customStyles = `
     .glass-modal {
-        background: var(--bg-secondary); /* Dùng biến */
+        background: var(--bg-tertiary); /* Sửa: Dùng biến thay màu cứng */
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid var(--border-color);
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         animation: modalFadeIn 0.3s ease-out forwards;
-        color: var(--text-primary);
+        color: var(--text-primary); /* Sửa: Chữ đổi màu theo theme */
     }
     @keyframes modalFadeIn {
         from { opacity: 0; transform: scale(0.95) translateY(10px); }
         to { opacity: 1; transform: scale(1) translateY(0); }
     }
-    /* Custom Range Slider */
     .neon-range {
         -webkit-appearance: none; width: 100%; height: 6px; 
-        background: var(--bg-input); /* Dùng biến */
+        background: var(--border-color); /* Sửa */
         border-radius: 3px; outline: none;
     }
     .neon-range::-webkit-slider-thumb {
         -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
         background: var(--accent-color); cursor: pointer; box-shadow: 0 0 10px var(--accent-glow);
-        margin-top: -6px; /* Căn giữa thumb */
+        margin-top: -6px;
     }
-    .neon-range::-webkit-slider-runnable-track {
-        width: 100%; height: 6px; cursor: pointer; background: var(--border-color); border-radius: 3px;
-    }
-    /* Textarea đẹp */
     .neon-textarea {
         width: 100%; 
-        background: var(--bg-input); /* Dùng biến */
+        background: var(--bg-input); /* Sửa */
         border: 1px solid var(--border-color);
-        color: var(--text-primary); 
+        color: var(--text-primary); /* Sửa */
         padding: 15px; border-radius: 12px; resize: none; font-family: inherit; line-height: 1.6;
         transition: all 0.3s;
     }
     .neon-textarea:focus {
-        border-color: var(--accent-color); outline: none; background: var(--bg-tertiary);
-        box-shadow: 0 0 15px var(--accent-glow);
+        border-color: var(--accent-color); outline: none;
+        box-shadow: 0 0 10px var(--accent-glow);
     }
-    /* Input đẹp */
     .neon-input {
         width: 100%; padding: 12px; 
-        background: var(--bg-input); 
+        background: var(--bg-input); /* Sửa */
         border: 1px solid var(--border-color); 
-        color: var(--text-primary); 
+        color: var(--text-primary); /* Sửa */
         borderRadius: 8px; outline: none;
         transition: all 0.3s;
     }
@@ -73,7 +67,6 @@ const InternBook = () => {
     }
   `;
 
-  // Logic làm giàu dữ liệu
   const enrichInternData = (candidate) => {
       let dept = 'General';
       let mentor = 'HR Manager';
@@ -147,38 +140,41 @@ const InternBook = () => {
         </div>
       </div>
 
-      {/* --- CARD GRID --- */}
+      {/* --- CARD GRID (THEME FIXED) --- */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
         {filteredInterns.map(intern => (
             <div key={intern.id} style={{ 
-                background: 'var(--bg-secondary)', borderRadius: '16px', padding: '20px',
+                /* QUAN TRỌNG: Thay Gradient cứng bằng biến nền */
+                background: 'var(--bg-tertiary)', 
+                borderRadius: '16px', padding: '20px',
                 border: '1px solid var(--border-color)', position: 'relative', overflow: 'hidden',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: 'all 0.3s ease',
                 boxShadow: 'var(--card-shadow)'
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'var(--card-shadow)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
             >
-                {/* Decorative Blob */}
+                {/* Decorative Blob (Giữ nguyên nhưng giảm opacity để hợp Light mode) */}
                 <div style={{position:'absolute', top:'-20px', right:'-20px', width:'100px', height:'100px', background:'var(--accent-color)', filter:'blur(60px)', opacity:'0.1', borderRadius:'50%'}}></div>
 
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', position:'relative', zIndex: 1 }}>
                     <div style={{ position: 'relative' }}>
                         <div style={{ 
                             width: '55px', height: '55px', borderRadius: '14px', 
-                            background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
+                            background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)',
-                            boxShadow: 'inset 0 0 20px rgba(0,0,0,0.05)'
+                            boxShadow: 'var(--card-shadow)'
                         }}>
                             {intern.avatarChar}
                         </div>
-                        <div style={{position:'absolute', bottom:'-5px', right:'-5px', width:'20px', height:'20px', background:'var(--bg-secondary)', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                        <div style={{position:'absolute', bottom:'-5px', right:'-5px', width:'20px', height:'20px', background:'var(--bg-tertiary)', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center'}}>
                             <div style={{width:'12px', height:'12px', background:'var(--accent-color)', borderRadius:'50%', boxShadow:'0 0 5px var(--accent-glow)'}}></div>
                         </div>
                     </div>
                     
                     <div style={{ flex: 1, overflow: 'hidden' }}>
+                        {/* QUAN TRỌNG: Text Primary thay vì #fff */}
                         <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '16px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{intern.full_name}</h3>
                         <p style={{ margin: '4px 0 0', color: 'var(--accent-color)', fontSize: '12px', fontWeight: '600', letterSpacing:'0.5px' }}>{intern.role}</p>
                     </div>
@@ -237,7 +233,7 @@ const InternBook = () => {
         ))}
       </div>
 
-      {/* --- AESTHETIC MODAL: REVIEW --- */}
+      {/* --- MODAL REVIEW --- */}
       {showReviewModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background:'rgba(0,0,0,0.6)', backdropFilter:'blur(5px)' }}>
               <div className="glass-modal" style={{ width: '500px', borderRadius: '20px', overflow: 'hidden' }}>
@@ -299,7 +295,7 @@ const InternBook = () => {
           </div>
       )}
 
-      {/* --- AESTHETIC MODAL: EDIT --- */}
+      {/* --- MODAL EDIT --- */}
       {showEditModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background:'rgba(0,0,0,0.6)', backdropFilter:'blur(5px)' }}>
               <div className="glass-modal" style={{ width: '420px', borderRadius: '20px', padding:'30px' }}>
