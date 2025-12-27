@@ -131,7 +131,7 @@ const Dashboard = () => {
                       <option value="today">Hôm nay</option>
                       <option value="week">7 ngày qua</option>
                       <option value="month">Tháng này</option>
-                      <option value="custom">📅 Tùy chọn ngày...</option>
+                      <option value="custom">Tùy chọn ngày...</option>
                   </select>
               </div>
 
