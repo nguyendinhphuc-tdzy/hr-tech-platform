@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/Home.jsx (Final Fix: Force White Text) */
+/* FILE: frontend/src/views/Home.jsx */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient'; 
@@ -27,10 +27,11 @@ const Home = ({ session }) => {
   if (session) return null;
 
   return (
-    <div className="landing-page" style={{ 
-        /* --- FORCE DARK MODE --- */
+    // Thêm class "force-dark-mode" để kích hoạt CSS override trong index.css
+    <div className="landing-page force-dark-mode" style={{ 
+        /* Style cứng để đảm bảo độ ưu tiên cao nhất */
         backgroundColor: '#09121D', 
-        color: '#FFFFFF !important', /* Ép buộc màu trắng */
+        color: '#FFFFFF', 
         minHeight: '100vh', 
         width: '100%',
         overflowX: 'hidden',
@@ -56,8 +57,8 @@ const Home = ({ session }) => {
             }}>
                 HR
             </div>
-            {/* FORCE WHITE COLOR */}
-            <h1 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#FFFFFF' }}>
+            {/* Tiêu đề Logo - Ép màu trắng */}
+            <h1 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#FFFFFF', letterSpacing: '1px' }}>
                 HR TECH <span style={{color: '#2EFF7B'}}>AI</span>
             </h1>
         </div>
@@ -78,7 +79,8 @@ const Home = ({ session }) => {
       </nav>
 
       {/* HERO SECTION */}
-      <header style={{ paddingTop: '160px', textAlign: 'center', paddingBottom: '100px', position: 'relative' }}>
+      <header style={{ paddingTop: '180px', textAlign: 'center', paddingBottom: '100px', position: 'relative' }}>
+        {/* Hiệu ứng nền Glow */}
         <div style={{ 
             position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
             width: '600px', height: '600px', 
@@ -92,21 +94,21 @@ const Home = ({ session }) => {
                     border: '1px solid #2EFF7B', color: '#2EFF7B', 
                     padding: '6px 18px', borderRadius: '20px', 
                     fontSize: '12px', fontWeight: '600',
-                    background: 'rgba(46, 255, 123, 0.05)' 
+                    background: 'rgba(46, 255, 123, 0.05)', letterSpacing: '0.5px'
                 }}>
                     ✨ AI-Powered Recruitment Platform
                 </span>
             </div>
             
-            {/* FORCE WHITE COLOR */}
+            {/* Tiêu đề chính - Ép màu trắng & Shadow */}
             <h1 style={{ 
                 fontSize: '64px', fontWeight: '800', margin: '20px 0', lineHeight: '1.1', 
                 color: '#FFFFFF', textShadow: '0 0 40px rgba(0,0,0,0.5)'
             }}>
-                Tuyển dụng thông minh.<br/> <span style={{color: '#2EFF7B'}}>Quyết định chính xác.</span>
+                Tuyển dụng thông minh.<br/> <span style={{color: '#2EFF7B', textShadow: '0 0 20px rgba(46,255,123,0.4)'}}>Quyết định chính xác.</span>
             </h1>
             
-            {/* FORCE LIGHT GRAY COLOR */}
+            {/* Đoạn văn mô tả - Ép màu xám sáng */}
             <p style={{ 
                 fontSize: '18px', color: '#E0E0E0', marginBottom: '40px', lineHeight: '1.6', 
                 maxWidth: '600px', margin: '20px auto 40px', display: 'block' 
@@ -140,13 +142,13 @@ const Home = ({ session }) => {
         </div>
       </header>
 
-      {/* DASHBOARD PREVIEW */}
+      {/* DASHBOARD PREVIEW IMAGE PLACEHOLDER */}
       <section style={{ padding: '0 20px' }}>
         <div style={{ 
             maxWidth: '1100px', margin: '0 auto 80px', 
             border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '12px', 
-            background: '#111827', 
-            boxShadow: '0 20px 80px rgba(0,0,0,0.6)'
+            background: 'rgba(255,255,255,0.02)',
+            boxShadow: '0 20px 100px -20px rgba(0,0,0,0.8)'
         }}>
             <div style={{ 
                 height: '600px', background: '#0F172A', borderRadius: '16px', 
