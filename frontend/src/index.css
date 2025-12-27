@@ -215,8 +215,40 @@ option {
     color: var(--text-primary) !important;
 }
 
+/* --- FORCE DARK MODE (DÀNH RIÊNG CHO HOMEPAGE) --- */
+.force-dark-mode {
+    /* Định nghĩa lại biến màu cục bộ - Ép về Dark Branding */
+    --bg-primary: #09121D;
+    --text-primary: #FFFFFF;
+    --text-secondary: #9CA3AF;
+    --accent-color: #2EFF7B;
+    --accent-glow: rgba(46, 255, 123, 0.2);
+    --border-color: rgba(255, 255, 255, 0.1);
+    
+    /* Áp dụng cứng */
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Ép tất cả các thẻ con bên trong phải theo màu chữ trắng */
+.force-dark-mode h1, 
+.force-dark-mode h2, 
+.force-dark-mode h3, 
+.force-dark-mode h4, 
+.force-dark-mode p, 
+.force-dark-mode span, 
+.force-dark-mode div {
+    color: var(--text-primary);
+}
+
+/* Ép nút bấm về chuẩn Neon */
+.force-dark-mode button {
+    background-color: var(--accent-color) !important;
+    color: #000 !important;
+
 /* --- SCROLLBAR --- */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
