@@ -1,0 +1,29 @@
+/* FILE: frontend/src/context/ThemeContext.jsx */
+import { createContext, useContext, useState, useEffect } from 'react';
+
+const ThemeContext = createContext();
+
+export const ThemeProvider = ({ children }) => {
+  const [theme, setTheme] = useState(() => {
+    // Lấy theme từ localStorage hoặc mặc định là 'dark'
+    return localStorage.getItem('app-theme') || 'dark';
+  });
+
+  useEffect(() => {
+    // Gán attribute data-theme vào thẻ <html> để CSS hoạt động
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('app-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+export const useTheme = () => useContext(ThemeContext);

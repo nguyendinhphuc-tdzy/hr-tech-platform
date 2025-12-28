@@ -1,96 +1,104 @@
-/* FILE: frontend/src/components/CandidateCard.jsx */
+/* FILE: frontend/src/components/CandidateCard.jsx (Final Quick Status) */
 import React from 'react';
 
 const CandidateCard = ({ data, onClick, onStatusChange }) => {
-    // Màu sắc theo điểm số
-    const getScoreColor = (score) => {
-        if (score >= 8) return 'var(--neon-green)';
-        if (score >= 5) return '#FCD34D';
-        return '#FF4D4D';
+    // Màu sắc theo điểm số AI
+    const getScoreStyle = (score) => {
+        if (score >= 8) return { color: 'var(--accent-color)', icon: 'fa-bolt' }; // Xanh Neon
+        if (score >= 5) return { color: '#FCD34D', icon: 'fa-star-half-stroke' }; // Vàng
+        return { color: '#FF4D4D', icon: 'fa-triangle-exclamation' }; // Đỏ
     };
 
-    const handleMove = (e) => {
-        e.stopPropagation(); // Ngăn click vào card
-        // Logic mở menu sẽ được xử lý bằng select native cho đơn giản & hiệu quả
+    const scoreStyle = getScoreStyle(data.ai_rating);
+    const dateStr = new Date(data.created_at || Date.now()).toLocaleDateString('vi-VN', {day: '2-digit', month: '2-digit'});
+
+    const handleDropdownClick = (e) => {
+        e.stopPropagation(); // Ngăn mở Modal khi bấm vào dropdown
     };
 
     return (
         <div 
-            className="candidate-card-compact"
             onClick={onClick}
             style={{
-                background: '#131F2E',
-                borderRadius: '8px',
-                padding: '10px',
-                border: '1px solid transparent',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                position: 'relative',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                background: 'var(--bg-tertiary)', // Nền theo theme
+                borderRadius: '12px', 
+                padding: '12px',
+                border: '1px solid var(--border-color)',
+                display: 'flex', flexDirection: 'column', gap: '10px',
+                cursor: 'pointer', transition: 'all 0.2s', position: 'relative',
+                boxShadow: 'var(--card-shadow)', overflow: 'hidden'
             }}
             onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--neon-green)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.background = '#1A2736';
+                e.currentTarget.style.borderColor = 'var(--accent-color)';
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 8px 20px -5px rgba(0,0,0,0.15)';
             }}
             onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'transparent';
+                e.currentTarget.style.borderColor = 'var(--border-color)';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.background = '#131F2E';
+                e.currentTarget.style.boxShadow = 'var(--card-shadow)';
             }}
         >
-            {/* 1. Avatar Nhỏ (Left) */}
-            <div style={{
-                width: '36px', height: '36px', borderRadius: '50%',
-                background: '#0D1825', border: '1px solid #2D3B4E',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '14px', fontWeight: 'bold', color: '#fff',
-                flexShrink: 0
-            }}>
-                {data.full_name ? data.full_name.charAt(0).toUpperCase() : 'U'}
-            </div>
+            {/* Status Color Bar (Thanh màu bên trái) */}
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', background: scoreStyle.color, opacity: 0.8 }}></div>
 
-            {/* 2. Info (Middle) */}
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-                <h4 style={{ 
-                    margin: '0 0 2px 0', color: '#fff', fontSize: '13px', 
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
-                }}>
-                    {data.full_name}
-                </h4>
-                <p style={{ 
-                    margin: 0, color: '#9CA3AF', fontSize: '11px',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
-                }}>
-                    {data.role}
-                </p>
-            </div>
-
-            {/* 3. Score & Action (Right) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
-                {/* Score Badge */}
+            {/* HEADER: Avatar & Info */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '8px' }}>
                 <div style={{
-                    fontSize: '12px', fontWeight: 'bold', color: getScoreColor(data.ai_rating),
-                    background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px'
+                    width: '36px', height: '36px', borderRadius: '10px',
+                    background: 'var(--bg-input)', border: `1px solid ${scoreStyle.color}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '14px', fontWeight: 'bold', color: scoreStyle.color, flexShrink: 0
                 }}>
-                    {data.ai_rating}
+                    {data.full_name ? data.full_name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {data.full_name}
+                    </h4>
+                    <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)', fontSize: '11px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {data.role}
+                    </p>
+                </div>
+            </div>
+
+            {/* FOOTER: Score & STATUS DROPDOWN (NEW) */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: '8px', paddingTop: '5px' }}>
+                
+                {/* AI Score Badge */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <i className={`fa-solid ${scoreStyle.icon}`} style={{ fontSize: '10px', color: scoreStyle.color }}></i>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: scoreStyle.color }}>{data.ai_rating}</span>
                 </div>
 
-                {/* Quick Move Dropdown (Native Select ẩn) */}
+                {/* --- QUICK STATUS DROPDOWN --- */}
                 <div 
-                    onClick={(e) => e.stopPropagation()} 
-                    style={{ position: 'relative', width: '20px', height: '20px' }}
-                    title="Chuyển nhanh"
+                    onClick={handleDropdownClick}
+                    style={{ 
+                        position: 'relative', 
+                        background: 'var(--bg-input)', 
+                        borderRadius: '6px', 
+                        border: '1px solid var(--border-color)', 
+                        padding: '2px 8px', 
+                        display: 'flex', alignItems: 'center', gap: '5px', 
+                        cursor: 'pointer', transition: 'background 0.2s'
+                    }}
+                    title="Đổi trạng thái nhanh"
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-input)'}
                 >
-                    <i className="fa-solid fa-ellipsis-vertical" style={{ color: '#6B7280', fontSize: '14px', position: 'absolute', right: 0, top: 3, pointerEvents: 'none' }}></i>
+                    <span style={{fontSize: '10px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase'}}>
+                        {data.status}
+                    </span>
+                    <i className="fa-solid fa-caret-down" style={{fontSize: '10px', color: 'var(--text-secondary)'}}></i>
+                    
+                    {/* Native Select (Ẩn nhưng hoạt động) */}
                     <select 
-                        onChange={(e) => onStatusChange && onStatusChange(data.id, e.target.value)}
                         value={data.status}
+                        onChange={(e) => onStatusChange && onStatusChange(data.id, e.target.value)}
                         style={{
-                            position: 'absolute', top: 0, right: 0, width: '100%', height: '100%',
+                            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
                             opacity: 0, cursor: 'pointer'
                         }}
                     >
@@ -101,6 +109,7 @@ const CandidateCard = ({ data, onClick, onStatusChange }) => {
                         <option value="Rejected">Rejected</option>
                     </select>
                 </div>
+
             </div>
         </div>
     );

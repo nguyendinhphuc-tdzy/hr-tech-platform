@@ -1,7 +1,7 @@
-/* FILE: frontend/src/App.jsx (Real Google Auth with Supabase) */
+/* FILE: frontend/src/App.jsx */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { createClient } from '@supabase/supabase-js'; // Import Supabase
+import { createClient } from '@supabase/supabase-js'; 
 import './index.css';
 import API_BASE_URL from './components/config';
 
@@ -13,76 +13,84 @@ import InternBook from './views/InternBook';
 import Sidebar from './components/Sidebar';
 
 // --- CẤU HÌNH SUPABASE FRONTEND ---
-// Bạn nên thay thế bằng URL và KEY của bạn từ Supabase Dashboard
 const supabaseUrl = 'https://yymkszsrnlfkcsnjgcly.supabase.co'; 
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5bWtzenNybmxma2NzbmpnY2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjU2OTEsImV4cCI6MjA3OTQwMTY5MX0.-o0GwJb2_ZRssCxrQu6wWpEGGL-LCckQiUTGx6nEWO8';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ==========================================
-// 1. MÀN HÌNH TRANG CHỦ (LANDING PAGE)
+// 1. MÀN HÌNH TRANG CHỦ (FIXED DARK MODE - HARDCODED)
 // ==========================================
 const HomeView = ({ onNavigate }) => {
   return (
     <div style={{
+        /* Ép cứng màu tối để không bị ảnh hưởng bởi Theme Switcher */
         height: '100vh', 
-        background: 'radial-gradient(circle at 50% 0%, #1a2c42 0%, #09121D 100%)',
+        backgroundColor: '#09121D', 
+        backgroundImage: 'radial-gradient(circle at 50% 0%, #1a2c42 0%, #09121D 100%)',
         display: 'flex', flexDirection: 'column',
-        color: 'var(--text-white)', overflow: 'hidden'
+        color: '#FFFFFF', 
+        overflowX: 'hidden',
+        position: 'absolute', top: 0, left: 0, width: '100%', zIndex: 9999
     }}>
-        <nav style={{padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-            <div style={{fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                <i className="fa-solid fa-atom" style={{color: 'var(--neon-green)'}}></i>
-                HR TECH
+        {/* NAVBAR */}
+        <nav style={{
+            padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            borderBottom: '1px solid rgba(255,255,255,0.1)', 
+            background: 'rgba(9, 18, 29, 0.85)',
+            backdropFilter: 'blur(10px)'
+        }}>
+            <div style={{fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px', color: '#FFFFFF'}}>
+                <div style={{width: '40px', height: '40px', background: '#2EFF7B', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#000', fontSize: '14px'}}>HR</div>
+                HR TECH <span style={{color: '#2EFF7B'}}>AI</span>
             </div>
             <div style={{display: 'flex', gap: '15px'}}>
-                <button onClick={() => onNavigate('login')} style={{background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-white)', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600'}}>Đăng nhập</button>
-                <button onClick={() => onNavigate('signup')} style={{background: 'var(--neon-green)', border: 'none', color: '#000', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', boxShadow: '0 0 15px rgba(46, 255, 123, 0.4)'}}>Đăng ký ngay</button>
+                <button onClick={() => onNavigate('login')} style={{background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: '#FFFFFF', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600'}}>Đăng nhập</button>
+                <button onClick={() => onNavigate('signup')} style={{background: '#2EFF7B', border: 'none', color: '#000', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', boxShadow: '0 0 15px rgba(46, 255, 123, 0.4)'}}>Đăng ký ngay</button>
             </div>
         </nav>
 
-        <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 20px'}}>
-            <div style={{background: 'rgba(46, 255, 123, 0.1)', color: 'var(--neon-green)', padding: '5px 15px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginBottom: '20px', border: '1px solid var(--neon-green)'}}>
+        {/* HERO CONTENT */}
+        <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 20px', position: 'relative', zIndex: 1}}>
+            <div style={{background: 'rgba(46, 255, 123, 0.1)', color: '#2EFF7B', padding: '6px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginBottom: '25px', border: '1px solid #2EFF7B'}}>
                 ✨ Hệ thống Tuyển dụng tương lai 2.0
             </div>
-            <h1 style={{fontSize: '56px', fontWeight: '800', margin: '0 0 20px 0', lineHeight: '1.2'}}>
+            <h1 style={{fontSize: '64px', fontWeight: '800', margin: '0 0 20px 0', lineHeight: '1.1', color: '#FFFFFF', textShadow: '0 0 40px rgba(0,0,0,0.5)'}}>
                 Tuyển dụng thông minh với <br/>
-                <span style={{background: 'linear-gradient(90deg, var(--neon-green), #009E49)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>Sức mạnh AI & Dữ liệu</span>
+                <span style={{color: '#2EFF7B', textShadow: '0 0 20px rgba(46, 255, 123, 0.5)'}}>Sức mạnh AI & Dữ liệu</span>
             </h1>
-            <p style={{fontSize: '18px', color: 'var(--text-secondary)', maxWidth: '600px', marginBottom: '40px', lineHeight: '1.6'}}>
-                Tự động hóa quy trình sàng lọc CV, quản lý thực tập sinh và tối ưu hóa nhân sự.
+            <p style={{fontSize: '18px', color: '#E0E0E0', maxWidth: '600px', marginBottom: '40px', lineHeight: '1.6'}}>
+                Tự động hóa quy trình sàng lọc CV, quản lý thực tập sinh và tối ưu hóa nhân sự. Giúp bạn tìm kiếm ứng viên tài năng nhanh hơn 10x.
             </p>
-            <button onClick={() => onNavigate('signup')} style={{padding: '15px 40px', fontSize: '16px', fontWeight: '700', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'var(--text-white)', color: '#000', boxShadow: '0 10px 30px rgba(255,255,255,0.1)'}}>
+            <button onClick={() => onNavigate('signup')} style={{padding: '16px 45px', fontSize: '16px', fontWeight: '700', borderRadius: '50px', border: 'none', cursor: 'pointer', background: '#FFFFFF', color: '#000', boxShadow: '0 10px 30px rgba(255,255,255,0.1)'}}>
                 Bắt đầu miễn phí
             </button>
         </div>
-        <div style={{padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px', borderTop: '1px solid rgba(255,255,255,0.05)'}}>© 2024 HR Tech Platform. All rights reserved.</div>
+
+        {/* FOOTER */}
+        <div style={{padding: '20px', textAlign: 'center', color: '#9CA3AF', fontSize: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', background: '#09121D'}}>© 2024 HR Tech Platform. All rights reserved.</div>
     </div>
   );
 };
 
 // ==========================================
-// 2. MÀN HÌNH XÁC THỰC (ĐÃ SỬA NÚT GOOGLE)
+// 2. MÀN HÌNH XÁC THỰC (FIXED DARK MODE - HARDCODED)
 // ==========================================
 const AuthView = ({ mode, onLoginSuccess, onBack }) => {
     const isLogin = mode === 'login';
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
-
     const [formData, setFormData] = useState({ fullName: '', email: '', password: '' });
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // --- XỬ LÝ ĐĂNG NHẬP GOOGLE THẬT ---
     const handleGoogleLogin = async () => {
         setIsLoading(true);
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
-                options: {
-                    redirectTo: window.location.origin // Quay lại trang hiện tại sau khi login
-                }
+                options: { redirectTo: window.location.origin }
             });
             if (error) throw error;
         } catch (err) {
@@ -92,25 +100,16 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
         }
     };
 
-    // --- XỬ LÝ ĐĂNG NHẬP THƯỜNG (EMAIL/PASS) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         setErrorMsg('');
-
         try {
             if (isLogin) {
-                const res = await axios.post(`${API_BASE_URL}/api/auth/login`, {
-                    email: formData.email,
-                    password: formData.password
-                });
+                const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email: formData.email, password: formData.password });
                 onLoginSuccess(res.data.user);
             } else {
-                const res = await axios.post(`${API_BASE_URL}/api/auth/signup`, {
-                    fullName: formData.fullName,
-                    email: formData.email,
-                    password: formData.password
-                });
+                const res = await axios.post(`${API_BASE_URL}/api/auth/signup`, { fullName: formData.fullName, email: formData.email, password: formData.password });
                 alert("Đăng ký thành công!");
                 onLoginSuccess(res.data.user);
             }
@@ -122,14 +121,19 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
     };
 
     return (
-        <div style={{height: '100vh', background: 'var(--bg-deep-black)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative'}}>
-            <button onClick={onBack} style={{position: 'absolute', top: '20px', left: '20px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '16px'}}>
+        <div style={{
+            height: '100vh', 
+            backgroundColor: '#09121D', /* Ép màu tối */
+            display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+            color: '#FFFFFF'
+        }}>
+            <button onClick={onBack} style={{position: 'absolute', top: '20px', left: '20px', background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px'}}>
                 <i className="fa-solid fa-arrow-left"></i> Quay lại trang chủ
             </button>
 
-            <div className="card-dark" style={{width: '420px', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', background: '#131F2E', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'}}>
+            <div style={{width: '420px', padding: '40px', borderRadius: '16px', border: '1px solid rgba(45, 59, 78, 1)', background: '#131F2E', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'}}>
                 <div style={{textAlign: 'center', marginBottom: '30px'}}>
-                    <h2 style={{fontSize: '28px', color: 'var(--text-white)', marginBottom: '10px'}}>{isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}</h2>
+                    <h2 style={{fontSize: '28px', color: '#FFFFFF', marginBottom: '10px'}}>{isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}</h2>
                 </div>
 
                 {errorMsg && (
@@ -139,40 +143,39 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
                 )}
 
                 <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px'}}>
-                    {/* NÚT GOOGLE ĐÃ GẮN HÀM XỬ LÝ MỚI */}
                     <button type="button" onClick={handleGoogleLogin} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', borderRadius: '6px', background: '#FFFFFF', color: '#000', border: 'none', cursor: 'pointer', fontWeight: '600'}}>
                         <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="20" />
                         {isLogin ? 'Đăng nhập với Google' : 'Đăng ký với Google'}
                     </button>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '12px'}}>
-                        <div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>HOẶC<div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: '#9CA3AF', fontSize: '12px'}}>
+                        <div style={{flex: 1, height: '1px', background: '#2D3B4E'}}></div>HOẶC<div style={{flex: 1, height: '1px', background: '#2D3B4E'}}></div>
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
                     {!isLogin && (
                          <div>
-                            <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>HỌ VÀ TÊN</label>
-                            <input name="fullName" type="text" placeholder="Ví dụ: Nguyễn Văn A" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid var(--border-color)', color: 'white'}} />
+                            <label style={{fontSize: '12px', color: '#9CA3AF', fontWeight: 600, display: 'block', marginBottom: '8px'}}>HỌ VÀ TÊN</label>
+                            <input name="fullName" type="text" placeholder="Ví dụ: Nguyễn Văn A" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid #2D3B4E', color: 'white', outline: 'none'}} />
                         </div>
                     )}
                     <div>
-                        <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>EMAIL</label>
-                        <input name="email" type="email" placeholder="admin@hrtech.com" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid var(--border-color)', color: 'white'}} />
+                        <label style={{fontSize: '12px', color: '#9CA3AF', fontWeight: 600, display: 'block', marginBottom: '8px'}}>EMAIL</label>
+                        <input name="email" type="email" placeholder="admin@hrtech.com" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid #2D3B4E', color: 'white', outline: 'none'}} />
                     </div>
                     <div>
-                        <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>MẬT KHẨU</label>
-                        <input name="password" type="password" placeholder="••••••" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid var(--border-color)', color: 'white'}} />
+                        <label style={{fontSize: '12px', color: '#9CA3AF', fontWeight: 600, display: 'block', marginBottom: '8px'}}>MẬT KHẨU</label>
+                        <input name="password" type="password" placeholder="••••••" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid #2D3B4E', color: 'white', outline: 'none'}} />
                     </div>
 
-                    <button type="submit" style={{marginTop: '10px', background: 'var(--neon-green)', color: '#000', fontWeight: '700', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', opacity: isLoading ? 0.7 : 1}} disabled={isLoading}>
+                    <button type="submit" style={{marginTop: '10px', background: '#2EFF7B', color: '#000', fontWeight: '700', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', opacity: isLoading ? 0.7 : 1}} disabled={isLoading}>
                         {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : (isLogin ? 'Truy cập hệ thống' : 'Đăng ký miễn phí')}
                     </button>
                 </form>
 
-                <p style={{textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                <p style={{textAlign: 'center', marginTop: '20px', fontSize: '13px', color: '#9CA3AF'}}>
                     {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
-                    <span onClick={onBack} style={{color: 'var(--neon-green)', cursor: 'pointer', textDecoration: 'underline'}}>{isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}</span>
+                    <span onClick={onBack} style={{color: '#2EFF7B', cursor: 'pointer', textDecoration: 'underline'}}>{isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}</span>
                 </p>
             </div>
         </div>
@@ -180,31 +183,35 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
 };
 
 // ==========================================
-// 3. DASHBOARD LAYOUT
+// 3. DASHBOARD LAYOUT (SỬ DỤNG BIẾN CSS THEME)
 // ==========================================
 const DashboardLayout = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
 
     const DashboardHeader = () => (
-        <header className="main-header">
+        <header className="main-header" style={{
+            background: 'var(--bg-secondary)', 
+            borderBottom: '1px solid var(--border-color)',
+            color: 'var(--text-primary)'
+        }}>
             <div className="logo">
-                <i className="fa-solid fa-atom fa-spin" style={{color: 'var(--neon-green)', fontSize: '24px'}}></i>
-                <h1>HR TECH <span style={{color: 'var(--neon-green)'}}>DASHBOARD</span></h1>
+                <i className="fa-solid fa-atom fa-spin" style={{color: 'var(--accent-color)', fontSize: '24px'}}></i>
+                <h1 style={{color: 'var(--text-primary)'}}>HR TECH <span style={{color: 'var(--accent-color)'}}>DASHBOARD</span></h1>
             </div>
             <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
                 <div style={{textAlign: 'right'}}>
-                    <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-white)'}}>
+                    <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)'}}>
                         {user ? user.full_name : 'User'}
                     </span>
-                    <span style={{fontSize: '11px', color: 'var(--neon-green)'}}>
+                    <span style={{fontSize: '11px', color: 'var(--accent-color)'}}>
                         {user ? user.role : 'Member'}
                     </span>
                 </div>
-                {/* Avatar hiển thị ảnh Google nếu có, hoặc chữ cái đầu */}
+                
                 {user?.avatar_url ? (
-                    <img src={user.avatar_url} alt="Avatar" style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--neon-green)'}} />
+                    <img src={user.avatar_url} alt="Avatar" style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--accent-color)'}} />
                 ) : (
-                    <div style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--neon-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-white)', fontWeight: 'bold'}}>
+                    <div style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--accent-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)', fontWeight: 'bold', background: 'var(--bg-input)'}}>
                         {user && user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
                     </div>
                 )}
@@ -227,7 +234,7 @@ const DashboardLayout = ({ user, onLogout }) => {
     };
 
     return (
-        <div className="app-container" style={{background: 'var(--bg-deep-black)', minHeight: '100vh'}}>
+        <div className="app-container" style={{background: 'var(--bg-primary)', minHeight: '100vh', color: 'var(--text-primary)'}}>
             <DashboardHeader />
             <div className="hr-layout" style={{display: 'flex', width: '100%', maxWidth: '1400px', margin: '0 auto'}}>
                 <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -248,11 +255,10 @@ function App() {
 
     const navigateTo = (target) => setView(target);
 
-    // Lắng nghe sự kiện login từ Google (Redirect về)
+    // Lắng nghe sự kiện login từ Google
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
-                // Nếu có session Google, tự động vào Dashboard
                 const googleUser = {
                     full_name: session.user.user_metadata.full_name || session.user.email,
                     email: session.user.email,
@@ -272,9 +278,9 @@ function App() {
 
     const handleLogout = async () => {
         if(window.confirm("Bạn muốn đăng xuất?")) {
-            await supabase.auth.signOut(); // Đăng xuất khỏi Supabase
+            await supabase.auth.signOut();
             setCurrentUser(null);
-            setView('home'); // Về trang chủ
+            setView('home'); 
         }
     };
 
