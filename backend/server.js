@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Bản Final: Prompt PDF + Dynamic Fallback + Consistent Scoring) */
+/* FILE: backend/server.js (Full Version: Specific Prompts + Strict Rubric + Temperature 0) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -9,13 +9,16 @@ const { createClient } = require('@supabase/supabase-js');
 const csv = require('csv-parser');
 const mammoth = require('mammoth'); 
 const pdf = require('pdf-parse'); 
+const fs = require('fs'); // Thêm fs nếu cần xử lý stream file local
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // --- CẤU HÌNH ---
-let ACTIVE_MODEL_NAME = "gemini-2.5-flash"; // SỬ DỤNG MODEL MỚI NHẤT ĐỂ THÔNG MINH HƠN
+// Sử dụng model ổn định để đảm bảo tính nhất quán
+let ACTIVE_MODEL_NAME = "gemini-1.5-flash"; 
+
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -32,6 +35,7 @@ function sanitizeFilename(filename) {
     const str = filename.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return str.replace(/[^a-zA-Z0-9.]/g, '_').toLowerCase();
 }
+
 function cleanJsonString(text) {
     let clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
     const firstOpen = clean.indexOf('{');
@@ -39,282 +43,274 @@ function cleanJsonString(text) {
     if (firstOpen !== -1 && lastClose !== -1) clean = clean.substring(firstOpen, lastClose + 1);
     return clean;
 }
-async function readPdfBuffer(buffer) { try { return (await pdf(buffer)).text; } catch (e) { return ""; } }
-function chunkText(text) { const chunks = []; let cur = ""; text.split(/(?<=[.?!])\s+/).forEach(s => { if ((cur + s).length > 1000) { chunks.push(cur); cur = s; } else cur += " " + s; }); if (cur) chunks.push(cur); return chunks; }
-async function createEmbedding(text) { const model = genAI.getGenerativeModel({ model: "text-embedding-004" }); const result = await model.embedContent(text); return result.embedding.values; }
 
-// --- KHO PROMPT TỪ PDF + DYNAMIC FALLBACK ---
-// (ĐÃ BỔ SUNG SCORING RUBRIC VÀO TỪNG PROMPT ĐỂ AI CHẤM ĐIỂM NHẤT QUÁN)
+async function readPdfBuffer(buffer) { 
+    try { return (await pdf(buffer)).text; } catch (e) { return ""; } 
+}
+
+function chunkText(text) { 
+    const chunks = []; let cur = ""; 
+    text.split(/(?<=[.?!])\s+/).forEach(s => { 
+        if ((cur + s).length > 1000) { chunks.push(cur); cur = s; } 
+        else cur += " " + s; 
+    }); 
+    if (cur) chunks.push(cur); 
+    return chunks; 
+}
+
+async function createEmbedding(text) { 
+    const model = genAI.getGenerativeModel({ model: "text-embedding-004" }); 
+    const result = await model.embedContent(text); 
+    return result.embedding.values; 
+}
+
+// --- CONSTANT: BAREM CHẤM ĐIỂM (RUBRIC) ---
+// Được chèn vào tất cả các prompt để đảm bảo AI chấm điểm nhất quán
+const STRICT_RUBRIC = `
+# CÔNG THỨC CHẤM ĐIỂM (SCORING RUBRIC - TOTAL 10.0):
+Hệ thống PHẢI tuân thủ trọng số sau đây, không được chấm theo cảm tính. Nếu chạy lại 10 lần, kết quả phải giống nhau:
+
+1. **Hard Skills (Kỹ năng Chuyên môn) - 40% (Tối đa 4.0đ):**
+   - So khớp từ khóa trong CV với yêu cầu đặc thù của vị trí.
+   - 4.0: Có >90% từ khóa + Có kỹ năng nâng cao/Công cụ chuyên sâu.
+   - 3.0: Có 70-90% từ khóa quan trọng.
+   - 2.0: Có 50-70% từ khóa.
+   - 1.0: <50% hoặc chỉ biết lý thuyết.
+
+2. **Experience (Kinh nghiệm) - 30% (Tối đa 3.0đ):**
+   - 3.0: Đã từng làm vị trí tương đương hoặc có dự án thực tế ấn tượng (có số liệu chứng minh).
+   - 2.0: Có kinh nghiệm liên quan/Thực tập nhưng chưa sâu.
+   - 1.0: Chưa có kinh nghiệm hoặc kinh nghiệm trái ngành hoàn toàn.
+
+3. **Education (Học vấn/Chứng chỉ) - 10% (Tối đa 1.0đ):**
+   - 1.0: Đúng chuyên ngành HOẶC có chứng chỉ (Certificate) uy tín liên quan.
+   - 0.5: Trái ngành, không chứng chỉ.
+
+4. **Soft Skills & Presentation (Kỹ năng mềm & Trình bày) - 20% (Tối đa 2.0đ):**
+   - 2.0: CV trình bày khoa học, logic, không lỗi chính tả, thể hiện tư duy tốt (Leadership, Teamwork).
+   - 1.0: CV sơ sài, lộn xộn hoặc thiếu thông tin.
+`;
+
+// --- KHO PROMPT ĐẦY ĐỦ (KHÔNG XÓA BẤT CỨ VỊ TRÍ NÀO) ---
 function getSpecificPrompt(jobTitle, jobRequirements) {
     const title = jobTitle?.toLowerCase().trim() || "";
-
-    // RUBRIC CHẤM ĐIỂM CHUNG (ĐỂ INJECT VÀO CÁC PROMPT)
-    const SCORING_RUBRIC = `
-# CÔNG THỨC CHẤM ĐIỂM (BẮT BUỘC TUÂN THỦ):
-Tổng điểm tối đa là 10.0. Hãy tính toán dựa trên trọng số sau:
-1. **Hard Skills (40% - Max 4.0):** So khớp từ khóa kỹ năng trong CV với yêu cầu. 
-   - >90% khớp: 4.0 | 70-90%: 3.0 | 50-70%: 2.0 | <50%: 1.0
-2. **Experience (30% - Max 3.0):** Độ liên quan của kinh nghiệm làm việc/dự án thực tế.
-   - Rất liên quan/Có kinh nghiệm thực chiến: 3.0 | Khá liên quan: 2.0 | Ít liên quan: 1.0
-3. **Education/Certifications (10% - Max 1.0):** Bằng cấp và chứng chỉ phù hợp.
-4. **Soft Skills/Presentation (20% - Max 2.0):** Cách trình bày CV, tư duy logic, hoạt động ngoại khóa.
-
-*LƯU Ý QUAN TRỌNG: Đánh giá phải KHÁCH QUAN, KHÔNG CẢM TÍNH. Nếu chạy lại 10 lần, kết quả phải giống nhau.*
-    `;
 
     // 1. DATA ANALYST INTERN
     if (title.includes("data analyst")) {
         return `
-# Vai trò & Ngữ cảnh
-Bạn là một **Chuyên gia Tuyển dụng Kỹ thuật**. Bạn đang sàng lọc ứng viên cho vị trí **Thực tập sinh Phân tích Dữ liệu (Data Analyst Intern)**.
-Ngữ cảnh kinh doanh: Môi trường sản xuất, tập trung vào làm sạch, hợp nhất và trực quan hóa dữ liệu.
-Mục tiêu: Tìm ứng viên có kỹ năng "Bắt buộc" (Power BI, Data Cleaning) và ưu tiên có kinh nghiệm dữ liệu Sản xuất/Vận hành.
+# Vai trò: Chuyên gia Tuyển dụng Kỹ thuật (Strict Grader).
+# Vị trí: **Thực tập sinh Phân tích Dữ liệu (Data Analyst Intern)**.
+Ngữ cảnh: Môi trường sản xuất, tập trung vào làm sạch, hợp nhất và trực quan hóa dữ liệu.
+Mục tiêu: Tìm ứng viên thạo Power BI, SQL, Python, Excel và ưu tiên kinh nghiệm dữ liệu Sản xuất/Vận hành.
 
-${SCORING_RUBRIC}
+${STRICT_RUBRIC}
 
-# Nhiệm vụ
-1. **Phân tích và Đối chiếu:**
-   - Trích xuất kỹ năng: Power BI, SQL, Python, Excel, Làm sạch dữ liệu.
-   - Đối chiếu kinh nghiệm: Tìm bằng chứng về việc thu thập, làm sạch dữ liệu và tạo Dashboard.
-   - Ngữ cảnh: Ưu tiên kinh nghiệm với dữ liệu Sản xuất/Chế tạo.
-2. **Tư duy phản biện:**
-   - Xác thực tuyên bố: Tìm ngữ cảnh cụ thể (VD: "Dùng Power BI để tối ưu quy trình X" thay vì chỉ liệt kê "Power BI").
+# Nhiệm vụ:
+1. **Phân tích:** Trích xuất kỹ năng Power BI, SQL, Python, Data Cleaning.
+2. **Đối chiếu:** Tìm bằng chứng về việc thu thập, làm sạch dữ liệu và tạo Dashboard.
+3. **Tính điểm:** Áp dụng Rubric trên.
 
-# Định dạng Output (JSON Bắt buộc)
+# Định dạng Output (JSON Bắt buộc):
 {
-    "full_name": "Họ tên",
-    "email": "Email",
-    "skills": ["Skill 1", "Skill 2"],
+    "full_name": "Họ tên", "email": "Email", "skills": ["Skill 1", "Skill 2"],
     "score": 0.0,
-    "summary": "Tóm tắt 2-3 câu về mức độ phù hợp (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT:\n\n**1. Mức độ đáp ứng bằng cấp:**\n[Chi tiết]\n\n**2. Mức độ đáp ứng trách nhiệm:**\n- Làm sạch & Hợp nhất dữ liệu: [Chi tiết]\n- Power BI Dashboard: [Chi tiết]\n\n**3. Độ phù hợp ngành Sản xuất:**\n[Có/Không + Chi tiết]",
+    "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 },
+    "summary": "Tóm tắt 2-3 câu (Tiếng Việt).",
+    "match_reason": "Giải thích chi tiết (Tiếng Việt): Tại sao cho điểm Hard Skills? Tại sao cho điểm Experience?...",
     "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
-    "confidence": "Cao / Trung bình / Thấp"
-}
-`;
+    "confidence": "Cao"
+}`;
     }
 
     // 2. INNOVATION INTERN
     if (title.includes("innovation") || title.includes("sáng tạo")) {
         return `
-# Vai trò & Ngữ cảnh
-Bạn là Chuyên gia Tuyển dụng. Vị trí: **Thực tập sinh Sáng tạo (Innovation Intern)**.
+# Vai trò: Chuyên gia Tuyển dụng Sáng tạo.
+# Vị trí: **Thực tập sinh Sáng tạo (Innovation Intern)**.
 Ngữ cảnh: Hỗ trợ hoạt động nội bộ, truyền thông và kể chuyện bằng hình ảnh.
-Mục tiêu: Tìm người có kỹ năng tổ chức (Must-Have) và sáng tạo/thiết kế (Nice-to-Have).
+Mục tiêu: Tìm người cân bằng giữa Kỹ năng tổ chức (Must-Have) và Sáng tạo/Thiết kế (Nice-to-Have).
 
-${SCORING_RUBRIC}
+${STRICT_RUBRIC}
 
-# Nhiệm vụ
-1. **Phân tích:**
-   - Kỹ năng: Microsoft Office (Excel, PPT), Thiết kế (Canva/Adobe), Tổ chức sự kiện.
-   - Kinh nghiệm: Tổ chức sự kiện nội bộ, viết content, làm slide thuyết trình.
-2. **Tư duy phản biện:**
-   - Đánh giá sự kết hợp giữa "Tỉ mỉ hành chính" và "Tư duy sáng tạo".
+# Nhiệm vụ:
+1. Phân tích kỹ năng: Microsoft Office (Excel, PPT), Thiết kế (Canva/Adobe), Tổ chức sự kiện.
+2. Đánh giá sự kết hợp giữa "Tỉ mỉ hành chính" và "Tư duy sáng tạo".
+3. Tính điểm theo Rubric.
 
-# Định dạng Output (JSON Bắt buộc)
+# Định dạng Output (JSON Bắt buộc):
 {
-    "full_name": "Họ tên",
-    "email": "Email",
-    "skills": ["Skill 1", "Skill 2"],
+    "full_name": "Họ tên", "email": "Email", "skills": [],
     "score": 0.0,
-    "summary": "Tóm tắt mức độ phù hợp (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT:\n\n**1. Thiết kế tài liệu hình ảnh:**\n[Chi tiết]\n\n**2. Tổ chức sự kiện:**\n[Chi tiết]\n\n**3. Sáng tạo nội dung:**\n[Chi tiết]",
-    "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
-    "confidence": "Cao / Trung bình / Thấp"
-}
-`;
+    "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 },
+    "summary": "...", "match_reason": "...", "recommendation": "...", "confidence": "Cao"
+}`;
     }
 
     // 3. MARKETING INTERN
     if (title.includes("marketing")) {
         return `
-# Vai trò & Ngữ cảnh
-Vị trí: **Thực tập sinh Marketing**.
-Yêu cầu: Am hiểu kỹ thuật số, xử lý công việc hỗn hợp (SEO/Content, Social Media, PR, Hậu cần sự kiện).
-Mục tiêu: Ứng viên có kỹ năng thực thi hữu hình (Viết, Edit video, Tổ chức).
+# Vai trò: Chuyên gia Tuyển dụng Marketing.
+# Vị trí: **Thực tập sinh Marketing**.
+Mục tiêu: Tìm ứng viên đa năng (SEO/Content, Social Media, PR, Hậu cần sự kiện).
 
-${SCORING_RUBRIC}
+${STRICT_RUBRIC}
 
-# Nhiệm vụ
-Phân tích theo 5 trụ cột:
-1. SEO & Content.
-2. Social Media (TikTok, Zalo, FB) & Edit Video.
-3. PR & Truyền thông.
-4. Hậu cần sự kiện.
-5. Sinh viên & Cộng đồng.
+# Nhiệm vụ:
+1. Phân tích 5 trụ cột: SEO & Content, Social Media (TikTok/FB/Video Edit), PR, Hậu cần, Cộng đồng.
+2. Tìm kiếm các chỉ số (Metrics) trong kinh nghiệm quá khứ.
+3. Tính điểm theo Rubric.
 
-# Định dạng Output (JSON Bắt buộc)
+# Định dạng Output (JSON Bắt buộc):
 {
-    "full_name": "Họ tên",
-    "email": "Email",
-    "skills": ["Skill 1", "Skill 2"],
+    "full_name": "Họ tên", "email": "Email", "skills": [],
     "score": 0.0,
-    "summary": "Tóm tắt tiềm năng sáng tạo và phù hợp (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT:\n\n**1. SEO/Nội dung:**\n[Chi tiết]\n\n**2. Mạng xã hội (Video/Thiết kế):**\n[Chi tiết]\n\n**3. Sự kiện/PR:**\n[Chi tiết]",
-    "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
-    "confidence": "Cao / Trung bình / Thấp"
-}
-`;
+    "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 },
+    "summary": "...", "match_reason": "...", "recommendation": "...", "confidence": "Cao"
+}`;
     }
 
     // 4. NETWORK SECURITY INTERN
     if (title.includes("security") || title.includes("bảo mật")) {
         return `
-# Vai trò: Chuyên gia Tuyển dụng An ninh mạng. Vị trí: **Network Security Intern**.
+# Vai trò: Chuyên gia Tuyển dụng An ninh mạng.
+# Vị trí: **Network Security Intern**.
 Ngữ cảnh: Vận hành Bảo mật & Hỗ trợ Kỹ thuật.
 Mục tiêu: Kỹ năng thực thi thực tế (Nmap, Burp Suite, Python), không chỉ lý thuyết.
 
-${SCORING_RUBRIC}
+${STRICT_RUBRIC}
 
-# Nhiệm vụ
-Phân tích 5 trụ cột:
-1. Bảo mật mạng & Hạ tầng.
-2. Pentest (Nmap, Burp Suite).
-3. Phân tích mã độc.
-4. Ứng cứu sự cố (IR/SOC).
-5. Hỗ trợ kỹ thuật.
+# Nhiệm vụ:
+1. Phân tích kỹ năng: Pentest, Phân tích mã độc, IR/SOC, Hạ tầng mạng.
+2. Đánh giá kinh nghiệm thực chiến (CTF, Bug Bounty).
+3. Tính điểm theo Rubric.
 
-# Định dạng Output (JSON Bắt buộc)
+# Định dạng Output (JSON Bắt buộc):
 {
-    "full_name": "Họ tên",
-    "email": "Email",
-    "skills": ["Skill 1", "Skill 2"],
+    "full_name": "Họ tên", "email": "Email", "skills": [],
     "score": 0.0,
-    "summary": "Tóm tắt mức độ phù hợp (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT:\n\n**1. Pentest & Lỗ hổng:**\n[Chi tiết]\n\n**2. Ứng cứu sự cố (IR):**\n[Chi tiết]\n\n**3. Kỹ năng thực tế (Tools/Scripting):**\n[Chi tiết]",
-    "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
-    "confidence": "Cao / Trung bình / Thấp"
-}
-`;
+    "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 },
+    "summary": "...", "match_reason": "...", "recommendation": "...", "confidence": "Cao"
+}`;
     }
 
     // 5. AI ENGINEER INTERN
     if (title.includes("ai engineer") || title.includes("trí tuệ nhân tạo")) {
         return `
-# Vai trò: Hệ thống Sàng lọc Tài năng AI. Vị trí: **AI Engineer Intern (NMT)**.
+# Vai trò: Chuyên gia Tuyển dụng AI.
+# Vị trí: **AI Engineer Intern (NMT)**.
 Ngữ cảnh: Phát triển tập dữ liệu đa ngữ, tinh chỉnh mô hình ngôn ngữ nhỏ (SLM).
-Mục tiêu: Python, C++, NLP, PyTorch, Xây dựng Dataset. Kinh nghiệm >= 1 năm.
+Mục tiêu: Python, C++, NLP, PyTorch, Xây dựng Dataset.
 
-${SCORING_RUBRIC}
+${STRICT_RUBRIC}
 
-# Nhiệm vụ
-1. Phân tích kỹ năng: NMT/NLP, Dataset Engineering, ML/DL.
+# Nhiệm vụ:
+1. Phân tích kỹ năng: NMT/NLP, Dataset Engineering, ML/DL Frameworks.
 2. Xác thực các tuyên bố kỹ thuật (Tránh từ khóa rỗng).
+3. Tính điểm theo Rubric.
 
-# Định dạng Output (JSON Bắt buộc)
+# Định dạng Output (JSON Bắt buộc):
 {
-    "full_name": "Họ tên",
-    "email": "Email",
-    "skills": ["Skill 1", "Skill 2"],
+    "full_name": "Họ tên", "email": "Email", "skills": [],
     "score": 0.0,
-    "summary": "Tóm tắt mức độ phù hợp (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT:\n\n**1. NLP & NMT:**\n[Chi tiết]\n\n**2. Kỹ thuật Tập dữ liệu:**\n[Chi tiết]\n\n**3. Kỹ năng lập trình (Python/C++):**\n[Chi tiết]",
-    "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
-    "confidence": "Cao / Trung bình / Thấp"
-}
-`;
+    "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 },
+    "summary": "...", "match_reason": "...", "recommendation": "...", "confidence": "Cao"
+}`;
     }
 
     // 6. BUSINESS ANALYST INTERN
     if (title.includes("business analyst") || title.includes("ba")) {
         return `
-# Vai trò: Chuyên gia Tuyển dụng Kỹ thuật. Vị trí: **Business Analyst Intern**.
+# Vai trò: Chuyên gia Tuyển dụng Kỹ thuật (BA).
+# Vị trí: **Business Analyst Intern**.
 Ngữ cảnh: Insurtech. Hỗ trợ đội ngũ sản phẩm.
 Mục tiêu: Kỹ năng phân tích/viết tài liệu (User Stories, SDLC) và nền tảng kỹ thuật (SQL).
 
-${SCORING_RUBRIC}
+${STRICT_RUBRIC}
 
-# Nhiệm vụ
-Phân tích kỹ năng: Thu thập yêu cầu, Công cụ (Jira/Figma), Phân tích dữ liệu (SQL).
+# Nhiệm vụ:
+1. Phân tích kỹ năng: Thu thập yêu cầu, Công cụ (Jira/Figma), Phân tích dữ liệu (SQL).
+2. Đánh giá tư duy hệ thống qua các dự án.
+3. Tính điểm theo Rubric.
 
-# Định dạng Output (JSON Bắt buộc)
+# Định dạng Output (JSON Bắt buộc):
 {
-    "full_name": "Họ tên",
-    "email": "Email",
-    "skills": ["Skill 1", "Skill 2"],
+    "full_name": "Họ tên", "email": "Email", "skills": [],
     "score": 0.0,
-    "summary": "Tóm tắt mức độ phù hợp (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT:\n\n**1. Thu thập yêu cầu & Tài liệu:**\n[Chi tiết]\n\n**2. Công cụ (Jira/Figma):**\n[Chi tiết]\n\n**3. Phân tích dữ liệu (SQL):**\n[Chi tiết]",
-    "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
-    "confidence": "Cao / Trung bình / Thấp"
-}
-`;
+    "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 },
+    "summary": "...", "match_reason": "...", "recommendation": "...", "confidence": "Cao"
+}`;
     }
 
     // 7. SOFTWARE ENGINEER INTERN
     if (title.includes("software") || title.includes("mobile")) {
         return `
-# Vai trò: Chuyên gia Tuyển dụng Kỹ thuật. Vị trí: **Software Engineer Intern (Mobile)**.
+# Vai trò: Chuyên gia Tuyển dụng Mobile/Software.
+# Vị trí: **Software Engineer Intern (Mobile)**.
 Ngữ cảnh: Phát triển ứng dụng di động nhanh.
 Mục tiêu: Nền tảng CS vững chắc (DSA) và Ngôn ngữ Mobile (iOS/Android/Flutter).
 
-${SCORING_RUBRIC}
+${STRICT_RUBRIC}
 
-# Nhiệm vụ
-Phân tích kỹ năng: Mobile Dev, CS Foundation (DSA), Clean Code.
+# Nhiệm vụ:
+1. Phân tích kỹ năng: Mobile Dev, CS Foundation (DSA), Clean Code.
+2. Đánh giá chất lượng dự án (GitHub, App Store).
+3. Tính điểm theo Rubric.
 
-# Định dạng Output (JSON Bắt buộc)
+# Định dạng Output (JSON Bắt buộc):
 {
-    "full_name": "Họ tên",
-    "email": "Email",
-    "skills": ["Skill 1", "Skill 2"],
+    "full_name": "Họ tên", "email": "Email", "skills": [],
     "score": 0.0,
-    "summary": "Tóm tắt mức độ phù hợp (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT:\n\n**1. Phát triển Di động:**\n[Chi tiết]\n\n**2. Nền tảng CS (DSA):**\n[Chi tiết]\n\n**3. Chất lượng mã nguồn:**\n[Chi tiết]",
-    "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
-    "confidence": "Cao / Trung bình / Thấp"
-}
-`;
+    "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 },
+    "summary": "...", "match_reason": "...", "recommendation": "...", "confidence": "Cao"
+}`;
     }
 
     // 8. RISK ANALYST INTERN
     if (title.includes("risk")) {
         return `
-# Vai trò: Chuyên gia Tuyển dụng. Vị trí: **Risk Analyst Intern**.
+# Vai trò: Chuyên gia Tuyển dụng Tài chính/Rủi ro.
+# Vị trí: **Risk Analyst Intern**.
 Ngữ cảnh: Ngân hàng. Phân tích tài chính & thị trường.
 Mục tiêu: Kiến thức tài chính (Báo cáo, Excel), Kỹ năng mềm (Tỉ mỉ). Ưu tiên CFA/ACCA.
 
-${SCORING_RUBRIC}
+${STRICT_RUBRIC}
 
-# Nhiệm vụ
-Phân tích kỹ năng: Tài chính, Nghiên cứu thị trường, Excel.
+# Nhiệm vụ:
+1. Phân tích kỹ năng: Tài chính, Nghiên cứu thị trường, Excel nâng cao.
+2. Đánh giá sự tỉ mỉ và tư duy logic.
+3. Tính điểm theo Rubric.
 
-# Định dạng Output (JSON Bắt buộc)
+# Định dạng Output (JSON Bắt buộc):
 {
-    "full_name": "Họ tên",
-    "email": "Email",
-    "skills": ["Skill 1", "Skill 2"],
+    "full_name": "Họ tên", "email": "Email", "skills": [],
     "score": 0.0,
-    "summary": "Tóm tắt mức độ phù hợp (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT:\n\n**1. Phân tích Tài chính:**\n[Chi tiết]\n\n**2. Nghiên cứu Thị trường:**\n[Chi tiết]\n\n**3. Sự tỉ mỉ & Quy trình:**\n[Chi tiết]",
-    "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
-    "confidence": "Cao / Trung bình / Thấp"
-}
-`;
+    "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 },
+    "summary": "...", "match_reason": "...", "recommendation": "...", "confidence": "Cao"
+}`;
     }
 
-    // --- MẶC ĐỊNH: DYNAMIC FALLBACK (Logic Tự Động) ---
-    // Logic: Nếu không khớp tên, tự tạo Prompt dựa trên cột 'requirements' trong Database
+    // --- MẶC ĐỊNH: DYNAMIC FALLBACK (Dành cho Business Development và các vị trí khác) ---
+    // Logic: Tự tạo Prompt dựa trên cột 'requirements' trong Database nhưng ÁP DỤNG RUBRIC CHẶT CHẼ
     const reqSkills = jobRequirements?.skills ? (Array.isArray(jobRequirements.skills) ? jobRequirements.skills.join(", ") : jobRequirements.skills) : "Các kỹ năng chuyên môn liên quan đến " + jobTitle;
     const reqExp = jobRequirements?.experience || "Không yêu cầu cụ thể";
     const reqEdu = jobRequirements?.education || "Đại học hoặc tương đương";
 
     return `
-# Vai trò: Chuyên gia Tuyển dụng & Đánh giá Tài năng.
-# Vị trí cần tuyển: "${jobTitle}"
+# Vai trò: Chuyên gia Đánh giá Tài năng (AI Recruitment Auditor).
+# Vị trí cần tuyển: "${jobTitle.toUpperCase()}"
 
 # Ngữ cảnh & Yêu cầu từ Database:
 Hệ thống không có Prompt mẫu chuyên sâu cho vị trí này, vì vậy bạn hãy phân tích dựa trên dữ liệu yêu cầu thực tế sau:
-1. **Kỹ năng Bắt buộc (Must-Have):** ${reqSkills}
+1. **Kỹ năng Bắt buộc (Hard Skills):** ${reqSkills}
 2. **Kinh nghiệm yêu cầu:** ${reqExp}
 3. **Học vấn:** ${reqEdu}
 
-${SCORING_RUBRIC}
+${STRICT_RUBRIC}
 
 # Nhiệm vụ:
 1. **Quét CV:** Tìm kiếm bằng chứng cụ thể về việc ứng viên sở hữu các kỹ năng: ${reqSkills}.
 2. **Đánh giá độ sâu:** Phân biệt giữa việc chỉ liệt kê từ khóa và việc có dự án/kinh nghiệm thực tế áp dụng.
-3. **Chấm điểm:** Dựa trên mức độ khớp giữa CV và danh sách kỹ năng trên (Thang điểm 10) theo CÔNG THỨC CHẤM ĐIỂM (SCORING RUBRIC) đã cung cấp.
+3. **Chấm điểm:** Dựa trên mức độ khớp giữa CV và danh sách kỹ năng trên theo CÔNG THỨC CHẤM ĐIỂM (RUBRIC).
 
 # Định dạng Output (JSON Bắt buộc):
 {
@@ -322,10 +318,16 @@ ${SCORING_RUBRIC}
     "email": "Email",
     "skills": ["Skill 1", "Skill 2", "Skill 3"],
     "score": 0.0,
+    "breakdown": {
+        "hard_skills": 0.0,
+        "experience": 0.0,
+        "education": 0.0,
+        "soft_skills": 0.0
+    },
     "summary": "Tóm tắt 2-3 câu đánh giá tổng quan (Tiếng Việt).",
-    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT:\n\n**1. Phân tích Kỹ năng Yêu cầu (${reqSkills}):**\n[Chi tiết]\n\n**2. Kinh nghiệm & Dự án:**\n[Chi tiết]\n\n**3. Đánh giá chung:**\n[Điểm mạnh/Yếu]",
+    "match_reason": "Trình bày chi tiết bằng TIẾNG VIỆT (Giải thích rõ tại sao cho điểm số này ở từng mục Breakdown).",
     "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
-    "confidence": "Cao / Trung bình / Thấp"
+    "confidence": "Cao"
 }
 `;
 }
@@ -365,7 +367,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ==========================================
-// 3. API CV: SCAN & UPLOAD (TÍCH HỢP PROMPT PDF + FALLBACK)
+// 3. API CV: SCAN & UPLOAD (UPDATED LOGIC: TEMP 0 & RUBRIC)
 // ==========================================
 app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     try {
@@ -397,12 +399,14 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         const selectedPrompt = getSpecificPrompt(jobTitle, jobReqs);
         console.log(`🎯 Sử dụng Prompt cho vị trí: ${jobTitle}`);
 
-        // 4. Gọi AI VỚI TEMPERATURE = 0.0 (QUAN TRỌNG ĐỂ KẾT QUẢ NHẤT QUÁN)
+        // 4. Gọi AI VỚI TEMPERATURE = 0 (QUAN TRỌNG ĐỂ CONSISTENCY)
         const model = genAI.getGenerativeModel({ 
             model: ACTIVE_MODEL_NAME, 
             generationConfig: { 
                 responseMimeType: "application/json",
-                temperature: 0.0 // Set về 0 để loại bỏ tính ngẫu nhiên
+                temperature: 0.0, // Triệt tiêu ngẫu nhiên
+                topK: 1,
+                topP: 1
             } 
         });
         const imageParts = [{ inlineData: { data: req.file.buffer.toString("base64"), mimeType: req.file.mimetype } }];
