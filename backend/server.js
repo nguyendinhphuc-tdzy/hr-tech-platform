@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Bản Final: Prompt PDF + Dynamic Fallback) */
+/* FILE: backend/server.js (Bản Final: Prompt PDF + Dynamic Fallback + Consistent Scoring) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -15,7 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 // --- CẤU HÌNH ---
-let ACTIVE_MODEL_NAME = "gemini-2.5-flash"; 
+let ACTIVE_MODEL_NAME = "gemini-2.0-flash"; // SỬ DỤNG MODEL MỚI NHẤT ĐỂ THÔNG MINH HƠN
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -44,8 +44,23 @@ function chunkText(text) { const chunks = []; let cur = ""; text.split(/(?<=[.?!
 async function createEmbedding(text) { const model = genAI.getGenerativeModel({ model: "text-embedding-004" }); const result = await model.embedContent(text); return result.embedding.values; }
 
 // --- KHO PROMPT TỪ PDF + DYNAMIC FALLBACK ---
+// (ĐÃ BỔ SUNG SCORING RUBRIC VÀO TỪNG PROMPT ĐỂ AI CHẤM ĐIỂM NHẤT QUÁN)
 function getSpecificPrompt(jobTitle, jobRequirements) {
     const title = jobTitle?.toLowerCase().trim() || "";
+
+    // RUBRIC CHẤM ĐIỂM CHUNG (ĐỂ INJECT VÀO CÁC PROMPT)
+    const SCORING_RUBRIC = `
+# CÔNG THỨC CHẤM ĐIỂM (BẮT BUỘC TUÂN THỦ):
+Tổng điểm tối đa là 10.0. Hãy tính toán dựa trên trọng số sau:
+1. **Hard Skills (40% - Max 4.0):** So khớp từ khóa kỹ năng trong CV với yêu cầu. 
+   - >90% khớp: 4.0 | 70-90%: 3.0 | 50-70%: 2.0 | <50%: 1.0
+2. **Experience (30% - Max 3.0):** Độ liên quan của kinh nghiệm làm việc/dự án thực tế.
+   - Rất liên quan/Có kinh nghiệm thực chiến: 3.0 | Khá liên quan: 2.0 | Ít liên quan: 1.0
+3. **Education/Certifications (10% - Max 1.0):** Bằng cấp và chứng chỉ phù hợp.
+4. **Soft Skills/Presentation (20% - Max 2.0):** Cách trình bày CV, tư duy logic, hoạt động ngoại khóa.
+
+*LƯU Ý QUAN TRỌNG: Đánh giá phải KHÁCH QUAN, KHÔNG CẢM TÍNH. Nếu chạy lại 10 lần, kết quả phải giống nhau.*
+    `;
 
     // 1. DATA ANALYST INTERN
     if (title.includes("data analyst")) {
@@ -54,6 +69,8 @@ function getSpecificPrompt(jobTitle, jobRequirements) {
 Bạn là một **Chuyên gia Tuyển dụng Kỹ thuật**. Bạn đang sàng lọc ứng viên cho vị trí **Thực tập sinh Phân tích Dữ liệu (Data Analyst Intern)**.
 Ngữ cảnh kinh doanh: Môi trường sản xuất, tập trung vào làm sạch, hợp nhất và trực quan hóa dữ liệu.
 Mục tiêu: Tìm ứng viên có kỹ năng "Bắt buộc" (Power BI, Data Cleaning) và ưu tiên có kinh nghiệm dữ liệu Sản xuất/Vận hành.
+
+${SCORING_RUBRIC}
 
 # Nhiệm vụ
 1. **Phân tích và Đối chiếu:**
@@ -74,7 +91,6 @@ Mục tiêu: Tìm ứng viên có kỹ năng "Bắt buộc" (Power BI, Data Clea
     "recommendation": "Phỏng vấn / Cân nhắc / Từ chối",
     "confidence": "Cao / Trung bình / Thấp"
 }
-*Lưu ý: Score là số từ 0 đến 10.*
 `;
     }
 
@@ -85,6 +101,8 @@ Mục tiêu: Tìm ứng viên có kỹ năng "Bắt buộc" (Power BI, Data Clea
 Bạn là Chuyên gia Tuyển dụng. Vị trí: **Thực tập sinh Sáng tạo (Innovation Intern)**.
 Ngữ cảnh: Hỗ trợ hoạt động nội bộ, truyền thông và kể chuyện bằng hình ảnh.
 Mục tiêu: Tìm người có kỹ năng tổ chức (Must-Have) và sáng tạo/thiết kế (Nice-to-Have).
+
+${SCORING_RUBRIC}
 
 # Nhiệm vụ
 1. **Phân tích:**
@@ -115,6 +133,8 @@ Vị trí: **Thực tập sinh Marketing**.
 Yêu cầu: Am hiểu kỹ thuật số, xử lý công việc hỗn hợp (SEO/Content, Social Media, PR, Hậu cần sự kiện).
 Mục tiêu: Ứng viên có kỹ năng thực thi hữu hình (Viết, Edit video, Tổ chức).
 
+${SCORING_RUBRIC}
+
 # Nhiệm vụ
 Phân tích theo 5 trụ cột:
 1. SEO & Content.
@@ -143,6 +163,8 @@ Phân tích theo 5 trụ cột:
 # Vai trò: Chuyên gia Tuyển dụng An ninh mạng. Vị trí: **Network Security Intern**.
 Ngữ cảnh: Vận hành Bảo mật & Hỗ trợ Kỹ thuật.
 Mục tiêu: Kỹ năng thực thi thực tế (Nmap, Burp Suite, Python), không chỉ lý thuyết.
+
+${SCORING_RUBRIC}
 
 # Nhiệm vụ
 Phân tích 5 trụ cột:
@@ -173,6 +195,8 @@ Phân tích 5 trụ cột:
 Ngữ cảnh: Phát triển tập dữ liệu đa ngữ, tinh chỉnh mô hình ngôn ngữ nhỏ (SLM).
 Mục tiêu: Python, C++, NLP, PyTorch, Xây dựng Dataset. Kinh nghiệm >= 1 năm.
 
+${SCORING_RUBRIC}
+
 # Nhiệm vụ
 1. Phân tích kỹ năng: NMT/NLP, Dataset Engineering, ML/DL.
 2. Xác thực các tuyên bố kỹ thuật (Tránh từ khóa rỗng).
@@ -198,6 +222,8 @@ Mục tiêu: Python, C++, NLP, PyTorch, Xây dựng Dataset. Kinh nghiệm >= 1 
 Ngữ cảnh: Insurtech. Hỗ trợ đội ngũ sản phẩm.
 Mục tiêu: Kỹ năng phân tích/viết tài liệu (User Stories, SDLC) và nền tảng kỹ thuật (SQL).
 
+${SCORING_RUBRIC}
+
 # Nhiệm vụ
 Phân tích kỹ năng: Thu thập yêu cầu, Công cụ (Jira/Figma), Phân tích dữ liệu (SQL).
 
@@ -222,6 +248,8 @@ Phân tích kỹ năng: Thu thập yêu cầu, Công cụ (Jira/Figma), Phân t�
 Ngữ cảnh: Phát triển ứng dụng di động nhanh.
 Mục tiêu: Nền tảng CS vững chắc (DSA) và Ngôn ngữ Mobile (iOS/Android/Flutter).
 
+${SCORING_RUBRIC}
+
 # Nhiệm vụ
 Phân tích kỹ năng: Mobile Dev, CS Foundation (DSA), Clean Code.
 
@@ -245,6 +273,8 @@ Phân tích kỹ năng: Mobile Dev, CS Foundation (DSA), Clean Code.
 # Vai trò: Chuyên gia Tuyển dụng. Vị trí: **Risk Analyst Intern**.
 Ngữ cảnh: Ngân hàng. Phân tích tài chính & thị trường.
 Mục tiêu: Kiến thức tài chính (Báo cáo, Excel), Kỹ năng mềm (Tỉ mỉ). Ưu tiên CFA/ACCA.
+
+${SCORING_RUBRIC}
 
 # Nhiệm vụ
 Phân tích kỹ năng: Tài chính, Nghiên cứu thị trường, Excel.
@@ -279,10 +309,12 @@ Hệ thống không có Prompt mẫu chuyên sâu cho vị trí này, vì vậy 
 2. **Kinh nghiệm yêu cầu:** ${reqExp}
 3. **Học vấn:** ${reqEdu}
 
+${SCORING_RUBRIC}
+
 # Nhiệm vụ:
 1. **Quét CV:** Tìm kiếm bằng chứng cụ thể về việc ứng viên sở hữu các kỹ năng: ${reqSkills}.
 2. **Đánh giá độ sâu:** Phân biệt giữa việc chỉ liệt kê từ khóa và việc có dự án/kinh nghiệm thực tế áp dụng.
-3. **Chấm điểm:** Dựa trên mức độ khớp giữa CV và danh sách kỹ năng trên (Thang điểm 10).
+3. **Chấm điểm:** Dựa trên mức độ khớp giữa CV và danh sách kỹ năng trên (Thang điểm 10) theo CÔNG THỨC CHẤM ĐIỂM (SCORING RUBRIC) đã cung cấp.
 
 # Định dạng Output (JSON Bắt buộc):
 {
@@ -365,8 +397,14 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         const selectedPrompt = getSpecificPrompt(jobTitle, jobReqs);
         console.log(`🎯 Sử dụng Prompt cho vị trí: ${jobTitle}`);
 
-        // 4. Gọi AI
-        const model = genAI.getGenerativeModel({ model: ACTIVE_MODEL_NAME, generationConfig: { responseMimeType: "application/json" } });
+        // 4. Gọi AI VỚI TEMPERATURE = 0.0 (QUAN TRỌNG ĐỂ KẾT QUẢ NHẤT QUÁN)
+        const model = genAI.getGenerativeModel({ 
+            model: ACTIVE_MODEL_NAME, 
+            generationConfig: { 
+                responseMimeType: "application/json",
+                temperature: 0.0 // Set về 0 để loại bỏ tính ngẫu nhiên
+            } 
+        });
         const imageParts = [{ inlineData: { data: req.file.buffer.toString("base64"), mimeType: req.file.mimetype } }];
         const result = await model.generateContent([selectedPrompt, ...imageParts]);
         
@@ -375,7 +413,9 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         catch (parseError) { aiResult = { full_name: "Lỗi đọc", score: 0, summary: "Lỗi phân tích AI", email: null }; }
 
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
-        const finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
+        // Chuẩn hóa điểm số (nếu AI trả về > 10, chia 10)
+        let finalScore = aiResult.score;
+        if (finalScore > 10) finalScore = (finalScore / 10).toFixed(1);
 
         const dbResult = await pool.query(
             `INSERT INTO candidates (organization_id, job_id, full_name, email, role, status, ai_rating, ai_analysis, cv_file_url) 
