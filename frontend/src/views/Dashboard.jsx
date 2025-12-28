@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/Dashboard.jsx (Advanced Date Range Filter) */
+/* FILE: frontend/src/views/Dashboard.jsx */
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -11,8 +11,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   
-  // --- STATE QUẢN LÝ BỘ LỌC NGÀY ---
-  const [dateFilterType, setDateFilterType] = useState('all'); // 'all' | 'today' | 'week' | 'month' | 'custom'
+  // --- STATE BỘ LỌC NGÀY ---
+  const [dateFilterType, setDateFilterType] = useState('all'); 
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
 
   const fetchCandidates = () => {
@@ -30,33 +30,43 @@ const Dashboard = () => {
 
   useEffect(() => { fetchCandidates(); }, []);
 
+  // --- XỬ LÝ CHUYỂN TRẠNG THÁI NHANH (TỪ CARD HOẶC KÉO THẢ) ---
+  const handleStatusChange = async (candidateId, newStatus) => {
+      // 1. Optimistic Update (Cập nhật UI ngay)
+      const updatedCandidates = candidates.map(c => 
+          c.id === candidateId ? { ...c, status: newStatus } : c
+      );
+      setCandidates(updatedCandidates);
+
+      // 2. Gọi API Background
+      try {
+          await axios.put(`${API_BASE_URL}/api/candidates/${candidateId}/status`, { status: newStatus });
+      } catch (error) {
+          console.error("Lỗi update:", error);
+          fetchCandidates(); // Revert nếu lỗi
+      }
+  };
+
   const onDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
     const newStatus = destination.droppableId;
-    const updatedCandidates = candidates.map(c => 
-        c.id.toString() === draggableId ? { ...c, status: newStatus } : c
-    );
-    setCandidates(updatedCandidates);
-
-    try {
-        await axios.put(`${API_BASE_URL}/api/candidates/${draggableId}/status`, { status: newStatus });
-    } catch (error) { console.error("Lỗi update:", error); }
+    handleStatusChange(parseInt(draggableId), newStatus);
   };
 
-  // --- LOGIC LỌC ỨNG VIÊN NÂNG CAO ---
+  // --- LOGIC LỌC NGÀY NÂNG CAO ---
   const filteredCandidates = useMemo(() => {
       if (candidates.length === 0) return [];
 
       return candidates.filter(c => {
           const createdDate = new Date(c.created_at || Date.now());
-          createdDate.setHours(0, 0, 0, 0); // Reset giờ để so sánh ngày chuẩn
+          createdDate.setHours(0, 0, 0, 0);
           const now = new Date();
           now.setHours(0, 0, 0, 0);
 
-          // 1. Lọc theo Preset (Hôm nay, Tuần này...)
+          // Lọc theo Preset
           if (dateFilterType !== 'custom') {
               const diffTime = Math.abs(now - createdDate);
               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
@@ -67,26 +77,21 @@ const Dashboard = () => {
               if (dateFilterType === 'month') return diffDays <= 30;
           }
 
-          // 2. Lọc theo Custom Range (Từ ngày - Đến ngày)
+          // Lọc theo Custom Range
           if (dateFilterType === 'custom') {
-              if (!customRange.start && !customRange.end) return true; // Chưa chọn gì thì hiện hết
+              if (!customRange.start && !customRange.end) return true;
               
               const start = customRange.start ? new Date(customRange.start) : new Date('1970-01-01');
               const end = customRange.end ? new Date(customRange.end) : new Date('2100-01-01');
-              
-              // Đảm bảo so sánh bao gồm cả ngày cuối cùng
-              end.setHours(23, 59, 59, 999); 
+              end.setHours(23, 59, 59, 999); // Bao gồm cả ngày cuối cùng
 
               return createdDate >= start && createdDate <= end;
           }
-
           return true;
       });
   }, [candidates, dateFilterType, customRange]);
 
-  const getList = (status) => filteredCandidates.filter(c => 
-    (c.status || '').toLowerCase() === status.toLowerCase()
-  );
+  const getList = (status) => filteredCandidates.filter(c => (c.status || '').toLowerCase() === status.toLowerCase());
 
   return (
     <div className="hr-dashboard" style={{ color: 'var(--text-primary)', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -124,14 +129,14 @@ const Dashboard = () => {
                           padding: '8px 10px 8px 30px', borderRadius: '6px',
                           background: 'var(--bg-input)', border: '1px solid var(--border-color)',
                           color: 'var(--text-primary)', fontSize: '12px', fontWeight: '600',
-                          cursor: 'pointer', outline: 'none'
+                          cursor: 'pointer', outline: 'none', minWidth: '150px'
                       }}
                   >
                       <option value="all">Tất cả thời gian</option>
                       <option value="today">Hôm nay</option>
                       <option value="week">7 ngày qua</option>
                       <option value="month">Tháng này</option>
-                      <option value="custom">Tùy chọn ngày...</option>
+                      <option value="custom">📅 Tùy chọn ngày...</option>
                   </select>
               </div>
 
@@ -146,7 +151,7 @@ const Dashboard = () => {
                               padding: '7px 10px', borderRadius: '6px',
                               background: 'var(--bg-input)', border: '1px solid var(--border-color)',
                               color: 'var(--text-primary)', fontSize: '12px',
-                              colorScheme: 'dark' /* Để icon lịch màu trắng trên nền tối */
+                              colorScheme: 'dark' 
                           }}
                       />
                       <span style={{color: 'var(--text-secondary)'}}>-</span>
@@ -166,18 +171,24 @@ const Dashboard = () => {
           </div>
       </div>
       
-      {/* 3. KANBAN BOARD */}
+      {/* 3. KANBAN BOARD (FULL WIDTH 5 CỘT) */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="recruitment-pipeline" style={{ 
-                display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px',
-                alignItems: 'start', height: '100%', minWidth: '1000px', overflowX: 'auto'
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(5, 1fr)', /* 5 Cột đều nhau */
+                gap: '12px',
+                alignItems: 'start', 
+                height: '100%', 
+                minWidth: '1000px', 
+                overflowX: 'auto'
             }}>
                {['Screening', 'Interview', 'Offer', 'Hired', 'Rejected'].map(status => (
                    <PipelineColumn 
                         key={status} status={status} 
                         list={getList(status)} 
-                        onSelect={setSelectedCandidate} 
+                        onSelect={setSelectedCandidate}
+                        onStatusChange={handleStatusChange} /* Truyền hàm đổi trạng thái */
                    />
                ))}
             </div>
@@ -192,8 +203,8 @@ const Dashboard = () => {
   );
 };
 
-// --- SUB-COMPONENTS (Compact & Aesthetic) ---
-const PipelineColumn = ({ status, list, onSelect }) => {
+// --- SUB-COMPONENT: PIPELINE COLUMN ---
+const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
     const config = {
         'Screening': { icon: 'fa-magnifying-glass', color: '#A5B4FC', border: '#A5B4FC' },
         'Interview': { icon: 'fa-user-tie', color: '#FCD34D', border: '#FCD34D' },
@@ -248,7 +259,11 @@ const PipelineColumn = ({ status, list, onSelect }) => {
                                 {(provided, snapshot) => (
                                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
                                         style={{ ...provided.draggableProps.style, marginBottom: '8px', transform: snapshot.isDragging ? provided.draggableProps.style.transform : 'none' }}>
-                                        <CandidateCard data={c} onClick={() => onSelect(c)} />
+                                        <CandidateCard 
+                                            data={c} 
+                                            onClick={() => onSelect(c)} 
+                                            onStatusChange={onStatusChange} 
+                                        />
                                     </div>
                                 )}
                             </Draggable>
@@ -261,6 +276,7 @@ const PipelineColumn = ({ status, list, onSelect }) => {
     );
 };
 
+// --- KPI CARD ---
 const KpiCard = ({ title, value, icon, color, glow }) => (
     <div style={{
         background: 'var(--bg-tertiary)', padding: '15px 20px', borderRadius: '12px',
