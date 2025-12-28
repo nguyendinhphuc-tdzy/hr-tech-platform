@@ -30,15 +30,12 @@ const Dashboard = () => {
 
   useEffect(() => { fetchCandidates(); }, []);
 
-  // --- XỬ LÝ CHUYỂN TRẠNG THÁI NHANH (TỪ CARD HOẶC KÉO THẢ) ---
   const handleStatusChange = async (candidateId, newStatus) => {
-      // 1. Optimistic Update (Cập nhật UI ngay)
       const updatedCandidates = candidates.map(c => 
           c.id === candidateId ? { ...c, status: newStatus } : c
       );
       setCandidates(updatedCandidates);
 
-      // 2. Gọi API Background
       try {
           await axios.put(`${API_BASE_URL}/api/candidates/${candidateId}/status`, { status: newStatus });
       } catch (error) {
@@ -56,7 +53,7 @@ const Dashboard = () => {
     handleStatusChange(parseInt(draggableId), newStatus);
   };
 
-  // --- LOGIC LỌC NGÀY NÂNG CAO ---
+  // --- LOGIC LỌC ỨNG VIÊN NÂNG CAO ---
   const filteredCandidates = useMemo(() => {
       if (candidates.length === 0) return [];
 
@@ -66,7 +63,7 @@ const Dashboard = () => {
           const now = new Date();
           now.setHours(0, 0, 0, 0);
 
-          // Lọc theo Preset
+          // 1. Lọc theo Preset
           if (dateFilterType !== 'custom') {
               const diffTime = Math.abs(now - createdDate);
               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
@@ -77,13 +74,13 @@ const Dashboard = () => {
               if (dateFilterType === 'month') return diffDays <= 30;
           }
 
-          // Lọc theo Custom Range
+          // 2. Lọc theo Custom Range
           if (dateFilterType === 'custom') {
               if (!customRange.start && !customRange.end) return true;
               
               const start = customRange.start ? new Date(customRange.start) : new Date('1970-01-01');
               const end = customRange.end ? new Date(customRange.end) : new Date('2100-01-01');
-              end.setHours(23, 59, 59, 999); // Bao gồm cả ngày cuối cùng
+              end.setHours(23, 59, 59, 999); 
 
               return createdDate >= start && createdDate <= end;
           }
@@ -96,11 +93,11 @@ const Dashboard = () => {
   return (
     <div className="hr-dashboard" style={{ color: 'var(--text-primary)', height: '100%', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 1. KPI SECTION */}
+      {/* 1. KPI SECTION (REDESIGNED) */}
       <section className="kpi-grid" style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '15px', marginBottom: '20px', flexShrink: 0 
+          gap: '20px', marginBottom: '25px', flexShrink: 0 
       }}>
         <KpiCard title="Tổng hồ sơ" value={filteredCandidates.length} icon="fa-users" color="var(--text-primary)" />
         <KpiCard title="Phỏng vấn" value={getList('Interview').length} icon="fa-comments" color="#FCD34D" />
@@ -171,24 +168,19 @@ const Dashboard = () => {
           </div>
       </div>
       
-      {/* 3. KANBAN BOARD (FULL WIDTH 5 CỘT) */}
+      {/* 3. KANBAN BOARD */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="recruitment-pipeline" style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(5, 1fr)', /* 5 Cột đều nhau */
-                gap: '12px',
-                alignItems: 'start', 
-                height: '100%', 
-                minWidth: '1000px', 
-                overflowX: 'auto'
+                display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px',
+                alignItems: 'start', height: '100%', minWidth: '1000px', overflowX: 'auto'
             }}>
                {['Screening', 'Interview', 'Offer', 'Hired', 'Rejected'].map(status => (
                    <PipelineColumn 
                         key={status} status={status} 
                         list={getList(status)} 
                         onSelect={setSelectedCandidate}
-                        onStatusChange={handleStatusChange} /* Truyền hàm đổi trạng thái */
+                        onStatusChange={handleStatusChange} 
                    />
                ))}
             </div>
@@ -203,7 +195,7 @@ const Dashboard = () => {
   );
 };
 
-// --- SUB-COMPONENT: PIPELINE COLUMN ---
+// --- SUB-COMPONENTS ---
 const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
     const config = {
         'Screening': { icon: 'fa-magnifying-glass', color: '#A5B4FC', border: '#A5B4FC' },
@@ -227,43 +219,19 @@ const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
                         boxShadow: isHiredColumn ? '0 0 15px var(--accent-glow)' : 'none'
                     }}
                 >
-                    <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '0 5px 10px 5px', marginBottom: '10px',
-                        borderBottom: `2px solid ${isHiredColumn ? config.border : 'var(--border-color)'}`
-                    }}>
+                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 5px 10px 5px', marginBottom: '10px', borderBottom: `2px solid ${isHiredColumn ? config.border : 'var(--border-color)'}`}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden'}}>
                             <i className={`fa-solid ${config.icon}`} style={{color: config.color, fontSize: '13px'}}></i>
-                            <span style={{fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', color: isHiredColumn ? config.color : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                                {status}
-                            </span>
+                            <span style={{fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', color: isHiredColumn ? config.color : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{status}</span>
                         </div>
-                        <span style={{
-                            background: isHiredColumn ? config.color : 'var(--bg-input)',
-                            color: isHiredColumn ? '#000' : 'var(--text-secondary)',
-                            borderRadius: '10px', padding: '1px 8px', fontSize: '10px', fontWeight: 'bold',
-                            border: `1px solid ${isHiredColumn ? 'transparent' : 'var(--border-color)'}`
-                        }}>
-                            {list.length}
-                        </span>
+                        <span style={{background: isHiredColumn ? config.color : 'var(--bg-input)', color: isHiredColumn ? '#000' : 'var(--text-secondary)', borderRadius: '10px', padding: '1px 8px', fontSize: '10px', fontWeight: 'bold', border: `1px solid ${isHiredColumn ? 'transparent' : 'var(--border-color)'}`}}>{list.length}</span>
                     </div>
                     <div style={{flex: 1, overflowY: 'auto', paddingRight: '2px'}} className="custom-scrollbar">
-                        {list.length === 0 && (
-                            <div style={{textAlign: 'center', padding: '40px 0', opacity: 0.5, color: 'var(--text-secondary)'}}>
-                                <i className="fa-regular fa-folder-open" style={{fontSize: '20px', marginBottom: '8px'}}></i>
-                                <p style={{fontSize: '11px', margin: 0}}>Trống</p>
-                            </div>
-                        )}
                         {list.map((c, index) => (
                             <Draggable key={c.id.toString()} draggableId={c.id.toString()} index={index}>
                                 {(provided, snapshot) => (
-                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
-                                        style={{ ...provided.draggableProps.style, marginBottom: '8px', transform: snapshot.isDragging ? provided.draggableProps.style.transform : 'none' }}>
-                                        <CandidateCard 
-                                            data={c} 
-                                            onClick={() => onSelect(c)} 
-                                            onStatusChange={onStatusChange} 
-                                        />
+                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} style={{ ...provided.draggableProps.style, marginBottom: '8px', transform: snapshot.isDragging ? provided.draggableProps.style.transform : 'none' }}>
+                                        <CandidateCard data={c} onClick={() => onSelect(c)} onStatusChange={onStatusChange} />
                                     </div>
                                 )}
                             </Draggable>
@@ -276,24 +244,39 @@ const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
     );
 };
 
-// --- KPI CARD ---
+// --- REDESIGNED KPI CARD (CLEAN & MINIMALIST) ---
 const KpiCard = ({ title, value, icon, color, glow }) => (
     <div style={{
-        background: 'var(--bg-tertiary)', padding: '15px 20px', borderRadius: '12px',
+        background: 'var(--bg-tertiary)', padding: '20px 24px', borderRadius: '16px',
         border: `1px solid ${glow ? 'var(--accent-color)' : 'var(--border-color)'}`,
-        boxShadow: glow ? '0 0 15px var(--accent-glow)' : 'var(--card-shadow)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        position: 'relative', overflow: 'hidden', transition: 'transform 0.2s'
+        boxShadow: glow ? '0 0 20px var(--accent-glow)' : 'var(--card-shadow)',
+        position: 'relative', overflow: 'hidden', transition: 'all 0.3s ease',
+        minHeight: '110px', display: 'flex', flexDirection: 'column', justifyContent: 'center'
     }}
-    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }}
     onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
     >
-        {glow && <div style={{position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'var(--accent-color)'}}></div>}
-        <div>
-            <h3 style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', margin: '0 0 5px 0', letterSpacing: '0.5px' }}>{title}</h3>
-            <p style={{ fontSize: '24px', fontWeight: '700', margin: 0, color: color }}>{value}</p>
+        {/* Glow Line Top */}
+        {glow && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'var(--accent-color)', boxShadow: '0 0 10px var(--accent-color)'}}></div>}
+
+        <div style={{position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <div>
+                <h3 style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'uppercase', margin: '0 0 8px 0', letterSpacing: '0.5px', fontWeight: 600 }}>{title}</h3>
+                <p style={{ fontSize: '32px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>{value}</p>
+            </div>
+            
+            {/* ICON CHÍNH (Đã xóa ô vuông) */}
+            <div style={{ fontSize: '28px', color: color, opacity: 1, filter: 'drop-shadow(0 0 5px rgba(0,0,0,0.1))' }}>
+                <i className={`fa-solid ${icon}`}></i>
+            </div>
         </div>
-        <div style={{ fontSize: '18px', color: color, opacity: 0.9, background: 'var(--bg-input)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+
+        {/* ICON BACKGROUND (Watermark trang trí) */}
+        <div style={{ 
+            position: 'absolute', right: '-20px', bottom: '-20px',
+            fontSize: '90px', color: color, opacity: 0.08, 
+            transform: 'rotate(-20deg)', pointerEvents: 'none', zIndex: 1
+        }}>
             <i className={`fa-solid ${icon}`}></i>
         </div>
     </div>
