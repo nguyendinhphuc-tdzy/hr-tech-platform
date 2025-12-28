@@ -1,4 +1,4 @@
-/* FILE: frontend/src/views/InternBook.jsx (Theme Compatible Fix) */
+/* FILE: frontend/src/views/InternBook.jsx (English Technical Terms) */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
@@ -12,20 +12,20 @@ const InternBook = () => {
   const [showReviewModal, setShowReviewModal] = useState(null);
   const [showEditModal, setShowEditModal] = useState(null);
 
-  // State đánh giá
+  // State đánh giá (Review)
   const [ratings, setRatings] = useState({ skill: 8, attitude: 9, teamwork: 7 });
   const [reviewNote, setReviewNote] = useState('');
 
-  // --- CSS STYLE (ĐÃ FIX MÀU CỨNG) ---
+  // --- STYLE CSS NÂNG CAO (Theme Variables) ---
   const customStyles = `
     .glass-modal {
-        background: var(--bg-tertiary); /* Sửa: Dùng biến thay màu cứng */
+        background: var(--bg-secondary);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid var(--border-color);
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         animation: modalFadeIn 0.3s ease-out forwards;
-        color: var(--text-primary); /* Sửa: Chữ đổi màu theo theme */
+        color: var(--text-primary);
     }
     @keyframes modalFadeIn {
         from { opacity: 0; transform: scale(0.95) translateY(10px); }
@@ -33,7 +33,7 @@ const InternBook = () => {
     }
     .neon-range {
         -webkit-appearance: none; width: 100%; height: 6px; 
-        background: var(--border-color); /* Sửa */
+        background: var(--bg-input);
         border-radius: 3px; outline: none;
     }
     .neon-range::-webkit-slider-thumb {
@@ -41,23 +41,26 @@ const InternBook = () => {
         background: var(--accent-color); cursor: pointer; box-shadow: 0 0 10px var(--accent-glow);
         margin-top: -6px;
     }
+    .neon-range::-webkit-slider-runnable-track {
+        width: 100%; height: 6px; cursor: pointer; background: var(--border-color); border-radius: 3px;
+    }
     .neon-textarea {
         width: 100%; 
-        background: var(--bg-input); /* Sửa */
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
-        color: var(--text-primary); /* Sửa */
+        color: var(--text-primary); 
         padding: 15px; border-radius: 12px; resize: none; font-family: inherit; line-height: 1.6;
         transition: all 0.3s;
     }
     .neon-textarea:focus {
-        border-color: var(--accent-color); outline: none;
-        box-shadow: 0 0 10px var(--accent-glow);
+        border-color: var(--accent-color); outline: none; background: var(--bg-tertiary);
+        box-shadow: 0 0 15px var(--accent-glow);
     }
     .neon-input {
         width: 100%; padding: 12px; 
-        background: var(--bg-input); /* Sửa */
+        background: var(--bg-input);
         border: 1px solid var(--border-color); 
-        color: var(--text-primary); /* Sửa */
+        color: var(--text-primary);
         borderRadius: 8px; outline: none;
         transition: all 0.3s;
     }
@@ -67,6 +70,7 @@ const InternBook = () => {
     }
   `;
 
+  // Logic làm giàu dữ liệu
   const enrichInternData = (candidate) => {
       let dept = 'General';
       let mentor = 'HR Manager';
@@ -128,7 +132,6 @@ const InternBook = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '15px' }}>
-            {/* Search */}
             <div style={{ position: 'relative' }}>
                 <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontSize: '13px' }}></i>
                 <input 
@@ -140,21 +143,17 @@ const InternBook = () => {
         </div>
       </div>
 
-      {/* --- CARD GRID (THEME FIXED) --- */}
+      {/* --- CARD GRID --- */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
         {filteredInterns.map(intern => (
             <div key={intern.id} style={{ 
-                /* QUAN TRỌNG: Thay Gradient cứng bằng biến nền */
-                background: 'var(--bg-tertiary)', 
-                borderRadius: '16px', padding: '20px',
+                background: 'var(--bg-tertiary)', borderRadius: '16px', padding: '20px',
                 border: '1px solid var(--border-color)', position: 'relative', overflow: 'hidden',
-                transition: 'all 0.3s ease',
-                boxShadow: 'var(--card-shadow)'
+                transition: 'all 0.3s ease', boxShadow: 'var(--card-shadow)'
             }}
             onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
             >
-                {/* Decorative Blob (Giữ nguyên nhưng giảm opacity để hợp Light mode) */}
                 <div style={{position:'absolute', top:'-20px', right:'-20px', width:'100px', height:'100px', background:'var(--accent-color)', filter:'blur(60px)', opacity:'0.1', borderRadius:'50%'}}></div>
 
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', position:'relative', zIndex: 1 }}>
@@ -174,7 +173,6 @@ const InternBook = () => {
                     </div>
                     
                     <div style={{ flex: 1, overflow: 'hidden' }}>
-                        {/* QUAN TRỌNG: Text Primary thay vì #fff */}
                         <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '16px', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{intern.full_name}</h3>
                         <p style={{ margin: '4px 0 0', color: 'var(--accent-color)', fontSize: '12px', fontWeight: '600', letterSpacing:'0.5px' }}>{intern.role}</p>
                     </div>
@@ -196,11 +194,11 @@ const InternBook = () => {
                 <div style={{ marginTop: '20px', background: 'var(--bg-input)', padding: '15px', borderRadius: '10px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                         <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight:'700' }}>Phòng ban</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight:'700' }}>DEPARTMENT</div>
                             <div style={{ fontSize: '13px', color: 'var(--text-primary)', marginTop: '4px' }}>{intern.department}</div>
                         </div>
                         <div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight:'700' }}>Mentor</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight:'700' }}>MENTOR</div>
                             <div style={{ fontSize: '13px', color: 'var(--text-primary)', marginTop: '4px' }}>{intern.mentor}</div>
                         </div>
                     </div>
@@ -209,7 +207,7 @@ const InternBook = () => {
                 <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{flex:1}}>
                         <div style={{display:'flex', justifyContent:'space-between', fontSize:'11px', marginBottom:'5px'}}>
-                            <span style={{color:'var(--text-secondary)'}}>Tiến độ</span>
+                            <span style={{color:'var(--text-secondary)'}}>Progress</span>
                             <span style={{color:'var(--accent-color)', fontWeight:'bold'}}>{intern.progress}%</span>
                         </div>
                         <div style={{width:'100%', height:'4px', background:'var(--border-color)', borderRadius:'2px', overflow:'hidden'}}>
@@ -226,22 +224,22 @@ const InternBook = () => {
                         onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-color)'; e.currentTarget.style.color = '#000'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--accent-color)'; }}
                     >
-                        Đánh giá
+                        Review
                     </button>
                 </div>
             </div>
         ))}
       </div>
 
-      {/* --- MODAL REVIEW --- */}
+      {/* --- MODAL REVIEW (English Terms) --- */}
       {showReviewModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background:'rgba(0,0,0,0.6)', backdropFilter:'blur(5px)' }}>
               <div className="glass-modal" style={{ width: '500px', borderRadius: '20px', overflow: 'hidden' }}>
                   {/* Modal Header */}
                   <div style={{ padding: '25px', borderBottom: '1px solid var(--border-color)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <div>
-                          <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '20px' }}>Đánh giá hiệu suất</h3>
-                          <p style={{ margin: '5px 0 0', color: 'var(--accent-color)', fontSize: '13px' }}>Nhân sự: {showReviewModal.full_name}</p>
+                          <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '20px' }}>Performance Review</h3>
+                          <p style={{ margin: '5px 0 0', color: 'var(--accent-color)', fontSize: '13px' }}>Intern: {showReviewModal.full_name}</p>
                       </div>
                       <div style={{ width:'40px', height:'40px', borderRadius:'50%', background:'var(--bg-input)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'18px' }}>📝</div>
                   </div>
@@ -249,7 +247,8 @@ const InternBook = () => {
                   {/* Modal Body */}
                   <div style={{ padding: '30px' }}>
                       <div style={{ display:'grid', gap:'25px' }}>
-                          {['Kỹ năng chuyên môn', 'Thái độ & Kỷ luật', 'Khả năng Teamwork'].map((criteria, idx) => {
+                          {/* ĐỔI TIÊU ĐỀ SLIDER SANG TIẾNG ANH */}
+                          {['Technical Skills', 'Soft Skills & Attitude', 'Teamwork'].map((criteria, idx) => {
                               const key = idx === 0 ? 'skill' : idx === 1 ? 'attitude' : 'teamwork';
                               return (
                                   <div key={key}>
@@ -268,11 +267,11 @@ const InternBook = () => {
                           })}
                           
                           <div>
-                              <label style={{display:'block', fontSize:'13px', color:'var(--text-secondary)', marginBottom:'10px', fontWeight:'500'}}>Nhận xét chi tiết</label>
+                              <label style={{display:'block', fontSize:'13px', color:'var(--text-secondary)', marginBottom:'10px', fontWeight:'500'}}>Feedback & Comments</label>
                               <textarea 
                                 className="neon-textarea" 
                                 rows="3" 
-                                placeholder="Ghi chú về điểm mạnh, điểm yếu..."
+                                placeholder="Enter detailed feedback here..."
                                 value={reviewNote}
                                 onChange={(e) => setReviewNote(e.target.value)}
                               ></textarea>
@@ -282,29 +281,29 @@ const InternBook = () => {
 
                   {/* Modal Footer */}
                   <div style={{ padding: '20px 30px', background: 'var(--bg-input)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '15px' }}>
-                      <button onClick={() => setShowReviewModal(null)} style={{ background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', fontSize:'13px', fontWeight:'600' }}>Hủy bỏ</button>
-                      <button onClick={() => { alert("Đã lưu đánh giá thành công!"); setShowReviewModal(null); }} style={{ 
+                      <button onClick={() => setShowReviewModal(null)} style={{ background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', fontSize:'13px', fontWeight:'600' }}>Cancel</button>
+                      <button onClick={() => { alert("Review Submitted!"); setShowReviewModal(null); }} style={{ 
                           background: 'var(--accent-color)', color: '#000', padding: '10px 25px', borderRadius: '10px', 
                           border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize:'13px',
                           boxShadow: '0 0 20px var(--accent-glow)'
                       }}>
-                          Lưu & Gửi
+                          Submit Review
                       </button>
                   </div>
               </div>
           </div>
       )}
 
-      {/* --- MODAL EDIT --- */}
+      {/* --- MODAL EDIT (English Terms) --- */}
       {showEditModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background:'rgba(0,0,0,0.6)', backdropFilter:'blur(5px)' }}>
               <div className="glass-modal" style={{ width: '420px', borderRadius: '20px', padding:'30px' }}>
                   <h3 style={{ margin: '0 0 25px 0', color: 'var(--text-primary)', fontSize: '20px', display:'flex', alignItems:'center', gap:'10px' }}>
-                      <i className="fa-solid fa-pen-to-square" style={{color:'var(--accent-color)'}}></i> Cập nhật thông tin
+                      <i className="fa-solid fa-pen-to-square" style={{color:'var(--accent-color)'}}></i> Edit Information
                   </h3>
                   
                   <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Phòng ban / Bộ phận</label>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Department</label>
                       <input 
                         className="neon-input"
                         value={showEditModal.department} 
@@ -312,7 +311,7 @@ const InternBook = () => {
                       />
                   </div>
                   <div style={{ marginBottom: '30px' }}>
-                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Mentor hướng dẫn</label>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Mentor</label>
                       <input 
                         className="neon-input"
                         value={showEditModal.mentor} 
@@ -321,8 +320,8 @@ const InternBook = () => {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                      <button onClick={() => setShowEditModal(null)} style={{ background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', padding: '10px' }}>Hủy</button>
-                      <button onClick={handleSaveEdit} style={{ background: 'var(--accent-color)', color: '#000', padding: '10px 25px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Lưu thay đổi</button>
+                      <button onClick={() => setShowEditModal(null)} style={{ background: 'transparent', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer', padding: '10px' }}>Cancel</button>
+                      <button onClick={handleSaveEdit} style={{ background: 'var(--accent-color)', color: '#000', padding: '10px 25px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Save Changes</button>
                   </div>
               </div>
           </div>
