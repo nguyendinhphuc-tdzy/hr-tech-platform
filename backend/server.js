@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Full Version: Specific Prompts + Strict Rubric + Temperature 0) */
+/* FILE: backend/server.js (Full Version: Auth & User Isolation Added) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -29,6 +29,25 @@ const pool = new Pool({
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+// ==========================================
+// [NEW] MIDDLEWARE XÁC THỰC NGƯỜI DÙNG
+// ==========================================
+// Middleware này chặn request không có header 'x-user-email'
+// và gắn email vào req.userEmail để các hàm sau sử dụng để lọc dữ liệu
+const requireAuth = (req, res, next) => {
+    const userEmail = req.headers['x-user-email'];
+    
+    // Nếu không có email header -> Chặn luôn (bảo mật)
+    if (!userEmail) {
+        console.warn("⚠️ Blocked request missing x-user-email header");
+        return res.status(401).json({ error: "Unauthorized: Vui lòng đăng nhập lại để tiếp tục." });
+    }
+    
+    // Gắn email vào request
+    req.userEmail = userEmail;
+    next();
+};
 
 // --- CÁC HÀM HỖ TRỢ ---
 function sanitizeFilename(filename) {
@@ -367,12 +386,15 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // ==========================================
-// 3. API CV: SCAN & UPLOAD (UPDATED LOGIC: TEMP 0 & RUBRIC)
+// 3. API CV: SCAN & UPLOAD (UPDATED WITH AUTH)
 // ==========================================
-app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
+// [UPDATED] Đã thêm requireAuth và lưu owner_email
+app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Thiếu file CV' });
-        console.log(`🤖 Đang xử lý: ${req.file.originalname}`);
+        
+        // Log xem ai đang thao tác
+        console.log(`🤖 User [${req.userEmail}] đang scan: ${req.file.originalname}`);
 
         // 1. Upload Storage
         const safeName = sanitizeFilename(req.file.originalname);
@@ -399,12 +421,12 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         const selectedPrompt = getSpecificPrompt(jobTitle, jobReqs);
         console.log(`🎯 Sử dụng Prompt cho vị trí: ${jobTitle}`);
 
-        // 4. Gọi AI VỚI TEMPERATURE = 0 (QUAN TRỌNG ĐỂ CONSISTENCY)
+        // 4. Gọi AI VỚI TEMPERATURE = 0
         const model = genAI.getGenerativeModel({ 
             model: ACTIVE_MODEL_NAME, 
             generationConfig: { 
                 responseMimeType: "application/json",
-                temperature: 0.0, // Triệt tiêu ngẫu nhiên
+                temperature: 0.0, 
                 topK: 1,
                 topP: 1
             } 
@@ -421,10 +443,21 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
         let finalScore = aiResult.score;
         if (finalScore > 10) finalScore = (finalScore / 10).toFixed(1);
 
+        // [UPDATED] Insert vào Database có trường owner_email
+        // Lưu ý: Cần đảm bảo database đã chạy lệnh: ALTER TABLE candidates ADD COLUMN owner_email VARCHAR(255);
         const dbResult = await pool.query(
-            `INSERT INTO candidates (organization_id, job_id, full_name, email, role, status, ai_rating, ai_analysis, cv_file_url) 
-             VALUES (1, $1, $2, $3, $4, 'Screening', $5, $6, $7) RETURNING *`,
-            [jobId || null, finalName, aiResult.email, jobTitle, finalScore, JSON.stringify(aiResult), finalFileUrl]
+            `INSERT INTO candidates (organization_id, job_id, full_name, email, role, status, ai_rating, ai_analysis, cv_file_url, owner_email) 
+             VALUES (1, $1, $2, $3, $4, 'Screening', $5, $6, $7, $8) RETURNING *`,
+            [
+                jobId || null, 
+                finalName, 
+                aiResult.email, 
+                jobTitle, 
+                finalScore, 
+                JSON.stringify(aiResult), 
+                finalFileUrl,
+                req.userEmail // <--- Lưu Email của người đang upload
+            ]
         );
 
         res.json({ message: "Thành công!", candidate: dbResult.rows[0] });
@@ -435,10 +468,46 @@ app.post('/api/cv/upload', upload.single('cv_file'), async (req, res) => {
     }
 });
 
-// ... (CÁC API KHÁC GIỮ NGUYÊN) ...
-app.get('/api/candidates', async (req, res) => { const r = await pool.query('SELECT * FROM candidates ORDER BY id DESC'); res.json(r.rows); });
-app.get('/api/jobs', async (req, res) => { const r = await pool.query('SELECT * FROM job_positions ORDER BY id DESC'); res.json(r.rows); });
-app.put('/api/candidates/:id/status', async (req, res) => { try { const { status } = req.body; await pool.query(`UPDATE candidates SET status = $1 WHERE id = $2`, [status, req.params.id]); res.json({ message: "Updated" }); } catch (err) { res.status(500).json({ error: err.message }); }});
+// ==========================================
+// 4. API GET LIST (UPDATED WITH AUTH FILTER)
+// ==========================================
+// [UPDATED] Lấy danh sách Candidate nhưng chỉ trả về của user hiện tại
+app.get('/api/candidates', requireAuth, async (req, res) => { 
+    try {
+        const r = await pool.query(
+            'SELECT * FROM candidates WHERE owner_email = $1 ORDER BY id DESC', 
+            [req.userEmail] // Chỉ lấy data khớp email
+        ); 
+        res.json(r.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/jobs', async (req, res) => { 
+    // Giữ jobs public (ai cũng xem được job) hoặc thêm requireAuth nếu muốn
+    const r = await pool.query('SELECT * FROM job_positions ORDER BY id DESC'); 
+    res.json(r.rows); 
+});
+
+// [UPDATED] Update status phải check quyền sở hữu
+app.put('/api/candidates/:id/status', requireAuth, async (req, res) => { 
+    try { 
+        const { status } = req.body; 
+        // Thêm điều kiện AND owner_email để user A không sửa được của user B
+        const result = await pool.query(
+            `UPDATE candidates SET status = $1 WHERE id = $2 AND owner_email = $3 RETURNING *`, 
+            [status, req.params.id, req.userEmail]
+        ); 
+        
+        if (result.rows.length === 0) {
+            return res.status(403).json({ error: "Bạn không có quyền chỉnh sửa ứng viên này hoặc ứng viên không tồn tại." });
+        }
+        
+        res.json({ message: "Updated" }); 
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/jobs/import', upload.single('csv_file'), async (req, res) => { /* Logic import cũ */ res.json({message:"Imported"}); });
 app.post('/api/training/upload', upload.single('doc_file'), async (req, res) => { /* Logic training cũ */ res.json({message:"Trained"}); });
 app.post('/api/training/chat', async (req, res) => { /* Logic chat cũ */ res.json({answer:"AI reply"}); });
