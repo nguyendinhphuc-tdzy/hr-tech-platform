@@ -17,11 +17,7 @@ const supabaseUrl = 'https://yymkszsrnlfkcsnjgcly.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5bWtzenNybmxma2NzbmpnY2x5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MjU2OTEsImV4cCI6MjA3OTQwMTY5MX0.-o0GwJb2_ZRssCxrQu6wWpEGGL-LCckQiUTGx6nEWO8';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// ==========================================
-// [NEW] HÀM CẤU HÌNH AXIOS (QUAN TRỌNG)
-// ==========================================
-// Hàm này sẽ tự động gắn Email vào Header của mọi request gửi đi
-// Giúp Backend nhận diện người dùng (User Isolation)
+// --- HÀM CẤU HÌNH AXIOS ---
 const setupAxiosUser = (user) => {
     if (user && user.email) {
         axios.defaults.headers.common['x-user-email'] = user.email;
@@ -33,12 +29,11 @@ const setupAxiosUser = (user) => {
 };
 
 // ==========================================
-// 1. MÀN HÌNH TRANG CHỦ (ADAPTIVE THEME)
+// 1. MÀN HÌNH TRANG CHỦ (HomeView)
 // ==========================================
 const HomeView = ({ onNavigate }) => {
   return (
     <div style={{
-        /* Dùng biến CSS để tự động đổi màu theo Theme */
         height: '100vh', 
         backgroundColor: 'var(--bg-primary)', 
         color: 'var(--text-primary)', 
@@ -75,9 +70,28 @@ const HomeView = ({ onNavigate }) => {
             <p style={{fontSize: '18px', color: 'var(--text-secondary)', maxWidth: '600px', marginBottom: '40px', lineHeight: '1.6'}}>
                 Tự động hóa quy trình sàng lọc CV, quản lý thực tập sinh và tối ưu hóa nhân sự. Giúp bạn tìm kiếm ứng viên tài năng nhanh hơn 10x.
             </p>
-            <button onClick={() => onNavigate('signup')} style={{padding: '16px 45px', fontSize: '16px', fontWeight: '700', borderRadius: '50px', border: 'none', cursor: 'pointer', background: 'var(--text-primary)', color: 'var(--bg-primary)', boxShadow: '0 10px 30px rgba(0,0,0,0.1)'}}>
+            
+            {/* --- [SỬA ĐỔI QUAN TRỌNG TẠI ĐÂY] --- */}
+            {/* Chuyển sang dùng var(--accent-color) và chữ đen #000 để luôn nổi bật và rõ ràng trên mọi nền */}
+            <button onClick={() => onNavigate('signup')} style={{
+                padding: '16px 45px', 
+                fontSize: '16px', 
+                fontWeight: '700', 
+                borderRadius: '50px', 
+                border: 'none', 
+                cursor: 'pointer', 
+                background: 'var(--accent-color)',  /* Dùng màu Neon xanh */
+                color: '#000',                      /* Chữ đen (tương phản tốt với xanh Neon) */
+                boxShadow: '0 10px 30px var(--accent-glow)', /* Hiệu ứng phát sáng */
+                transition: 'transform 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
                 Bắt đầu miễn phí
             </button>
+            {/* ------------------------------------ */}
+
         </div>
 
         {/* FOOTER */}
@@ -87,7 +101,7 @@ const HomeView = ({ onNavigate }) => {
 };
 
 // ==========================================
-// 2. MÀN HÌNH XÁC THỰC (ADAPTIVE THEME)
+// 2. MÀN HÌNH XÁC THỰC
 // ==========================================
 const AuthView = ({ mode, onLoginSuccess, onBack }) => {
     const isLogin = mode === 'login';
@@ -108,7 +122,6 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
             });
             if (error) throw error;
         } catch (err) {
-            console.error("Lỗi Google Login:", err);
             setErrorMsg(err.message);
             setIsLoading(false);
         }
@@ -198,17 +211,13 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
 };
 
 // ==========================================
-// 3. DASHBOARD LAYOUT (ADAPTIVE THEME)
+// 3. DASHBOARD LAYOUT & APP CONTROLLER (GIỮ NGUYÊN)
 // ==========================================
 const DashboardLayout = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
-
-    // Header hiển thị user info và màu theo Theme
     const DashboardHeader = () => (
         <header className="main-header" style={{
-            background: 'var(--bg-secondary)', 
-            borderBottom: '1px solid var(--border-color)',
-            color: 'var(--text-primary)'
+            background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)'
         }}>
             <div className="logo">
                 <i className="fa-solid fa-atom fa-spin" style={{color: 'var(--accent-color)', fontSize: '24px'}}></i>
@@ -216,14 +225,9 @@ const DashboardLayout = ({ user, onLogout }) => {
             </div>
             <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
                 <div style={{textAlign: 'right'}}>
-                    <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)'}}>
-                        {user ? user.full_name : 'User'}
-                    </span>
-                    <span style={{fontSize: '11px', color: 'var(--accent-color)'}}>
-                        {user ? user.role : 'Member'}
-                    </span>
+                    <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)'}}>{user ? user.full_name : 'User'}</span>
+                    <span style={{fontSize: '11px', color: 'var(--accent-color)'}}>{user ? user.role : 'Member'}</span>
                 </div>
-                
                 {user?.avatar_url ? (
                     <img src={user.avatar_url} alt="Avt" style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--accent-color)'}} />
                 ) : (
@@ -231,7 +235,6 @@ const DashboardLayout = ({ user, onLogout }) => {
                         {user && user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
                     </div>
                 )}
-                
                 <button onClick={onLogout} style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', color: '#EF4444', padding: '8px 15px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: '600'}}>
                     <i className="fa-solid fa-right-from-bracket"></i> Logout
                 </button>
@@ -260,16 +263,12 @@ const DashboardLayout = ({ user, onLogout }) => {
     );
 };
 
-// ==========================================
-// APP CONTROLLER
-// ==========================================
 function App() {
     const [view, setView] = useState('home'); 
     const [currentUser, setCurrentUser] = useState(null);
 
     const navigateTo = (target) => setView(target);
 
-    // Lắng nghe sự kiện login từ Google
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
@@ -280,10 +279,7 @@ function App() {
                     avatar_url: session.user.user_metadata.avatar_url
                 };
                 setCurrentUser(googleUser);
-                
-                // [CONFIG AXIOS] Gắn header khi session tồn tại
                 setupAxiosUser(googleUser);
-                
                 setView('dashboard');
             }
         });
@@ -291,10 +287,7 @@ function App() {
 
     const handleLoginSuccess = (userData) => {
         setCurrentUser(userData);
-        
-        // [CONFIG AXIOS] Gắn header khi login thường
         setupAxiosUser(userData);
-        
         setView('dashboard');
     };
 
@@ -302,17 +295,13 @@ function App() {
         if(window.confirm("Bạn muốn đăng xuất?")) {
             await supabase.auth.signOut();
             setCurrentUser(null);
-            
-            // [CLEAR AXIOS] Xóa header khi logout
             setupAxiosUser(null);
-            
             setView('home'); 
         }
     };
 
     if (view === 'dashboard') return <DashboardLayout user={currentUser} onLogout={handleLogout} />;
     if (view === 'login' || view === 'signup') return <AuthView mode={view} onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
-
     return <HomeView onNavigate={navigateTo} />;
 }
 
