@@ -5,8 +5,7 @@ const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    // Lấy theme từ localStorage hoặc mặc định là 'dark'
-    return localStorage.getItem('app-theme') || 'dark';
+    return localStorage.getItem('app-theme') || 'light';
   });
 
   useEffect(() => {
