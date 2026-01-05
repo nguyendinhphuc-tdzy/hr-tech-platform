@@ -512,5 +512,102 @@ app.post('/api/jobs/import', upload.single('csv_file'), async (req, res) => { /*
 app.post('/api/training/upload', upload.single('doc_file'), async (req, res) => { /* Logic training cũ */ res.json({message:"Trained"}); });
 app.post('/api/training/chat', async (req, res) => { /* Logic chat cũ */ res.json({answer:"AI reply"}); });
 
+/* FILE: backend/server.js - Thêm vào sau các API cũ */
+
+// 1. Cấu hình gửi mail (Dùng Gmail hoặc SMTP của bạn)
+const nodemailer = require('nodemailer');
+
+// LƯU Ý: Bạn cần thay thế bằng Email thật và App Password của bạn
+// (Nếu dùng Gmail, hãy bật 2FA và tạo App Password: https://myaccount.google.com/apppasswords)
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'email-cua-ban@gmail.com', 
+        pass: 'mat-khau-ung-dung-cua-ban' 
+    }
+});
+
+// --- API 1: CẬP NHẬT THÔNG TIN CƠ BẢN (TÊN) ---
+app.put('/api/account/profile', requireAuth, async (req, res) => {
+    try {
+        const { full_name } = req.body;
+        const result = await pool.query(
+            'UPDATE users SET full_name = $1 WHERE email = $2 RETURNING *',
+            [full_name, req.userEmail]
+        );
+        res.json({ message: "Cập nhật tên thành công!", user: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- API 2: YÊU CẦU OTP ĐỂ ĐỔI MẬT KHẨU ---
+app.post('/api/account/request-otp', requireAuth, async (req, res) => {
+    try {
+        // Tạo mã OTP 6 số ngẫu nhiên
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // Thời hạn 5 phút
+        const expiresAt = new Date(Date.now() + 5 * 60000);
+
+        // Lưu vào DB
+        await pool.query(
+            'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE email = $3',
+            [otp, expiresAt, req.userEmail]
+        );
+
+        // Gửi Mail
+        const mailOptions = {
+            from: '"HR Tech Security" <no-reply@hrtech.com>',
+            to: req.userEmail,
+            subject: '🔒 Mã xác thực OTP đổi mật khẩu',
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <h2 style="color: #2EFF7B;">HR Tech Platform</h2>
+                    <p>Bạn đang yêu cầu đổi mật khẩu. Mã OTP của bạn là:</p>
+                    <h1 style="background: #eee; padding: 10px; display: inline-block; letter-spacing: 5px;">${otp}</h1>
+                    <p>Mã này sẽ hết hạn sau 5 phút. Tuyệt đối không chia sẻ mã này cho ai.</p>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+        res.json({ message: "OTP đã được gửi về email của bạn!" });
+
+    } catch (err) {
+        console.error("Lỗi gửi mail:", err);
+        res.status(500).json({ error: "Lỗi gửi email: " + err.message });
+    }
+});
+
+// --- API 3: XÁC THỰC OTP & ĐỔI MẬT KHẨU ---
+app.put('/api/account/change-password', requireAuth, async (req, res) => {
+    try {
+        const { otp, newPassword } = req.body;
+
+        // Kiểm tra OTP trong DB
+        const userRes = await pool.query('SELECT * FROM users WHERE email = $1', [req.userEmail]);
+        const user = userRes.rows[0];
+
+        if (!user.otp_code || user.otp_code !== otp) {
+            return res.status(400).json({ error: "Mã OTP không chính xác!" });
+        }
+
+        if (new Date() > new Date(user.otp_expires_at)) {
+            return res.status(400).json({ error: "Mã OTP đã hết hạn!" });
+        }
+
+        // Cập nhật mật khẩu mới và xóa OTP
+        await pool.query(
+            'UPDATE users SET password = $1, otp_code = NULL, otp_expires_at = NULL WHERE email = $2',
+            [newPassword, req.userEmail]
+        );
+
+        res.json({ message: "Đổi mật khẩu thành công! Vui lòng đăng nhập lại." });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => { console.log(`Server chạy tại cổng ${PORT}`); });
