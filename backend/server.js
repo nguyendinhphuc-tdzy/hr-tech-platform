@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Full Version: Auth, User Isolation & Account Settings with OTP) */
+/* FILE: backend/server.js (Full Version: Auth, User Isolation, Account Settings with OTP & Bug Fixes) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -10,7 +10,7 @@ const csv = require('csv-parser');
 const mammoth = require('mammoth'); 
 const pdf = require('pdf-parse'); 
 const fs = require('fs');
-const nodemailer = require('nodemailer'); // Import nodemailer
+const nodemailer = require('nodemailer'); 
 
 const app = express();
 app.use(cors());
@@ -31,13 +31,11 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // --- CẤU HÌNH GỬI MAIL (NODEMAILER) ---
-// QUAN TRỌNG: Hãy chắc chắn bạn đã bật 2FA cho Gmail và tạo App Password.
-// Nếu không muốn hardcode, hãy dùng process.env.MAIL_USER và process.env.MAIL_PASS
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'hrtech.system.noreply@gmail.com', // <--- THAY BẰNG GMAIL CỦA BẠN
-        pass: 'vui long dien app password'        // <--- THAY BẰNG APP PASSWORD (16 ký tự)
+        user: process.env.MAIL_USER || 'hrtech.system.noreply@gmail.com',
+        pass: process.env.MAIL_PASS || 'your-app-password' 
     }
 });
 
@@ -46,12 +44,10 @@ const transporter = nodemailer.createTransport({
 // ==========================================
 const requireAuth = (req, res, next) => {
     const userEmail = req.headers['x-user-email'];
-    
     if (!userEmail) {
         console.warn("⚠️ Blocked request missing x-user-email header");
         return res.status(401).json({ error: "Unauthorized: Vui lòng đăng nhập lại để tiếp tục." });
     }
-    
     req.userEmail = userEmail;
     next();
 };
@@ -81,25 +77,50 @@ Hệ thống PHẢI tuân thủ trọng số sau đây, không được chấm t
 4. **Soft Skills & Presentation (20%):** Trình bày, tư duy logic.
 `;
 
-// --- KHO PROMPT (Giữ nguyên logic cũ của bạn) ---
+// --- KHO PROMPT ---
 function getSpecificPrompt(jobTitle, jobRequirements) {
-    // ... (Giữ nguyên logic prompt dài của bạn để tiết kiệm không gian hiển thị) ...
-    // Fallback đơn giản để code chạy được nếu bạn copy thiếu đoạn prompt dài
     const title = jobTitle?.toLowerCase().trim() || "";
-    const reqSkills = jobRequirements?.skills ? (Array.isArray(jobRequirements.skills) ? jobRequirements.skills.join(", ") : jobRequirements.skills) : "Các kỹ năng liên quan";
     
+    // --- 1. DATA ANALYST INTERN ---
+    if (title.includes("data analyst")) {
+        return `
+# Vai trò: Chuyên gia Tuyển dụng Kỹ thuật.
+# Vị trí: Data Analyst Intern
+${STRICT_RUBRIC}
+# Nhiệm vụ:
+1. Tìm kỹ năng: Power BI, SQL, Python, Excel.
+2. Tìm kinh nghiệm: Data Cleaning, Dashboarding.
+# Output JSON: { "full_name": "...", "email": "...", "skills": [], "score": 0.0, "breakdown": {}, "summary": "...", "match_reason": "...", "confidence": "Cao" }
+`;
+    }
+
+    // --- 2. MARKETING INTERN ---
+    if (title.includes("marketing")) {
+        return `
+# Vai trò: Chuyên gia Tuyển dụng Marketing.
+# Vị trí: Marketing Intern
+${STRICT_RUBRIC}
+# Nhiệm vụ:
+1. Tìm kỹ năng: SEO, Content, Social Media, Design cơ bản.
+2. Tìm kinh nghiệm: Quản lý Fanpage, Viết bài, Sự kiện.
+# Output JSON: (Như trên)
+`;
+    }
+
+    // --- FALLBACK (DYNAMIC) ---
+    const reqSkills = jobRequirements?.skills ? (Array.isArray(jobRequirements.skills) ? jobRequirements.skills.join(", ") : jobRequirements.skills) : "Kỹ năng chuyên môn liên quan";
     return `
 # Vai trò: Chuyên gia Tuyển dụng.
-# Vị trí: "${jobTitle || 'General'}"
+# Vị trí: "${jobTitle}"
 ${STRICT_RUBRIC}
 # Yêu cầu: ${reqSkills}
-# Nhiệm vụ: Phân tích CV và chấm điểm.
+# Nhiệm vụ: Phân tích CV và chấm điểm dựa trên mức độ phù hợp với yêu cầu trên.
 # Output JSON: { "full_name": "...", "email": "...", "skills": [], "score": 0.0, "breakdown": {}, "summary": "...", "match_reason": "...", "confidence": "Cao" }
 `;
 }
 
 // ==========================================
-// 1. API AUTH & ACCOUNT SETTINGS (MỚI)
+// 1. API AUTH & ACCOUNT SETTINGS
 // ==========================================
 
 // Đăng ký
@@ -129,7 +150,16 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Lỗi: " + err.message }); }
 });
 
-// [NEW] Cập nhật Profile (Tên hiển thị)
+// [NEW] Lấy thông tin Profile
+app.get('/api/account/profile', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT full_name, email, role FROM users WHERE email = $1', [req.userEmail]);
+        if (result.rows.length === 0) return res.status(404).json({ error: "User not found" });
+        res.json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Cập nhật Profile (Tên hiển thị)
 app.put('/api/account/profile', requireAuth, async (req, res) => {
     try {
         const { full_name } = req.body;
@@ -148,14 +178,12 @@ app.put('/api/account/profile', requireAuth, async (req, res) => {
     }
 });
 
-// [NEW] Yêu cầu OTP (Gửi Mail)
+// Yêu cầu OTP (Gửi Mail)
 app.post('/api/account/request-otp', requireAuth, async (req, res) => {
     try {
-        // 1. Tạo OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 5 * 60000); // 5 phút
 
-        // 2. Lưu DB
         const updateRes = await pool.query(
             'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE email = $3',
             [otp, expiresAt, req.userEmail]
@@ -163,7 +191,6 @@ app.post('/api/account/request-otp', requireAuth, async (req, res) => {
 
         if (updateRes.rowCount === 0) return res.status(404).json({ error: "Không tìm thấy user." });
 
-        // 3. Gửi Mail
         const mailOptions = {
             from: '"HR Tech Security" <no-reply@hrtech.com>',
             to: req.userEmail,
@@ -187,13 +214,12 @@ app.post('/api/account/request-otp', requireAuth, async (req, res) => {
     }
 });
 
-// [NEW] Xác nhận OTP & Đổi Mật Khẩu
+// Xác nhận OTP & Đổi Mật Khẩu
 app.put('/api/account/change-password', requireAuth, async (req, res) => {
     try {
         const { otp, newPassword } = req.body;
         if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "Mật khẩu quá ngắn." });
 
-        // Check User & OTP
         const userRes = await pool.query('SELECT * FROM users WHERE email = $1', [req.userEmail]);
         const user = userRes.rows[0];
 
@@ -204,7 +230,6 @@ app.put('/api/account/change-password', requireAuth, async (req, res) => {
             return res.status(400).json({ error: "Mã OTP đã hết hạn!" });
         }
 
-        // Update Pass & Clear OTP
         await pool.query(
             'UPDATE users SET password = $1, otp_code = NULL, otp_expires_at = NULL WHERE email = $2',
             [newPassword, req.userEmail]
@@ -225,11 +250,19 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
         if (!req.file) return res.status(400).json({ error: 'Thiếu file CV' });
         console.log(`🤖 User [${req.userEmail}] đang scan: ${req.file.originalname}`);
 
-        // 1. Upload Storage
+        // 1. Upload Storage (Supabase)
         const safeName = sanitizeFilename(req.file.originalname);
         const fileName = `${Date.now()}_${safeName}`;
+        
+        // FIX: Thêm await và xử lý lỗi chặt chẽ hơn
         const { error: uploadError } = await supabase.storage.from('cv_uploads').upload(fileName, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
-        if (uploadError) console.error("Lỗi Storage:", uploadError);
+        
+        if (uploadError) {
+            console.error("❌ Lỗi Storage:", uploadError);
+            return res.status(500).json({ error: "Lỗi khi upload file lên Storage. Vui lòng thử lại." });
+        }
+
+        // Lấy Public URL sau khi chắc chắn upload thành công
         const { data: { publicUrl } } = supabase.storage.from('cv_uploads').getPublicUrl(fileName);
 
         // 2. AI Processing
@@ -256,7 +289,7 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
         
         let aiResult;
         try { aiResult = JSON.parse(cleanJsonString(result.response.text())); } 
-        catch (e) { aiResult = { full_name: "Lỗi đọc", score: 0, summary: "Lỗi AI", email: null }; }
+        catch (e) { aiResult = { full_name: "Lỗi đọc", score: 0, summary: "Lỗi AI phân tích", email: null }; }
 
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
         let finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
@@ -272,7 +305,7 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
                 jobTitle, 
                 finalScore, 
                 JSON.stringify(aiResult), 
-                publicUrl, // Use publicUrl from supabase
+                publicUrl, 
                 req.userEmail 
             ]
         );
@@ -316,7 +349,7 @@ app.put('/api/candidates/:id/status', requireAuth, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Các API phụ khác (giữ nguyên để không phá vỡ app)
+// Các API phụ khác
 app.post('/api/jobs/import', upload.single('csv_file'), async (req, res) => { res.json({message:"Imported"}); });
 app.post('/api/training/upload', upload.single('doc_file'), async (req, res) => { res.json({message:"Trained"}); });
 app.post('/api/training/chat', async (req, res) => { res.json({answer:"AI reply"}); });
