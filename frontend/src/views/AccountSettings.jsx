@@ -1,200 +1,196 @@
 /* FILE: frontend/src/views/AccountSettings.jsx */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
 
-const AccountSettings = ({ user, onUpdateUser }) => {
-    const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'security'
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ type: '', text: '' });
+const AccountSettings = ({ user }) => {
+    const [activeTab, setActiveTab] = useState('general'); // 'general' | 'security'
+    const [isLoading, setIsLoading] = useState(false);
+    const [toast, setToast] = useState(null); // { type: 'success'|'error', msg: '' }
 
-    // State cho Profile
+    // State Profile
     const [fullName, setFullName] = useState(user?.full_name || '');
 
-    // State cho Đổi mật khẩu
-    const [otpStep, setOtpStep] = useState(1); // 1: Request, 2: Verify & Change
-    const [passwordData, setPasswordData] = useState({ otp: '', newPassword: '', confirmPassword: '' });
+    // State OTP Flow
+    const [otpStep, setOtpStep] = useState('IDLE'); // IDLE -> SENT -> VERIFIED
+    const [passData, setPassData] = useState({ otp: '', newPass: '', confirmPass: '' });
 
-    // Reset message khi chuyển tab
-    useEffect(() => setMessage({ type: '', text: '' }), [activeTab]);
+    const showToast = (type, msg) => {
+        setToast({ type, msg });
+        setTimeout(() => setToast(null), 3000);
+    };
 
-    // --- XỬ LÝ CẬP NHẬT PROFILE ---
+    // --- HANDLERS ---
     const handleUpdateProfile = async () => {
-        setLoading(true);
+        setIsLoading(true);
         try {
-            const res = await axios.put(`${API_BASE_URL}/api/account/profile`, { full_name: fullName });
-            setMessage({ type: 'success', text: res.data.message });
-            // Cập nhật lại state user ở App.jsx nếu cần (thông qua callback)
-            if (onUpdateUser) onUpdateUser(res.data.user);
+            await axios.put(`${API_BASE_URL}/api/account/profile`, { full_name: fullName });
+            showToast('success', 'Cập nhật thông tin thành công!');
         } catch (err) {
-            setMessage({ type: 'error', text: err.response?.data?.error || "Lỗi cập nhật" });
-        } finally { setLoading(false); }
+            showToast('error', err.response?.data?.error || 'Lỗi cập nhật');
+        } finally { setIsLoading(false); }
     };
 
-    // --- XỬ LÝ ĐỔI MẬT KHẨU (OTP FLOW) ---
-    const handleRequestOtp = async () => {
-        setLoading(true);
+    const handleSendOtp = async () => {
+        setIsLoading(true);
         try {
-            const res = await axios.post(`${API_BASE_URL}/api/account/request-otp`);
-            setMessage({ type: 'success', text: res.data.message });
-            setOtpStep(2); // Chuyển sang bước nhập OTP
+            await axios.post(`${API_BASE_URL}/api/account/request-otp`);
+            setOtpStep('SENT');
+            showToast('success', `Đã gửi mã OTP đến ${user.email}`);
         } catch (err) {
-            setMessage({ type: 'error', text: err.response?.data?.error || "Lỗi gửi OTP" });
-        } finally { setLoading(false); }
+            showToast('error', err.response?.data?.error || 'Không gửi được OTP');
+        } finally { setIsLoading(false); }
     };
 
-    const handleChangePassword = async () => {
-        if (passwordData.newPassword !== passwordData.confirmPassword) {
-            return setMessage({ type: 'error', text: "Mật khẩu xác nhận không khớp!" });
-        }
-        setLoading(true);
+    const handleChangePass = async () => {
+        if (passData.newPass !== passData.confirmPass) return showToast('error', 'Mật khẩu xác nhận không khớp');
+        setIsLoading(true);
         try {
-            const res = await axios.put(`${API_BASE_URL}/api/account/change-password`, {
-                otp: passwordData.otp,
-                newPassword: passwordData.newPassword
+            await axios.put(`${API_BASE_URL}/api/account/change-password`, {
+                otp: passData.otp,
+                newPassword: passData.newPass
             });
-            setMessage({ type: 'success', text: res.data.message });
-            setOtpStep(1); // Reset về ban đầu
-            setPasswordData({ otp: '', newPassword: '', confirmPassword: '' });
-            alert("Đổi mật khẩu thành công!");
+            showToast('success', 'Đổi mật khẩu thành công! Hãy đăng nhập lại.');
+            setOtpStep('IDLE');
+            setPassData({ otp: '', newPass: '', confirmPass: '' });
         } catch (err) {
-            setMessage({ type: 'error', text: err.response?.data?.error || "Lỗi đổi mật khẩu" });
-        } finally { setLoading(false); }
+            showToast('error', err.response?.data?.error || 'Lỗi đổi mật khẩu');
+        } finally { setIsLoading(false); }
     };
 
     return (
-        <div className="fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <h2 className="section-title">
-                <i className="fa-solid fa-user-gear" style={{ color: 'var(--accent-color)' }}></i>
-                Cài đặt tài khoản
-            </h2>
-
-            {/* TAB NAVIGATION */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-                <button 
-                    onClick={() => setActiveTab('profile')}
-                    style={{
-                        background: activeTab === 'profile' ? 'var(--accent-glow)' : 'transparent',
-                        color: activeTab === 'profile' ? 'var(--accent-color)' : 'var(--text-secondary)',
-                        border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer'
-                    }}
+        <div className="fade-in" style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
+            
+            {/* LEFT MENU */}
+            <div className="card-common" style={{ width: '250px', padding: '15px 0', overflow: 'hidden' }}>
+                <div style={{ padding: '0 20px 15px', borderBottom: '1px solid var(--border-color)', marginBottom: '10px' }}>
+                    <h3 style={{ fontSize: '16px', margin: 0 }}>Cài đặt</h3>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Quản lý tài khoản</p>
+                </div>
+                <div 
+                    onClick={() => setActiveTab('general')}
+                    style={{ padding: '12px 20px', cursor: 'pointer', background: activeTab === 'general' ? 'var(--bg-input)' : 'transparent', borderLeft: activeTab === 'general' ? '3px solid var(--accent-color)' : '3px solid transparent', fontWeight: activeTab === 'general' ? 600 : 400 }}
                 >
-                    Thông tin chung
-                </button>
-                <button 
+                    <i className="fa-regular fa-id-card" style={{ width: '25px' }}></i> Thông tin chung
+                </div>
+                <div 
                     onClick={() => setActiveTab('security')}
-                    style={{
-                        background: activeTab === 'security' ? 'var(--accent-glow)' : 'transparent',
-                        color: activeTab === 'security' ? 'var(--accent-color)' : 'var(--text-secondary)',
-                        border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer'
-                    }}
+                    style={{ padding: '12px 20px', cursor: 'pointer', background: activeTab === 'security' ? 'var(--bg-input)' : 'transparent', borderLeft: activeTab === 'security' ? '3px solid var(--accent-color)' : '3px solid transparent', fontWeight: activeTab === 'security' ? 600 : 400 }}
                 >
-                    Bảo mật & OTP
-                </button>
+                    <i className="fa-solid fa-shield-halved" style={{ width: '25px' }}></i> Bảo mật & OTP
+                </div>
             </div>
 
-            {/* MESSAGE ALERT */}
-            {message.text && (
-                <div style={{
-                    padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px',
-                    background: message.type === 'success' ? 'rgba(46, 255, 123, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                    color: message.type === 'success' ? 'var(--success-color)' : 'var(--danger-color)',
-                    border: `1px solid ${message.type === 'success' ? 'var(--success-color)' : 'var(--danger-color)'}`
-                }}>
-                    {message.type === 'success' ? <i className="fa-solid fa-check-circle"></i> : <i className="fa-solid fa-circle-exclamation"></i>} {message.text}
-                </div>
-            )}
+            {/* RIGHT CONTENT */}
+            <div style={{ flex: 1 }}>
+                
+                {/* TOAST NOTIFICATION */}
+                {toast && (
+                    <div style={{ padding: '15px', borderRadius: '8px', marginBottom: '20px', background: toast.type === 'success' ? 'rgba(46, 255, 123, 0.15)' : 'rgba(239, 68, 68, 0.15)', border: `1px solid ${toast.type === 'success' ? 'var(--success-color)' : 'var(--danger-color)'}`, color: toast.type === 'success' ? 'var(--success-color)' : 'var(--danger-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <i className={`fa-solid ${toast.type === 'success' ? 'fa-check-circle' : 'fa-circle-exclamation'}`}></i>
+                        {toast.msg}
+                    </div>
+                )}
 
-            {/* CONTENT: PROFILE */}
-            {activeTab === 'profile' && (
-                <div className="card-common" style={{ padding: '30px' }}>
-                    <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-                        <div style={{ 
-                            width: '80px', height: '80px', borderRadius: '50%', margin: '0 auto 15px',
-                            background: 'var(--bg-input)', border: '2px solid var(--accent-color)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '32px', fontWeight: 'bold', color: 'var(--text-primary)'
-                        }}>
-                            {user?.full_name?.charAt(0).toUpperCase()}
+                {/* TAB: GENERAL */}
+                {activeTab === 'general' && (
+                    <div className="card-common" style={{ padding: '30px' }}>
+                        <h2 style={{ marginTop: 0, marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px' }}>Thông tin cá nhân</h2>
+                        
+                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '30px' }}>
+                            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 'bold', color: 'var(--accent-color)', border: '2px solid var(--accent-color)' }}>
+                                {user?.full_name?.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h3 style={{ margin: 0 }}>{user?.full_name}</h3>
+                                <p style={{ margin: '5px 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>{user?.email}</p>
+                                <span className="tag tag-offer" style={{ marginTop: '5px', display: 'inline-block' }}>{user?.role || 'User'}</span>
+                            </div>
                         </div>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>{user?.email}</p>
-                    </div>
 
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>HỌ VÀ TÊN HIỂN THỊ</label>
-                        <input 
-                            type="text" 
-                            className="form-input"
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                        />
-                    </div>
-                    <button className="btn-primary" onClick={handleUpdateProfile} disabled={loading}>
-                        {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
-                    </button>
-                </div>
-            )}
-
-            {/* CONTENT: SECURITY (OTP FLOW) */}
-            {activeTab === 'security' && (
-                <div className="card-common" style={{ padding: '30px' }}>
-                    <h3 style={{ marginBottom: '15px', color: 'var(--text-primary)' }}>Đổi mật khẩu an toàn</h3>
-                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '25px', lineHeight: '1.5' }}>
-                        Để bảo vệ tài khoản, chúng tôi sử dụng cơ chế xác thực 2 lớp (2FA). 
-                        Mã OTP sẽ được gửi về email <b>{user?.email}</b> của bạn.
-                    </p>
-
-                    {otpStep === 1 ? (
-                        <div style={{ textAlign: 'center', padding: '20px', background: 'var(--bg-input)', borderRadius: '8px' }}>
-                            <i className="fa-solid fa-shield-halved" style={{ fontSize: '40px', color: 'var(--accent-color)', marginBottom: '15px' }}></i>
-                            <p style={{ marginBottom: '20px' }}>Nhấn nút bên dưới để nhận mã OTP xác thực.</p>
-                            <button className="btn-primary" onClick={handleRequestOtp} disabled={loading} style={{ width: '100%' }}>
-                                {loading ? 'Đang gửi...' : 'Gửi mã OTP qua Email'}
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600 }}>Tên hiển thị</label>
+                            <input 
+                                type="text" 
+                                className="form-input"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                            />
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                            <button className="btn-primary" onClick={handleUpdateProfile} disabled={isLoading}>
+                                {isLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
                             </button>
                         </div>
-                    ) : (
-                        <div className="fade-in">
-                            <div style={{ marginBottom: '15px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>MÃ OTP (6 SỐ)</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="Ví dụ: 123456"
-                                    maxLength={6}
-                                    style={{ letterSpacing: '5px', textAlign: 'center', fontSize: '18px', fontWeight: 'bold' }}
-                                    onChange={(e) => setPasswordData({...passwordData, otp: e.target.value})}
-                                />
-                            </div>
-                            <div style={{ marginBottom: '15px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>MẬT KHẨU MỚI</label>
-                                <input 
-                                    type="password" 
-                                    placeholder="••••••"
-                                    onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                                />
-                            </div>
-                            <div style={{ marginBottom: '25px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>XÁC NHẬN MẬT KHẨU</label>
-                                <input 
-                                    type="password" 
-                                    placeholder="••••••"
-                                    onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                                />
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button 
-                                    onClick={() => setOtpStep(1)}
-                                    style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', borderRadius: '6px', cursor: 'pointer' }}
-                                >
-                                    Quay lại
-                                </button>
-                                <button className="btn-primary" style={{ flex: 2 }} onClick={handleChangePassword} disabled={loading}>
-                                    {loading ? 'Đang xử lý...' : 'Xác nhận đổi mật khẩu'}
+                    </div>
+                )}
+
+                {/* TAB: SECURITY */}
+                {activeTab === 'security' && (
+                    <div className="card-common" style={{ padding: '30px' }}>
+                        <h2 style={{ marginTop: 0, marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '15px' }}>Đổi mật khẩu</h2>
+                        
+                        {otpStep === 'IDLE' ? (
+                            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                                <div style={{ width: '60px', height: '60px', background: 'var(--bg-input)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                                    <i className="fa-solid fa-lock" style={{ fontSize: '24px', color: 'var(--accent-color)' }}></i>
+                                </div>
+                                <h3 style={{ marginBottom: '10px' }}>Yêu cầu xác thực</h3>
+                                <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto 30px' }}>Để đảm bảo an toàn, chúng tôi cần xác minh danh tính của bạn qua Email trước khi cho phép đổi mật khẩu.</p>
+                                <button className="btn-primary" onClick={handleSendOtp} disabled={isLoading}>
+                                    {isLoading ? 'Đang gửi...' : 'Gửi mã xác thực (OTP)'}
                                 </button>
                             </div>
-                        </div>
-                    )}
-                </div>
-            )}
+                        ) : (
+                            <div className="fade-in" style={{ maxWidth: '400px', margin: '0 auto' }}>
+                                <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+                                    <p style={{ fontSize: '13px', color: 'var(--success-color)' }}>Đã gửi mã đến {user.email}</p>
+                                </div>
+
+                                <div style={{ marginBottom: '20px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 600 }}>MÃ OTP (Check Email)</label>
+                                    <input 
+                                        type="text" 
+                                        className="form-input"
+                                        placeholder="______"
+                                        maxLength={6}
+                                        style={{ textAlign: 'center', letterSpacing: '8px', fontSize: '20px', fontWeight: 'bold' }}
+                                        onChange={(e) => setPassData({...passData, otp: e.target.value})}
+                                    />
+                                </div>
+
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 600 }}>Mật khẩu mới</label>
+                                    <input 
+                                        type="password" 
+                                        className="form-input"
+                                        onChange={(e) => setPassData({...passData, newPass: e.target.value})}
+                                    />
+                                </div>
+
+                                <div style={{ marginBottom: '30px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 600 }}>Xác nhận mật khẩu</label>
+                                    <input 
+                                        type="password" 
+                                        className="form-input"
+                                        onChange={(e) => setPassData({...passData, confirmPass: e.target.value})}
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button 
+                                        onClick={() => setOtpStep('IDLE')}
+                                        style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', borderRadius: '6px', cursor: 'pointer' }}
+                                    >Hủy</button>
+                                    <button className="btn-primary" style={{ flex: 2 }} onClick={handleChangePass} disabled={isLoading}>
+                                        {isLoading ? 'Đang xử lý...' : 'Xác nhận đổi'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
