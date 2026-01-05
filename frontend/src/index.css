@@ -2,7 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 :root {
-    /* --- BẢNG MÀU GỐC (Dùng chung cho cả 2 theme nếu cần) --- */
+    /* --- BẢNG MÀU GỐC (Dùng chung) --- */
     --brand-neon-green: #2EFF7B;
     --brand-forest-green: #009E49;
     --brand-silver: #B0B6BA;
@@ -55,6 +55,7 @@
     --pipeline-bg: #F9FAFB;      /* Nền cột pipeline sáng */
 }
 
+/* --- GLOBAL RESET --- */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body { 
