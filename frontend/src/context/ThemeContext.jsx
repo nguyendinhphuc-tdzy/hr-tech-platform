@@ -11,11 +11,11 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     // Gán attribute data-theme vào thẻ <html> để CSS hoạt động
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('app-theme', theme);
+    localStorage.setItem('theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
   return (
