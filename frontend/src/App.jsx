@@ -11,6 +11,7 @@ import CVScanView from './views/CVScanView';
 import AITraining from './views/AITraining';
 import InternBook from './views/InternBook';
 import Sidebar from './components/Sidebar';
+import AccountSettings from './views/AccountSettings';
 
 // --- CẤU HÌNH SUPABASE FRONTEND ---
 const supabaseUrl = 'https://yymkszsrnlfkcsnjgcly.supabase.co';
@@ -248,6 +249,7 @@ const DashboardLayout = ({ user, onLogout }) => {
             case 'ai-scan': return <CVScanView />;
             case 'intern-book': return <InternBook />;
             case 'ai-training': return <AITraining />;
+            case 'settings': return <AccountSettings user={user} onUpdateUser={(u) => console.log("Updated", u)} />; // <--- ROUTE MỚI
             default: return <Dashboard />;
         }
     };
