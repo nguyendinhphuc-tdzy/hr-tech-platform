@@ -18,6 +18,22 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ==========================================
+// [NEW] HÀM CẤU HÌNH AXIOS (QUAN TRỌNG)
+// ==========================================
+// Hàm này sẽ tự động gắn Email vào Header của mọi request gửi đi
+const setupAxiosUser = (user) => {
+    if (user && user.email) {
+        // Gắn header mặc định cho tất cả request axios về sau
+        axios.defaults.headers.common['x-user-email'] = user.email;
+        console.log("✅ Đã cấu hình Axios cho user:", user.email);
+    } else {
+        // Xóa header khi logout
+        delete axios.defaults.headers.common['x-user-email'];
+        console.log("🔒 Đã xóa cấu hình Axios user");
+    }
+};
+
+// ==========================================
 // 1. MÀN HÌNH TRANG CHỦ (FIXED DARK MODE - HARDCODED)
 // ==========================================
 const HomeView = ({ onNavigate }) => {
@@ -239,8 +255,7 @@ const DashboardLayout = ({ user, onLogout }) => {
             <div className="hr-layout" style={{display: 'flex', width: '100%', maxWidth: '1400px', margin: '0 auto'}}>
                 <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
                 <main className="main-content" style={{flex: 1, padding: '30px', overflowY: 'auto', height: 'calc(100vh - 80px)'}}>
-                    {renderContent()}
-                </main>
+                    {renderContent()}</main>
             </div>
         </div>
     );
@@ -266,6 +281,10 @@ function App() {
                     avatar_url: session.user.user_metadata.avatar_url
                 };
                 setCurrentUser(googleUser);
+                
+                // [NEW] Cấu hình Axios ngay khi phát hiện session Google
+                setupAxiosUser(googleUser);
+                
                 setView('dashboard');
             }
         });
@@ -273,6 +292,10 @@ function App() {
 
     const handleLoginSuccess = (userData) => {
         setCurrentUser(userData);
+        
+        // [NEW] Cấu hình Axios khi đăng nhập thường
+        setupAxiosUser(userData);
+        
         setView('dashboard');
     };
 
@@ -280,6 +303,10 @@ function App() {
         if(window.confirm("Bạn muốn đăng xuất?")) {
             await supabase.auth.signOut();
             setCurrentUser(null);
+            
+            // [NEW] Xóa header khi đăng xuất
+            setupAxiosUser(null);
+            
             setView('home'); 
         }
     };
