@@ -5,6 +5,7 @@ import API_BASE_URL from '../components/config';
 import CandidateCard from '../components/CandidateCard';
 import CandidateModal from '../components/CandidateModal';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { supabase } from '../supabaseClient'; // Import Supabase Client
 
 const Dashboard = () => {
   const [candidates, setCandidates] = useState([]);
@@ -15,31 +16,65 @@ const Dashboard = () => {
   const [dateFilterType, setDateFilterType] = useState('all'); 
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
 
-  const fetchCandidates = () => {
+  // --- LẤY DANH SÁCH ỨNG VIÊN (CÓ AUTH TOKEN) ---
+  const fetchCandidates = async () => {
     setLoading(true);
-    axios.get(`${API_BASE_URL}/api/candidates`)
+    
+    // 1. Lấy token từ session
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
+    if (!token) {
+        console.warn("Chưa đăng nhập, không thể tải dữ liệu.");
+        setLoading(false);
+        return;
+    }
+
+    // 2. Gọi API với Token
+    axios.get(`${API_BASE_URL}/api/candidates`, {
+        headers: {
+            'Authorization': `Bearer ${token}` // QUAN TRỌNG: Gửi token để Backend biết user nào
+        }
+    })
       .then(response => {
         setCandidates(response.data);
         setLoading(false);
       })
       .catch(err => {
-        console.error("Lỗi:", err);
+        console.error("Lỗi tải dữ liệu:", err);
         setLoading(false);
       });
   };
 
   useEffect(() => { fetchCandidates(); }, []);
 
+  // --- XỬ LÝ CHUYỂN TRẠNG THÁI (CÓ AUTH TOKEN) ---
   const handleStatusChange = async (candidateId, newStatus) => {
+      // 1. Lấy token
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+          alert("Phiên đăng nhập hết hạn. Vui lòng login lại!");
+          return;
+      }
+
+      // 2. Optimistic Update (Cập nhật UI ngay lập tức)
       const updatedCandidates = candidates.map(c => 
           c.id === candidateId ? { ...c, status: newStatus } : c
       );
       setCandidates(updatedCandidates);
 
+      // 3. Gọi API Background
       try {
-          await axios.put(`${API_BASE_URL}/api/candidates/${candidateId}/status`, { status: newStatus });
+          await axios.put(
+              `${API_BASE_URL}/api/candidates/${candidateId}/status`, 
+              { status: newStatus },
+              { headers: { 'Authorization': `Bearer ${token}` } } // Gửi token
+          );
       } catch (error) {
           console.error("Lỗi update:", error);
+          alert("Không thể cập nhật trạng thái (Lỗi phân quyền hoặc mạng).");
           fetchCandidates(); // Revert nếu lỗi
       }
   };
@@ -53,7 +88,7 @@ const Dashboard = () => {
     handleStatusChange(parseInt(draggableId), newStatus);
   };
 
-  // --- LOGIC LỌC ỨNG VIÊN NÂNG CAO ---
+  // --- LOGIC LỌC ỨNG VIÊN NÂNG CAO (GIỮ NGUYÊN) ---
   const filteredCandidates = useMemo(() => {
       if (candidates.length === 0) return [];
 
@@ -63,7 +98,6 @@ const Dashboard = () => {
           const now = new Date();
           now.setHours(0, 0, 0, 0);
 
-          // 1. Lọc theo Preset
           if (dateFilterType !== 'custom') {
               const diffTime = Math.abs(now - createdDate);
               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
@@ -74,14 +108,11 @@ const Dashboard = () => {
               if (dateFilterType === 'month') return diffDays <= 30;
           }
 
-          // 2. Lọc theo Custom Range
           if (dateFilterType === 'custom') {
               if (!customRange.start && !customRange.end) return true;
-              
               const start = customRange.start ? new Date(customRange.start) : new Date('1970-01-01');
               const end = customRange.end ? new Date(customRange.end) : new Date('2100-01-01');
               end.setHours(23, 59, 59, 999); 
-
               return createdDate >= start && createdDate <= end;
           }
           return true;
@@ -93,7 +124,7 @@ const Dashboard = () => {
   return (
     <div className="hr-dashboard" style={{ color: 'var(--text-primary)', height: '100%', display: 'flex', flexDirection: 'column' }}>
       
-      {/* 1. KPI SECTION (REDESIGNED) */}
+      {/* 1. KPI SECTION (REDESIGNED NO-BOX) */}
       <section className="kpi-grid" style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
@@ -115,8 +146,6 @@ const Dashboard = () => {
           </h2>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-tertiary)', padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              
-              {/* Dropdown loại bộ lọc */}
               <div style={{position: 'relative'}}>
                   <i className="fa-solid fa-filter" style={{position:'absolute', left:'10px', top:'50%', transform:'translateY(-50%)', color:'var(--accent-color)', fontSize:'12px'}}></i>
                   <select 
@@ -137,32 +166,11 @@ const Dashboard = () => {
                   </select>
               </div>
 
-              {/* Ô chọn ngày (Chỉ hiện khi chọn Custom) */}
               {dateFilterType === 'custom' && (
                   <div className="fade-in" style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
-                      <input 
-                          type="date" 
-                          value={customRange.start}
-                          onChange={(e) => setCustomRange({...customRange, start: e.target.value})}
-                          style={{
-                              padding: '7px 10px', borderRadius: '6px',
-                              background: 'var(--bg-input)', border: '1px solid var(--border-color)',
-                              color: 'var(--text-primary)', fontSize: '12px',
-                              colorScheme: 'dark' 
-                          }}
-                      />
+                      <input type="date" value={customRange.start} onChange={(e) => setCustomRange({...customRange, start: e.target.value})} style={{ padding: '7px 10px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '12px', colorScheme: 'dark' }} />
                       <span style={{color: 'var(--text-secondary)'}}>-</span>
-                      <input 
-                          type="date" 
-                          value={customRange.end}
-                          onChange={(e) => setCustomRange({...customRange, end: e.target.value})}
-                          style={{
-                              padding: '7px 10px', borderRadius: '6px',
-                              background: 'var(--bg-input)', border: '1px solid var(--border-color)',
-                              color: 'var(--text-primary)', fontSize: '12px',
-                              colorScheme: 'dark'
-                          }}
-                      />
+                      <input type="date" value={customRange.end} onChange={(e) => setCustomRange({...customRange, end: e.target.value})} style={{ padding: '7px 10px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '12px', colorScheme: 'dark' }} />
                   </div>
               )}
           </div>
@@ -227,6 +235,12 @@ const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
                         <span style={{background: isHiredColumn ? config.color : 'var(--bg-input)', color: isHiredColumn ? '#000' : 'var(--text-secondary)', borderRadius: '10px', padding: '1px 8px', fontSize: '10px', fontWeight: 'bold', border: `1px solid ${isHiredColumn ? 'transparent' : 'var(--border-color)'}`}}>{list.length}</span>
                     </div>
                     <div style={{flex: 1, overflowY: 'auto', paddingRight: '2px'}} className="custom-scrollbar">
+                        {list.length === 0 && (
+                            <div style={{textAlign: 'center', padding: '40px 0', opacity: 0.5, color: 'var(--text-secondary)'}}>
+                                <i className="fa-regular fa-folder-open" style={{fontSize: '20px', marginBottom: '8px'}}></i>
+                                <p style={{fontSize: '11px', margin: 0}}>Trống</p>
+                            </div>
+                        )}
                         {list.map((c, index) => (
                             <Draggable key={c.id.toString()} draggableId={c.id.toString()} index={index}>
                                 {(provided, snapshot) => (
@@ -282,4 +296,4 @@ const KpiCard = ({ title, value, icon, color, glow }) => (
     </div>
 );
 
-export default Dashboard; 
+export default Dashboard;
