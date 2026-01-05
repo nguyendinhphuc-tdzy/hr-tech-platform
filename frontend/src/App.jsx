@@ -21,75 +21,73 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // [NEW] HÀM CẤU HÌNH AXIOS (QUAN TRỌNG)
 // ==========================================
 // Hàm này sẽ tự động gắn Email vào Header của mọi request gửi đi
+// Giúp Backend nhận diện người dùng (User Isolation)
 const setupAxiosUser = (user) => {
     if (user && user.email) {
-        // Gắn header mặc định cho tất cả request axios về sau
         axios.defaults.headers.common['x-user-email'] = user.email;
         console.log("✅ Đã cấu hình Axios cho user:", user.email);
     } else {
-        // Xóa header khi logout
         delete axios.defaults.headers.common['x-user-email'];
         console.log("🔒 Đã xóa cấu hình Axios user");
     }
 };
 
 // ==========================================
-// 1. MÀN HÌNH TRANG CHỦ (FIXED DARK MODE - HARDCODED)
+// 1. MÀN HÌNH TRANG CHỦ (ADAPTIVE THEME)
 // ==========================================
 const HomeView = ({ onNavigate }) => {
   return (
     <div style={{
-        /* Ép cứng màu tối để không bị ảnh hưởng bởi Theme Switcher */
+        /* Dùng biến CSS để tự động đổi màu theo Theme */
         height: '100vh', 
-        backgroundColor: '#09121D', 
-        backgroundImage: 'radial-gradient(circle at 50% 0%, #1a2c42 0%, #09121D 100%)',
-        display: 'flex', flexDirection: 'column',
-        color: '#FFFFFF', 
+        backgroundColor: 'var(--bg-primary)', 
+        color: 'var(--text-primary)', 
         overflowX: 'hidden',
-        position: 'absolute', top: 0, left: 0, width: '100%', zIndex: 9999
+        position: 'absolute', top: 0, left: 0, width: '100%', zIndex: 9999,
+        transition: 'background-color 0.3s ease, color 0.3s ease'
     }}>
         {/* NAVBAR */}
         <nav style={{
             padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            borderBottom: '1px solid rgba(255,255,255,0.1)', 
-            background: 'rgba(9, 18, 29, 0.85)',
+            borderBottom: '1px solid var(--border-color)', 
+            background: 'var(--bg-secondary)',
             backdropFilter: 'blur(10px)'
         }}>
-            <div style={{fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px', color: '#FFFFFF'}}>
-                <div style={{width: '40px', height: '40px', background: '#2EFF7B', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#000', fontSize: '14px'}}>HR</div>
-                HR TECH <span style={{color: '#2EFF7B'}}>AI</span>
+            <div style={{fontSize: '24px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-primary)'}}>
+                <div style={{width: '40px', height: '40px', background: 'var(--accent-color)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#000', fontSize: '14px'}}>HR</div>
+                HR TECH <span style={{color: 'var(--accent-color)'}}>AI</span>
             </div>
             <div style={{display: 'flex', gap: '15px'}}>
-                <button onClick={() => onNavigate('login')} style={{background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: '#FFFFFF', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600'}}>Đăng nhập</button>
-                <button onClick={() => onNavigate('signup')} style={{background: '#2EFF7B', border: 'none', color: '#000', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', boxShadow: '0 0 15px rgba(46, 255, 123, 0.4)'}}>Đăng ký ngay</button>
+                <button onClick={() => onNavigate('login')} style={{background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600'}}>Đăng nhập</button>
+                <button onClick={() => onNavigate('signup')} style={{background: 'var(--accent-color)', border: 'none', color: '#000', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', boxShadow: '0 0 15px var(--accent-glow)'}}>Đăng ký ngay</button>
             </div>
         </nav>
 
         {/* HERO CONTENT */}
-        <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 20px', position: 'relative', zIndex: 1}}>
-            <div style={{background: 'rgba(46, 255, 123, 0.1)', color: '#2EFF7B', padding: '6px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginBottom: '25px', border: '1px solid #2EFF7B'}}>
+        <div style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 20px', position: 'relative', zIndex: 1, height: 'calc(100vh - 80px)'}}>
+            <div style={{background: 'var(--accent-glow)', color: 'var(--accent-color)', padding: '6px 18px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', marginBottom: '25px', border: '1px solid var(--accent-color)'}}>
                 ✨ Hệ thống Tuyển dụng tương lai 2.0
             </div>
-            <h1 style={{fontSize: '64px', fontWeight: '800', margin: '0 0 20px 0', lineHeight: '1.1', color: '#FFFFFF', textShadow: '0 0 40px rgba(0,0,0,0.5)'}}>
+            <h1 style={{fontSize: '64px', fontWeight: '800', margin: '0 0 20px 0', lineHeight: '1.1', color: 'var(--text-primary)'}}>
                 Tuyển dụng thông minh với <br/>
-                <span style={{color: '#2EFF7B', textShadow: '0 0 20px rgba(46, 255, 123, 0.5)'}}>Sức mạnh AI & Dữ liệu</span>
+                <span style={{color: 'var(--accent-color)'}}>Sức mạnh AI & Dữ liệu</span>
             </h1>
-            <p style={{fontSize: '18px', color: '#E0E0E0', maxWidth: '600px', marginBottom: '40px', lineHeight: '1.6'}}>
+            <p style={{fontSize: '18px', color: 'var(--text-secondary)', maxWidth: '600px', marginBottom: '40px', lineHeight: '1.6'}}>
                 Tự động hóa quy trình sàng lọc CV, quản lý thực tập sinh và tối ưu hóa nhân sự. Giúp bạn tìm kiếm ứng viên tài năng nhanh hơn 10x.
             </p>
-            <button onClick={() => onNavigate('signup')} style={{padding: '16px 45px', fontSize: '16px', fontWeight: '700', borderRadius: '50px', border: 'none', cursor: 'pointer', background: '#FFFFFF', color: '#000', boxShadow: '0 10px 30px rgba(255,255,255,0.1)'}}>
+            <button onClick={() => onNavigate('signup')} style={{padding: '16px 45px', fontSize: '16px', fontWeight: '700', borderRadius: '50px', border: 'none', cursor: 'pointer', background: 'var(--text-primary)', color: 'var(--bg-primary)', boxShadow: '0 10px 30px rgba(0,0,0,0.1)'}}>
                 Bắt đầu miễn phí
             </button>
         </div>
 
         {/* FOOTER */}
-        <div style={{padding: '20px', textAlign: 'center', color: '#9CA3AF', fontSize: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', background: '#09121D'}}>© 2024 HR Tech Platform. All rights reserved.</div>
+        <div style={{padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)'}}>© 2024 HR Tech Platform. All rights reserved.</div>
     </div>
   );
 };
 
 // ==========================================
-// 2. MÀN HÌNH XÁC THỰC (FIXED DARK MODE - HARDCODED)
+// 2. MÀN HÌNH XÁC THỰC (ADAPTIVE THEME)
 // ==========================================
 const AuthView = ({ mode, onLoginSuccess, onBack }) => {
     const isLogin = mode === 'login';
@@ -139,59 +137,60 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
     return (
         <div style={{
             height: '100vh', 
-            backgroundColor: '#09121D', /* Ép màu tối */
+            backgroundColor: 'var(--bg-primary)', 
             display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
-            color: '#FFFFFF'
+            color: 'var(--text-primary)',
+            transition: 'background-color 0.3s ease'
         }}>
-            <button onClick={onBack} style={{position: 'absolute', top: '20px', left: '20px', background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: '16px'}}>
+            <button onClick={onBack} style={{position: 'absolute', top: '20px', left: '20px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '16px'}}>
                 <i className="fa-solid fa-arrow-left"></i> Quay lại trang chủ
             </button>
 
-            <div style={{width: '420px', padding: '40px', borderRadius: '16px', border: '1px solid rgba(45, 59, 78, 1)', background: '#131F2E', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'}}>
+            <div style={{width: '420px', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', boxShadow: 'var(--card-shadow)'}}>
                 <div style={{textAlign: 'center', marginBottom: '30px'}}>
-                    <h2 style={{fontSize: '28px', color: '#FFFFFF', marginBottom: '10px'}}>{isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}</h2>
+                    <h2 style={{fontSize: '28px', color: 'var(--text-primary)', marginBottom: '10px'}}>{isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}</h2>
                 </div>
 
                 {errorMsg && (
-                    <div style={{background: 'rgba(239, 68, 68, 0.2)', color: '#FCA5A5', padding: '10px', borderRadius: '6px', fontSize: '13px', marginBottom: '15px', border: '1px solid #EF4444', textAlign: 'center'}}>
+                    <div style={{background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', padding: '10px', borderRadius: '6px', fontSize: '13px', marginBottom: '15px', border: '1px solid var(--danger-color)', textAlign: 'center'}}>
                         <i className="fa-solid fa-circle-exclamation"></i> {errorMsg}
                     </div>
                 )}
 
                 <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px'}}>
-                    <button type="button" onClick={handleGoogleLogin} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', borderRadius: '6px', background: '#FFFFFF', color: '#000', border: 'none', cursor: 'pointer', fontWeight: '600'}}>
+                    <button type="button" onClick={handleGoogleLogin} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', borderRadius: '6px', background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', cursor: 'pointer', fontWeight: '600'}}>
                         <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="20" />
                         {isLogin ? 'Đăng nhập với Google' : 'Đăng ký với Google'}
                     </button>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: '#9CA3AF', fontSize: '12px'}}>
-                        <div style={{flex: 1, height: '1px', background: '#2D3B4E'}}></div>HOẶC<div style={{flex: 1, height: '1px', background: '#2D3B4E'}}></div>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '12px'}}>
+                        <div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>HOẶC<div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
                     {!isLogin && (
                          <div>
-                            <label style={{fontSize: '12px', color: '#9CA3AF', fontWeight: 600, display: 'block', marginBottom: '8px'}}>HỌ VÀ TÊN</label>
-                            <input name="fullName" type="text" placeholder="Ví dụ: Nguyễn Văn A" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid #2D3B4E', color: 'white', outline: 'none'}} />
+                            <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>HỌ VÀ TÊN</label>
+                            <input name="fullName" type="text" placeholder="Ví dụ: Nguyễn Văn A" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none'}} />
                         </div>
                     )}
                     <div>
-                        <label style={{fontSize: '12px', color: '#9CA3AF', fontWeight: 600, display: 'block', marginBottom: '8px'}}>EMAIL</label>
-                        <input name="email" type="email" placeholder="admin@hrtech.com" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid #2D3B4E', color: 'white', outline: 'none'}} />
+                        <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>EMAIL</label>
+                        <input name="email" type="email" placeholder="admin@hrtech.com" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none'}} />
                     </div>
                     <div>
-                        <label style={{fontSize: '12px', color: '#9CA3AF', fontWeight: 600, display: 'block', marginBottom: '8px'}}>MẬT KHẨU</label>
-                        <input name="password" type="password" placeholder="••••••" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: '#0D1825', border: '1px solid #2D3B4E', color: 'white', outline: 'none'}} />
+                        <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>MẬT KHẨU</label>
+                        <input name="password" type="password" placeholder="••••••" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none'}} />
                     </div>
 
-                    <button type="submit" style={{marginTop: '10px', background: '#2EFF7B', color: '#000', fontWeight: '700', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', opacity: isLoading ? 0.7 : 1}} disabled={isLoading}>
+                    <button type="submit" style={{marginTop: '10px', background: 'var(--accent-color)', color: '#000', fontWeight: '700', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', opacity: isLoading ? 0.7 : 1}} disabled={isLoading}>
                         {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : (isLogin ? 'Truy cập hệ thống' : 'Đăng ký miễn phí')}
                     </button>
                 </form>
 
-                <p style={{textAlign: 'center', marginTop: '20px', fontSize: '13px', color: '#9CA3AF'}}>
+                <p style={{textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-secondary)'}}>
                     {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
-                    <span onClick={onBack} style={{color: '#2EFF7B', cursor: 'pointer', textDecoration: 'underline'}}>{isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}</span>
+                    <span onClick={onBack} style={{color: 'var(--accent-color)', cursor: 'pointer', textDecoration: 'underline'}}>{isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}</span>
                 </p>
             </div>
         </div>
@@ -199,11 +198,12 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
 };
 
 // ==========================================
-// 3. DASHBOARD LAYOUT (SỬ DỤNG BIẾN CSS THEME)
+// 3. DASHBOARD LAYOUT (ADAPTIVE THEME)
 // ==========================================
 const DashboardLayout = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
 
+    // Header hiển thị user info và màu theo Theme
     const DashboardHeader = () => (
         <header className="main-header" style={{
             background: 'var(--bg-secondary)', 
@@ -225,7 +225,7 @@ const DashboardLayout = ({ user, onLogout }) => {
                 </div>
                 
                 {user?.avatar_url ? (
-                    <img src={user.avatar_url} alt="Avatar" style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--accent-color)'}} />
+                    <img src={user.avatar_url} alt="Avt" style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--accent-color)'}} />
                 ) : (
                     <div style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--accent-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)', fontWeight: 'bold', background: 'var(--bg-input)'}}>
                         {user && user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
@@ -254,8 +254,7 @@ const DashboardLayout = ({ user, onLogout }) => {
             <DashboardHeader />
             <div className="hr-layout" style={{display: 'flex', width: '100%', maxWidth: '1400px', margin: '0 auto'}}>
                 <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-                <main className="main-content" style={{flex: 1, padding: '30px', overflowY: 'auto', height: 'calc(100vh - 80px)'}}>
-                    {renderContent()}</main>
+                <main className="main-content" style={{flex: 1, padding: '30px', overflowY: 'auto', height: 'calc(100vh - 80px)'}}>{renderContent()}</main>
             </div>
         </div>
     );
@@ -282,7 +281,7 @@ function App() {
                 };
                 setCurrentUser(googleUser);
                 
-                // [NEW] Cấu hình Axios ngay khi phát hiện session Google
+                // [CONFIG AXIOS] Gắn header khi session tồn tại
                 setupAxiosUser(googleUser);
                 
                 setView('dashboard');
@@ -293,7 +292,7 @@ function App() {
     const handleLoginSuccess = (userData) => {
         setCurrentUser(userData);
         
-        // [NEW] Cấu hình Axios khi đăng nhập thường
+        // [CONFIG AXIOS] Gắn header khi login thường
         setupAxiosUser(userData);
         
         setView('dashboard');
@@ -304,7 +303,7 @@ function App() {
             await supabase.auth.signOut();
             setCurrentUser(null);
             
-            // [NEW] Xóa header khi đăng xuất
+            // [CLEAR AXIOS] Xóa header khi logout
             setupAxiosUser(null);
             
             setView('home'); 
