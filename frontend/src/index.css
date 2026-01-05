@@ -1,139 +1,231 @@
 /* FILE: frontend/src/index.css - Eco-Futuristic Theme (Fix Visibility) */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
 
 :root {
-    /* --- BẢNG MÀU GỐC --- */
-    --brand-neon-green: #2EFF7B;
-    --brand-forest-green: #009E49;
-    --brand-silver: #B0B6BA;
-    
-    /* --- DARK THEME (DEFAULT) --- */
-    --bg-primary: #09121D;       /* Nền tảng chính */
-    --bg-secondary: #0D1825;     /* Nền Sidebar/Card */
-    --bg-tertiary: #131F2E;      /* Nền Card nổi */
-    --bg-input: #1A2736;         /* Nền ô input/dropdown */
-    
-    --text-primary: #FFFFFF;     /* Chữ chính (Trắng) */
-    --text-secondary: #9CA3AF;   /* Chữ phụ (Xám) */
-    --text-highlight: #2EFF7B;   /* Neon Green */
-    
-    --border-color: #2D3B4E;     /* Đường viền tối */
-    --accent-color: #2EFF7B;     /* Màu nhấn chính */
-    --accent-glow: rgba(46, 255, 123, 0.2);
-    
-    --card-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    --pipeline-bg: #0D1825; 
-    
-    /* Status Colors */
-    --success-color: #2EFF7B;
-    --danger-color: #FF4D4D;
+  /* --- BẢNG MÀU GỐC --- */
+  --brand-neon-green: #2eff7b;
+  --brand-forest-green: #009e49;
+  --brand-silver: #b0b6ba;
 
-    /* --- [QUAN TRỌNG] LỚP TƯƠNG THÍCH CHO CODE CŨ (COMPATIBILITY) --- */
-    /* Ánh xạ các biến cũ sang biến mới để chữ không bị ẩn */
-    --text-white: var(--text-primary);       /* Sửa lỗi var(--text-white) */
-    --neon-green: var(--accent-color);       /* Sửa lỗi var(--neon-green) */
-    --text-gray: var(--text-secondary);
-    --card-background: var(--bg-tertiary);
+  /* --- DARK THEME (DEFAULT) --- */
+  --bg-primary: #09121d; /* Nền tảng chính */
+  --bg-secondary: #0d1825; /* Nền Sidebar/Card */
+  --bg-tertiary: #131f2e; /* Nền Card nổi */
+  --bg-input: #1a2736; /* Nền ô input/dropdown */
+
+  --text-primary: #ffffff; /* Chữ chính (Trắng) */
+  --text-secondary: #9ca3af; /* Chữ phụ (Xám) */
+  --text-highlight: #2eff7b; /* Neon Green */
+
+  --border-color: #2d3b4e; /* Đường viền tối */
+  --accent-color: #2eff7b; /* Màu nhấn chính */
+  --accent-glow: rgba(46, 255, 123, 0.2);
+
+  --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --pipeline-bg: #0d1825;
+
+  /* Status Colors */
+  --success-color: #2eff7b;
+  --danger-color: #ff4d4d;
+
+  /* --- [QUAN TRỌNG] LỚP TƯƠNG THÍCH CHO CODE CŨ (COMPATIBILITY) --- */
+  /* Ánh xạ các biến cũ sang biến mới để chữ không bị ẩn */
+  --text-white: var(--text-primary); /* Sửa lỗi var(--text-white) */
+  --neon-green: var(--accent-color); /* Sửa lỗi var(--neon-green) */
+  --text-gray: var(--text-secondary);
+  --card-background: var(--bg-tertiary);
 }
 
 /* --- LIGHT THEME (GHI ĐÈ) --- */
 [data-theme="light"] {
-    --bg-primary: #F3F4F6;       
-    --bg-secondary: #FFFFFF;     
-    --bg-tertiary: #FFFFFF;      
-    --bg-input: #E5E7EB;         
+  --bg-primary: #f3f4f6;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #ffffff;
+  --bg-input: #e5e7eb;
 
-    --text-primary: #111827;     /* Chữ chính chuyển thành Đen */
-    --text-secondary: #4B5563;   
-    --text-highlight: #059669;   
+  --text-primary: #111827; /* Chữ chính chuyển thành Đen */
+  --text-secondary: #4b5563;
+  --text-highlight: #059669;
 
-    --border-color: #E5E7EB;     
-    --accent-color: #10B981;     
-    --accent-glow: rgba(16, 185, 129, 0.15);
+  --border-color: #e5e7eb;
+  --accent-color: #10b981;
+  --accent-glow: rgba(16, 185, 129, 0.15);
 
-    --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    --pipeline-bg: #F9FAFB;      
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --pipeline-bg: #f9fafb;
 
-    /* Cập nhật lại tương thích cho Light Mode */
-    --text-white: var(--text-primary); /* Lúc này là màu Đen */
+  /* Cập nhật lại tương thích cho Light Mode */
+  --text-white: var(--text-primary); /* Lúc này là màu Đen */
 }
 
 /* --- GLOBAL RESET --- */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-body { 
-    font-family: 'Montserrat', sans-serif;
-    background-color: var(--bg-primary); 
-    color: var(--text-primary); /* Đảm bảo mọi chữ mặc định đều lấy màu này */
-    /* Light mode sẽ tự bỏ gradient này */
-    background-image: var(--bg-image, radial-gradient(circle at 50% 0%, #1a2c42 0%, var(--bg-primary) 70%)); 
-    min-height: 100vh;
-    transition: background-color 0.3s ease, color 0.3s ease;
+body {
+  font-family: "Montserrat", sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary); /* Đảm bảo mọi chữ mặc định đều lấy màu này */
+  /* Light mode sẽ tự bỏ gradient này */
+  background-image: var(
+    --bg-image,
+    radial-gradient(circle at 50% 0%, #1a2c42 0%, var(--bg-primary) 70%)
+  );
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 [data-theme="light"] body {
-    background-image: none;
+  background-image: none;
 }
 
 /* --- COMPONENTS --- */
-.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
 
 /* Header & Sidebar */
-.main-header, .sidebar { 
-    background-color: var(--bg-secondary);
-    border-color: var(--border-color);
+.main-header,
+.sidebar {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
 }
-.main-header { 
-    padding: 15px 30px; 
-    border-bottom: 1px solid var(--border-color); 
-    display: flex; justify-content: space-between; align-items: center; 
-    backdrop-filter: blur(10px); 
-    position: sticky; top: 0; z-index: 100;
+.main-header {
+  padding: 15px 30px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .sidebar {
-    width: 240px; flex-shrink: 0;
-    border: 1px solid var(--border-color);
-    border-radius: 12px; padding: 15px;
-    height: calc(100vh - 100px);
-    box-shadow: var(--card-shadow);
+  width: 240px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 15px;
+  height: calc(100vh - 100px);
+  box-shadow: var(--card-shadow);
 }
 
 /* Cards (Dùng class này cho các khối nội dung để đảm bảo màu nền đúng) */
-.card-common, .card-dark, .kpi-card, .candidate-card {
-    background-color: var(--bg-tertiary) !important; /* Bắt buộc màu nền thẻ */
-    border: 1px solid var(--border-color) !important;
-    color: var(--text-primary) !important;           /* Bắt buộc màu chữ */
-    border-radius: 12px;
-    box-shadow: var(--card-shadow);
+.card-common,
+.card-dark,
+.kpi-card,
+.candidate-card {
+  background-color: var(--bg-tertiary) !important; /* Bắt buộc màu nền thẻ */
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important; /* Bắt buộc màu chữ */
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 
 /* Inputs & Forms */
-input, select, textarea {
-    background-color: var(--bg-input) !important;
-    color: var(--text-primary) !important; /* Chữ trong input phải tương phản */
-    border: 1px solid var(--border-color) !important;
-    padding: 10px;
-    border-radius: 6px;
+input,
+select,
+textarea {
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important; /* Chữ trong input phải tương phản */
+  border: 1px solid var(--border-color) !important;
+  padding: 10px;
+  border-radius: 6px;
 }
-input:focus, select:focus {
-    border-color: var(--accent-color) !important;
-    outline: none;
+input:focus,
+select:focus {
+  border-color: var(--accent-color) !important;
+  outline: none;
 }
 /* Placeholder color */
-::placeholder { color: var(--text-secondary); opacity: 0.7; }
+::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
 
 /* Buttons */
-button { cursor: pointer; transition: all 0.2s; }
-.btn-primary, button[style*="background"] {
-    color: #000 !important; /* Chữ trên nút màu luôn đen cho dễ đọc */
-    font-weight: 700;
+button {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-primary,
+button[style*="background"] {
+  color: #000 !important; /* Chữ trên nút màu luôn đen cho dễ đọc */
+  font-weight: 700;
 }
 
 /* Text Overrides */
-h1, h2, h3, h4, h5, h6 { color: var(--text-primary); }
-p, span, div { color: inherit; } /* Kế thừa màu từ cha */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+}
+p,
+span,
+div {
+  color: inherit;
+} /* Kế thừa màu từ cha */
 
 /* --- SCROLLBAR --- */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+/* --- SIDEBAR STYLING (Thêm vào cuối file) --- */
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  color: var(--text-secondary); /* Mặc định màu xám dịu */
+  border: 1px solid transparent;
+}
+
+/* Hiệu ứng khi di chuột (Hover) */
+.sidebar-item:hover {
+  background-color: var(--bg-input);
+  color: var(--text-primary); /* Sáng lên khi hover */
+}
+
+/* Trạng thái đang chọn (Active) */
+.sidebar-item.active {
+  background-color: var(--accent-glow); /* Nền phát sáng nhẹ theo màu chủ đạo */
+  color: var(--accent-color); /* Chữ màu Neon/Xanh */
+  border-color: var(--accent-color); /* Viền mỏng */
+  font-weight: 700;
+}
+
+/* Icon trong sidebar */
+.sidebar-item i {
+  width: 20px;
+  text-align: center;
+  font-size: 16px;
+}
