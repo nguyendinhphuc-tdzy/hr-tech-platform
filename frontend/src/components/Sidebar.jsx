@@ -8,12 +8,10 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: "fa-chart-pie" },
     { id: "ai-scan", label: "AI Scan CV", icon: "fa-radar" },
-    {
-      id: "intern-book",
-      label: "Sổ tay Thực tập",
-      icon: "fa-book-open-reader",
-    },
+    { id: "intern-book", label: "Sổ tay Thực tập", icon: "fa-book-open-reader" },
     { id: "ai-training", label: "Huấn luyện AI", icon: "fa-robot" },
+    // THÊM MỤC CÀI ĐẶT VÀO MENU CHÍNH LUÔN CHO DỄ THẤY
+    { id: "account-settings", label: "Cài đặt tài khoản", icon: "fa-user-gear" },
   ];
 
   return (
@@ -25,20 +23,48 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         height: "calc(100vh - 80px)",
         position: "sticky",
         top: "80px",
+        background: "var(--bg-secondary)", // Đảm bảo nền đúng theme
+        borderRight: "1px solid var(--border-color)", // Viền đúng theme
+        padding: "20px",
+        transition: "background 0.3s, border-color 0.3s"
       }}
     >
       {/* 1. MENU CHÍNH */}
-      <div className="sidebar-menu" style={{ flex: 1 }}>
-        {menuItems.map((item) => (
-          <div
-            key={item.id}
-            className={`sidebar-item ${activeTab === item.id ? "active" : ""}`}
-            onClick={() => setActiveTab(item.id)}
-          >
-            <i className={`fa-solid ${item.icon}`}></i>
-            <span>{item.label}</span>
-          </div>
-        ))}
+      <div className="sidebar-menu" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {menuItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+                <div
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '15px',
+                        padding: '12px 20px',
+                        background: isActive ? 'var(--accent-glow)' : 'transparent', 
+                        border: isActive ? '1px solid var(--accent-color)' : '1px solid transparent',
+                        borderRadius: '8px',
+                        color: isActive ? 'var(--accent-color)' : 'var(--text-secondary)',
+                        fontSize: '14px', fontWeight: isActive ? '600' : '400',
+                        cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left'
+                    }}
+                    onMouseEnter={(e) => {
+                        if(!isActive) {
+                            e.currentTarget.style.color = 'var(--text-primary)';
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        if(!isActive) {
+                            e.currentTarget.style.color = 'var(--text-secondary)';
+                            e.currentTarget.style.background = 'transparent';
+                        }
+                    }}
+                >
+                    <i className={`fa-solid ${item.icon}`} style={{width: '20px', textAlign: 'center'}}></i>
+                    <span>{item.label}</span>
+                </div>
+            );
+        })}
       </div>
 
       {/* 2. FOOTER (SETTINGS & THEME) */}
@@ -115,26 +141,6 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           </div>
         </button>
 
-        {/* FOOTER Sidebar */}
-        <div
-          style={{
-            marginTop: "auto",
-            paddingTop: "20px",
-            borderTop: "1px solid var(--border-color)",
-          }}
-        >
-          {/* Thêm onClick set activeTab = 'settings' */}
-          <div
-            className={`sidebar-item ${
-              activeTab === "settings" ? "active" : ""
-            }`}
-            onClick={() => setActiveTab("settings")}
-          >
-            <i className="fa-solid fa-gear"></i>
-            <span>Cài đặt tài khoản</span>
-          </div>
-        </div>
-
         {/* VERSION INFO CARD */}
         <div
           style={{
@@ -156,7 +162,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
                 textTransform: "uppercase",
               }}
             >
-              Phiên bản
+              HỆ THỐNG
             </p>
             <p
               style={{
@@ -166,7 +172,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
                 color: "var(--text-primary)",
               }}
             >
-              Beta v2.0
+              Online v1.2
             </p>
           </div>
           <div
