@@ -122,60 +122,68 @@ ${STRICT_RUBRIC}
 `;
 }
 
-// ==========================================
-// 1. API AUTH: PHONE LOGIN/REGISTER (WITH PASSWORD)
-// ==========================================
+/* FILE: backend/server.js - Cập nhật logic Login/Register chặt chẽ hơn */
 
-// Đăng nhập bằng SĐT (Phân nhánh Login / Register)
+// ==========================================
+// API AUTH: LOGIN HOẶC REGISTER (TƯỜNG MINH)
+// ==========================================
 app.post('/api/auth/phone-login', async (req, res) => {
     try {
-        const { phone, full_name, password } = req.body; 
+        // Nhận thêm cờ 'is_register' từ Frontend để biết user muốn làm gì
+        const { phone, full_name, password, is_register } = req.body; 
         
-        // 1. Validate SĐT
-        if (!phone || phone.length < 9) {
-            return res.status(400).json({ error: "Số điện thoại không hợp lệ" });
-        }
+        // 1. Validate cơ bản
+        if (!phone || phone.length < 9) return res.status(400).json({ error: "Số điện thoại không hợp lệ" });
+        if (!password || password.length < 6) return res.status(400).json({ error: "Mật khẩu phải từ 6 ký tự" });
 
-        // 2. Kiểm tra User tồn tại
+        // 2. Tìm User trong DB
         const userResult = await pool.query('SELECT * FROM users WHERE phone_number = $1', [phone]);
         let user = userResult.rows[0];
 
-        // 3. LOGIC PHÂN NHÁNH
-        if (user) {
-            // CASE A: Đã có tài khoản -> Đăng nhập thành công
-            // (Hiện tại bỏ qua check password để login nhanh, nếu muốn check pass thì thêm logic so sánh ở đây)
-            return res.json({ 
-                message: "Đăng nhập thành công!", 
-                user: { ...user, email: user.email || user.phone_number } // Đảm bảo luôn có identifier
-            });
-        } else {
-            // CASE B: Chưa có tài khoản (User mới)
+        // ==============================
+        // TRƯỜNG HỢP 1: ĐĂNG KÝ (REGISTER)
+        // ==============================
+        if (is_register) {
+            // Nếu user đã tồn tại -> Báo lỗi
+            if (user) {
+                return res.status(400).json({ error: "Số điện thoại này đã được đăng ký. Vui lòng đăng nhập." });
+            }
             
-            // Nếu thiếu thông tin đăng ký (Tên hoặc Password) -> Báo lỗi 404 USER_NOT_FOUND để Frontend hiện form đăng ký
-            if (!full_name || !password) {
-                return res.status(404).json({ 
-                    error: "USER_NOT_FOUND", 
-                    message: "Số điện thoại chưa đăng ký. Vui lòng nhập thông tin." 
-                });
+            // Validate tên
+            if (!full_name || full_name.trim().length < 2) {
+                return res.status(400).json({ error: "Vui lòng nhập họ và tên đầy đủ." });
             }
 
-            // Validate mật khẩu
-            if (password.length < 6) {
-                return res.status(400).json({ error: "Mật khẩu phải có ít nhất 6 ký tự." });
-            }
-
-            // Tạo tài khoản mới (Register)
-            // Lưu ý: Thực tế nên hash password bằng bcrypt. Ở đây lưu raw theo code hiện tại của bạn.
+            // Tạo tài khoản mới
             const newUser = await pool.query(
                 `INSERT INTO users (full_name, phone_number, email, password, role) 
                  VALUES ($1, $2, NULL, $3, 'User') RETURNING *`,
                 [full_name, phone, password]
             );
             
-            user = newUser.rows[0];
-            
             return res.json({ 
                 message: "Đăng ký thành công!", 
+                user: { ...newUser.rows[0], email: newUser.rows[0].email || phone }
+            });
+        }
+
+        // ==============================
+        // TRƯỜNG HỢP 2: ĐĂNG NHẬP (LOGIN)
+        // ==============================
+        else {
+            // Nếu user không tồn tại -> Báo lỗi
+            if (!user) {
+                return res.status(404).json({ error: "Tài khoản không tồn tại. Vui lòng đăng ký trước." });
+            }
+
+            // Kiểm tra mật khẩu (So sánh password)
+            // Lưu ý: Thực tế nên hash, ở đây so sánh raw theo code hiện tại
+            if (user.password !== password) {
+                return res.status(401).json({ error: "Sai mật khẩu! Vui lòng thử lại." });
+            }
+
+            return res.json({ 
+                message: "Đăng nhập thành công!", 
                 user: { ...user, email: user.email || user.phone_number }
             });
         }
