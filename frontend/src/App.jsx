@@ -58,7 +58,9 @@ const HomeView = ({ onNavigate }) => {
                 HR TECH <span style={{color: 'var(--accent-color)'}}>AI</span>
             </div>
             <div style={{display: 'flex', gap: '15px'}}>
+                {/* Nút Đăng nhập -> mode='login' */}
                 <button onClick={() => onNavigate('login')} style={{background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600'}}>Đăng nhập</button>
+                {/* Nút Đăng ký -> mode='signup' */}
                 <button onClick={() => onNavigate('signup')} style={{background: 'var(--accent-color)', border: 'none', color: '#000', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', boxShadow: '0 0 15px var(--accent-glow)'}}>Đăng ký ngay</button>
             </div>
         </nav>
@@ -76,6 +78,7 @@ const HomeView = ({ onNavigate }) => {
                 Tự động hóa quy trình sàng lọc CV, quản lý thực tập sinh và tối ưu hóa nhân sự. Giúp bạn tìm kiếm ứng viên tài năng nhanh hơn 10x.
             </p>
             
+            {/* Nút Bắt đầu miễn phí -> mode='signup' */}
             <button onClick={() => onNavigate('signup')} style={{
                 padding: '16px 45px', 
                 fontSize: '16px', 
@@ -104,38 +107,68 @@ const HomeView = ({ onNavigate }) => {
 // ==========================================
 // 2. MÀN HÌNH XÁC THỰC (PHONE LOGIN/REGISTER)
 // ==========================================
-/* FILE: frontend/src/App.jsx - AuthView mới (Tách biệt Login/Register) */
-
-const AuthView = ({ onLoginSuccess, onBack }) => {
-    const [isLoginMode, setIsLoginMode] = useState(true); // Mặc định là Đăng nhập
+// [FIXED] Nhận thêm prop 'mode' để biết là đang Login hay Signup
+const AuthView = ({ mode, onLoginSuccess, onBack }) => {
+    // [FIXED] Khởi tạo isLoginMode dựa trên prop 'mode' được truyền vào
+    // Nếu mode là 'login' -> true (Hiện form đăng nhập)
+    // Nếu mode là 'signup' -> false (Hiện form đăng ký)
+    const [isLoginMode, setIsLoginMode] = useState(mode === 'login'); 
+    
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     
     // Form State
     const [phone, setPhone] = useState('');
-    const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState(''); // Chỉ dùng khi đăng ký
+    const [fullName, setFullName] = useState('');
+    const [password, setPassword] = useState(''); 
 
-    // Reset lỗi khi chuyển mode
+    // Hàm chuyển đổi qua lại giữa Login/Register
     const toggleMode = () => {
         setIsLoginMode(!isLoginMode);
         setErrorMsg('');
-        setPassword(''); // Clear pass cho an toàn
+        // Clear password khi chuyển mode để an toàn
+        setPassword('');
     };
 
-    const handleGoogleLogin = async () => { /* ...code cũ giữ nguyên... */ };
+    const handleGoogleLogin = async () => {
+        setIsLoading(true);
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.origin }
+            });
+            if (error) throw error;
+        } catch (err) {
+            setErrorMsg(err.message);
+            setIsLoading(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true); 
         setErrorMsg('');
 
+        // Validate
+        if (!phone || phone.length < 9) {
+            setIsLoading(false);
+            return setErrorMsg("Số điện thoại không hợp lệ");
+        }
+        if (!password || password.length < 6) {
+            setIsLoading(false);
+            return setErrorMsg("Mật khẩu phải từ 6 ký tự");
+        }
+        if (!isLoginMode && (!fullName || fullName.trim().length < 2)) {
+            setIsLoading(false);
+            return setErrorMsg("Vui lòng nhập họ tên");
+        }
+
         try {
-            // Chuẩn bị dữ liệu gửi lên
+            // Chuẩn bị payload
             const payload = { 
                 phone, 
                 password,
-                is_register: !isLoginMode, // Gửi cờ báo hiệu là Đăng ký hay Đăng nhập
+                is_register: !isLoginMode, // true nếu đang ở màn hình Đăng ký
                 full_name: !isLoginMode ? fullName : undefined
             };
 
@@ -145,8 +178,7 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
             onLoginSuccess(res.data.user);
             
         } catch (err) {
-            console.error(err);
-            setErrorMsg(err.response?.data?.error || "Lỗi hệ thống. Vui lòng thử lại.");
+            setErrorMsg(err.response?.data?.error || "Lỗi kết nối Server! Vui lòng thử lại.");
         } finally { 
             setIsLoading(false); 
         }
@@ -183,20 +215,21 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
 
                 <form onSubmit={handleSubmit}>
                     
-                    {/* 1. INPUT SỐ ĐIỆN THOẠI (Luôn hiện) */}
+                    {/* 1. SỐ ĐIỆN THOẠI (Luôn hiện) */}
                     <div style={{marginBottom: '15px', textAlign: 'left'}}>
                         <label style={{fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-secondary)'}}>SỐ ĐIỆN THOẠI</label>
-                        <input 
-                            type="tel" 
-                            placeholder="0987 654 321" 
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            required
-                            style={{width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none', fontWeight: '600'}}
-                        />
+                        <div style={{display: 'flex', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--bg-input)', overflow: 'hidden'}}>
+                            <input 
+                                type="tel" 
+                                placeholder="0987 654 321" 
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                style={{width: '100%', border: 'none', background: 'transparent', padding: '12px', color: 'var(--text-primary)', outline: 'none', fontWeight: '600'}}
+                            />
+                        </div>
                     </div>
 
-                    {/* 2. INPUT HỌ TÊN (Chỉ hiện khi ĐĂNG KÝ) */}
+                    {/* 2. HỌ TÊN (Chỉ hiện khi ĐĂNG KÝ) */}
                     {!isLoginMode && (
                         <div className="fade-in" style={{marginBottom: '15px', textAlign: 'left'}}>
                             <label style={{fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-secondary)'}}>HỌ VÀ TÊN</label>
@@ -205,13 +238,12 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
                                 placeholder="Nguyễn Văn A" 
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
-                                required={!isLoginMode}
-                                style={{width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none'}}
+                                style={{width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none', fontWeight: '600'}}
                             />
                         </div>
                     )}
 
-                    {/* 3. INPUT MẬT KHẨU (Luôn hiện) */}
+                    {/* 3. MẬT KHẨU (Luôn hiện) */}
                     <div style={{marginBottom: '25px', textAlign: 'left'}}>
                         <label style={{fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '6px', color: 'var(--text-secondary)'}}>MẬT KHẨU</label>
                         <input 
@@ -219,8 +251,7 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
                             placeholder="••••••" 
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            required
-                            style={{width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none'}}
+                            style={{width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none', fontWeight: '600'}}
                         />
                     </div>
 
@@ -242,7 +273,7 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
                     </span>
                 </div>
 
-                {/* GOOGLE LOGIN (OPTIONAL) */}
+                {/* GOOGLE LOGIN */}
                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '12px', margin: '25px 0'}}>
                     <div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>HOẶC<div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>
                 </div>
@@ -261,16 +292,13 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
 };
 
 // ==========================================
-// 3. DASHBOARD LAYOUT
+// 3. DASHBOARD LAYOUT & APP CONTROLLER
 // ==========================================
 const DashboardLayout = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
-
     const DashboardHeader = () => (
         <header className="main-header" style={{
-            background: 'var(--bg-secondary)', 
-            borderBottom: '1px solid var(--border-color)',
-            color: 'var(--text-primary)'
+            background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)'
         }}>
             <div className="logo">
                 <i className="fa-solid fa-atom fa-spin" style={{color: 'var(--accent-color)', fontSize: '24px'}}></i>
@@ -278,14 +306,9 @@ const DashboardLayout = ({ user, onLogout }) => {
             </div>
             <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
                 <div style={{textAlign: 'right'}}>
-                    <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)'}}>
-                        {user ? user.full_name : 'User'}
-                    </span>
-                    <span style={{fontSize: '11px', color: 'var(--accent-color)'}}>
-                        {user ? user.role : 'Member'}
-                    </span>
+                    <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)'}}>{user ? user.full_name : 'User'}</span>
+                    <span style={{fontSize: '11px', color: 'var(--accent-color)'}}>{user ? user.role : 'Member'}</span>
                 </div>
-                
                 {user?.avatar_url ? (
                     <img src={user.avatar_url} alt="Avt" style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--accent-color)'}} />
                 ) : (
@@ -293,7 +316,6 @@ const DashboardLayout = ({ user, onLogout }) => {
                         {user && user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
                     </div>
                 )}
-                
                 <button onClick={onLogout} style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', color: '#EF4444', padding: '8px 15px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: '600'}}>
                     <i className="fa-solid fa-right-from-bracket"></i> Logout
                 </button>
@@ -323,16 +345,12 @@ const DashboardLayout = ({ user, onLogout }) => {
     );
 };
 
-// ==========================================
-// APP CONTROLLER
-// ==========================================
 function App() {
     const [view, setView] = useState('home'); 
     const [currentUser, setCurrentUser] = useState(null);
 
     const navigateTo = (target) => setView(target);
 
-    // Lắng nghe sự kiện login từ Google
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
@@ -343,10 +361,7 @@ function App() {
                     avatar_url: session.user.user_metadata.avatar_url
                 };
                 setCurrentUser(googleUser);
-                
-                // [CONFIG AXIOS] Gắn header khi session tồn tại
                 setupAxiosUser(googleUser);
-                
                 setView('dashboard');
             }
         });
@@ -354,10 +369,7 @@ function App() {
 
     const handleLoginSuccess = (userData) => {
         setCurrentUser(userData);
-        
-        // [CONFIG AXIOS] Gắn header khi login thường
         setupAxiosUser(userData);
-        
         setView('dashboard');
     };
 
@@ -365,20 +377,16 @@ function App() {
         if(window.confirm("Bạn muốn đăng xuất?")) {
             await supabase.auth.signOut();
             setCurrentUser(null);
-            
-            // [CLEAR AXIOS] Xóa header khi logout
             setupAxiosUser(null);
-            
             setView('home'); 
         }
     };
 
-    // Render Views
     if (view === 'dashboard') return <DashboardLayout user={currentUser} onLogout={handleLogout} />;
     
-    // Gom chung login/signup vào một giao diện Auth duy nhất
+    // [FIXED] Truyền prop 'mode' vào AuthView
     if (view === 'login' || view === 'signup') return <AuthView mode={view} onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
-
+    
     return <HomeView onNavigate={navigateTo} />;
 }
 
