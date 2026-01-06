@@ -102,14 +102,19 @@ const HomeView = ({ onNavigate }) => {
 };
 
 // ==========================================
-// 2. MÀN HÌNH XÁC THỰC (PHONE LOGIN - NO OTP)
+// 2. MÀN HÌNH XÁC THỰC (PHONE LOGIN/REGISTER)
 // ==========================================
 const AuthView = ({ onLoginSuccess, onBack }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+    
+    // Form State
     const [phone, setPhone] = useState('');
+    const [fullName, setFullName] = useState('');
+    const [password, setPassword] = useState(''); // State mới cho Password
+    const [isRegistering, setIsRegistering] = useState(false); 
 
-    // Xử lý Google Login (Giữ nguyên)
+    // Google Login (Giữ nguyên)
     const handleGoogleLogin = async () => {
         setIsLoading(true);
         try {
@@ -124,29 +129,51 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
         }
     };
 
-    // Xử lý Login SĐT (Trực tiếp - Không OTP)
-    const handlePhoneLogin = async (e) => {
+    // Xử lý Login/Register SĐT
+    const handlePhoneSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true); 
         setErrorMsg('');
         
-        // Validate sơ bộ số điện thoại (9-11 số)
+        // Validate SĐT
         if (!phone || phone.length < 9 || !/^\d+$/.test(phone)) {
             setIsLoading(false);
             return setErrorMsg("Vui lòng nhập số điện thoại hợp lệ.");
         }
 
+        // Validate Form Đăng ký
+        if (isRegistering) {
+            if (!fullName || fullName.trim().length < 2) {
+                setIsLoading(false);
+                return setErrorMsg("Vui lòng nhập họ tên đầy đủ.");
+            }
+            if (!password || password.length < 6) {
+                setIsLoading(false);
+                return setErrorMsg("Mật khẩu phải có ít nhất 6 ký tự.");
+            }
+        }
+
         try {
-            // Gọi API Login thẳng
-            const res = await axios.post(`${API_BASE_URL}/api/auth/phone-login`, { phone });
+            // Gửi request: Nếu đang đăng ký thì gửi kèm tên và mật khẩu
+            const payload = { 
+                phone, 
+                full_name: isRegistering ? fullName : undefined,
+                password: isRegistering ? password : undefined 
+            };
+
+            const res = await axios.post(`${API_BASE_URL}/api/auth/phone-login`, payload);
             
-            // Login thành công ngay lập tức -> Vào Dashboard
-            // Server trả về object user đầy đủ
+            // Thành công -> Login luôn
             onLoginSuccess(res.data.user);
             
         } catch (err) {
-            console.error("Login Error:", err);
-            setErrorMsg(err.response?.data?.error || "Lỗi kết nối Server! Vui lòng thử lại.");
+            // Nếu lỗi 404 USER_NOT_FOUND -> Chuyển sang chế độ Đăng ký
+            if (err.response && err.response.status === 404 && err.response.data.error === "USER_NOT_FOUND") {
+                setIsRegistering(true); // Mở form đăng ký (gồm Tên + Pass)
+                setErrorMsg(""); // Xóa thông báo lỗi cũ
+            } else {
+                setErrorMsg(err.response?.data?.error || "Lỗi kết nối Server!");
+            }
         } finally { 
             setIsLoading(false); 
         }
@@ -167,9 +194,11 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
             <div className="card-common" style={{width: '400px', padding: '40px', borderRadius: '20px', textAlign: 'center'}}>
                 
                 <div style={{marginBottom: '30px'}}>
-                    <h2 style={{fontSize: '24px', margin: '0 0 10px 0'}}>Chào mừng trở lại!</h2>
+                    <h2 style={{fontSize: '24px', margin: '0 0 10px 0'}}>
+                        {isRegistering ? 'Thiết lập tài khoản' : 'Chào mừng trở lại!'}
+                    </h2>
                     <p style={{fontSize: '13px', color: 'var(--text-secondary)', margin: 0}}>
-                        Đăng nhập để tiếp tục quản lý tuyển dụng
+                        {isRegistering ? 'Bổ sung thông tin để bảo vệ tài khoản' : 'Đăng nhập để tiếp tục quản lý tuyển dụng'}
                     </p>
                 </div>
 
@@ -179,22 +208,27 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
                     </div>
                 )}
 
-                {/* Google Login */}
-                <button onClick={handleGoogleLogin} style={{
-                    width: '100%', padding: '12px', borderRadius: '10px', 
-                    background: '#FFFFFF', color: '#000', border: '1px solid #ddd', 
-                    cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '25px'
-                }}>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" width="20" />
-                    Tiếp tục với Google
-                </button>
+                {/* Chỉ hiện Google Login khi chưa vào mode đăng ký */}
+                {!isRegistering && (
+                    <>
+                        <button onClick={handleGoogleLogin} style={{
+                            width: '100%', padding: '12px', borderRadius: '10px', 
+                            background: '#FFFFFF', color: '#000', border: '1px solid #ddd', 
+                            cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '25px'
+                        }}>
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" width="20" />
+                            Tiếp tục với Google
+                        </button>
 
-                <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '25px'}}>
-                    <div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>HOẶC<div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>
-                </div>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '25px'}}>
+                            <div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>HOẶC<div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>
+                        </div>
+                    </>
+                )}
 
-                {/* Phone Form */}
-                <form onSubmit={handlePhoneLogin}>
+                <form onSubmit={handlePhoneSubmit}>
+                    
+                    {/* INPUT: SỐ ĐIỆN THOẠI */}
                     <div style={{marginBottom: '20px', textAlign: 'left'}}>
                         <label style={{fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '8px', color: 'var(--text-secondary)'}}>SỐ ĐIỆN THOẠI</label>
                         <div style={{display: 'flex', border: '1px solid var(--border-color)', borderRadius: '10px', background: 'var(--bg-input)', overflow: 'hidden'}}>
@@ -204,14 +238,52 @@ const AuthView = ({ onLoginSuccess, onBack }) => {
                                 placeholder="987 654 321" 
                                 value={phone}
                                 onChange={(e) => setPhone(e.target.value)}
-                                style={{flex: 1, border: 'none', background: 'transparent', padding: '12px', color: 'var(--text-primary)', outline: 'none', fontWeight: '600'}}
-                                autoFocus
+                                disabled={isRegistering} 
+                                style={{flex: 1, border: 'none', background: 'transparent', padding: '12px', color: 'var(--text-primary)', outline: 'none', fontWeight: '600', opacity: isRegistering ? 0.6 : 1}}
+                                autoFocus={!isRegistering}
                             />
                         </div>
                     </div>
+
+                    {/* FORM ĐĂNG KÝ (HIỆN KHI USER MỚI) */}
+                    {isRegistering && (
+                        <div className="fade-in">
+                            {/* INPUT: HỌ TÊN */}
+                            <div style={{marginBottom: '20px', textAlign: 'left'}}>
+                                <label style={{fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '8px', color: 'var(--text-secondary)'}}>HỌ VÀ TÊN</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ví dụ: Nguyễn Văn A" 
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    style={{width: '100%', padding: '12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none', fontWeight: '600'}}
+                                    autoFocus
+                                />
+                            </div>
+
+                            {/* INPUT: MẬT KHẨU */}
+                            <div style={{marginBottom: '20px', textAlign: 'left'}}>
+                                <label style={{fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '8px', color: 'var(--text-secondary)'}}>TẠO MẬT KHẨU</label>
+                                <input 
+                                    type="password" 
+                                    placeholder="••••••" 
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    style={{width: '100%', padding: '12px', borderRadius: '10px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none', fontWeight: '600'}}
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     <button type="submit" className="btn-primary" style={{width: '100%', padding: '14px', borderRadius: '10px'}} disabled={isLoading}>
-                        {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : 'Vào hệ thống ngay'}
+                        {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : (isRegistering ? 'Hoàn tất Đăng ký' : 'Tiếp tục')}
                     </button>
+
+                    {isRegistering && (
+                        <p style={{fontSize: '13px', marginTop: '15px', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline'}} onClick={() => setIsRegistering(false)}>
+                            Quay lại
+                        </p>
+                    )}
                 </form>
 
             </div>
