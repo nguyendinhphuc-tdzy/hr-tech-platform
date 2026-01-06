@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Full Version: Auth, User Isolation, Account Settings with OTP & Bug Fixes) */
+/* FILE: backend/server.js (Full Version: Auth Phone No-OTP, User Isolation & Bug Fixes) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -30,7 +30,7 @@ const pool = new Pool({
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// --- CẤU HÌNH GỬI MAIL (NODEMAILER) ---
+// --- CẤU HÌNH GỬI MAIL (Optional - Giữ lại nếu cần thông báo khác) ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -44,11 +44,15 @@ const transporter = nodemailer.createTransport({
 // ==========================================
 const requireAuth = (req, res, next) => {
     const userEmail = req.headers['x-user-email'];
+    // Lưu ý: Với luồng Phone Login, userEmail có thể là Số điện thoại hoặc chuỗi định danh
+    // Frontend cần gửi identifier (email hoặc phone) vào header này
+    
     if (!userEmail) {
         console.warn("⚠️ Blocked request missing x-user-email header");
         return res.status(401).json({ error: "Unauthorized: Vui lòng đăng nhập lại để tiếp tục." });
     }
-    req.userEmail = userEmail;
+    
+    req.userEmail = userEmail; // Gán định danh người dùng vào request
     next();
 };
 
@@ -120,25 +124,55 @@ ${STRICT_RUBRIC}
 }
 
 // ==========================================
-// 1. API AUTH & ACCOUNT SETTINGS
+// 1. API AUTH: PHONE LOGIN (DIRECT - NO OTP)
 // ==========================================
 
-// Đăng ký
-app.post('/api/auth/signup', async (req, res) => {
+// Đăng nhập bằng SĐT (Tự động tạo user nếu chưa có)
+app.post('/api/auth/phone-login', async (req, res) => {
     try {
-        const { fullName, email, password } = req.body;
-        const checkUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (checkUser.rows.length > 0) return res.status(400).json({ error: "Email đã tồn tại!" });
+        const { phone } = req.body;
+        
+        // 1. Validate cơ bản
+        if (!phone || phone.length < 9) {
+            return res.status(400).json({ error: "Số điện thoại không hợp lệ" });
+        }
 
-        const result = await pool.query(
-            `INSERT INTO users (full_name, email, password, role) VALUES ($1, $2, $3, 'Admin Access') RETURNING *`,
-            [fullName, email, password]
-        );
-        res.json({ message: "Đăng ký thành công!", user: result.rows[0] });
-    } catch (err) { res.status(500).json({ error: "Lỗi hệ thống: " + err.message }); }
+        // 2. Kiểm tra xem User đã tồn tại chưa
+        // Lưu ý: Cần đảm bảo cột phone_number đã tồn tại trong DB
+        let userResult = await pool.query('SELECT * FROM users WHERE phone_number = $1', [phone]);
+        let user = userResult.rows[0];
+
+        // 3. Nếu chưa có -> Tạo mới (Register)
+        if (!user) {
+            // Tạo tên hiển thị mặc định
+            const defaultName = `User ${phone.slice(-4)}`; 
+            
+            const newUser = await pool.query(
+                `INSERT INTO users (full_name, phone_number, email, role) 
+                 VALUES ($1, $2, NULL, 'User') RETURNING *`, // Email để NULL
+                [defaultName, phone]
+            );
+            user = newUser.rows[0];
+        }
+
+        // 4. Trả về thông tin User để Frontend lưu session
+        // Frontend cần dùng user.phone_number (hoặc user.email nếu có) để làm header x-user-email
+        res.json({ 
+            message: "Đăng nhập thành công!", 
+            user: {
+                ...user,
+                // Ưu tiên trả về định danh để FE dùng làm key
+                email: user.email || user.phone_number // Fallback email = phone nếu null
+            }
+        });
+
+    } catch (err) {
+        console.error("Phone Login Error:", err);
+        res.status(500).json({ error: "Lỗi Server: " + err.message });
+    }
 });
 
-// Đăng nhập
+// Giữ lại API Google Login cũ để hỗ trợ cả 2
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -150,16 +184,7 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Lỗi: " + err.message }); }
 });
 
-// [NEW] Lấy thông tin Profile
-app.get('/api/account/profile', requireAuth, async (req, res) => {
-    try {
-        const result = await pool.query('SELECT full_name, email, role FROM users WHERE email = $1', [req.userEmail]);
-        if (result.rows.length === 0) return res.status(404).json({ error: "User not found" });
-        res.json(result.rows[0]);
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// Cập nhật Profile (Tên hiển thị)
+// [NEW] Cập nhật Profile (Hỗ trợ cả User Phone và User Email)
 app.put('/api/account/profile', requireAuth, async (req, res) => {
     try {
         const { full_name } = req.body;
@@ -167,77 +192,28 @@ app.put('/api/account/profile', requireAuth, async (req, res) => {
             return res.status(400).json({ error: "Tên hiển thị quá ngắn." });
         }
         
-        const result = await pool.query(
-            'UPDATE users SET full_name = $1 WHERE email = $2 RETURNING full_name, email, role',
-            [full_name, req.userEmail]
-        );
+        // Logic cập nhật: Tìm theo email HOẶC phone_number
+        // req.userEmail ở đây đóng vai trò là "User ID" (có thể là email hoặc sđt)
+        const isPhone = /^\d+$/.test(req.userEmail); // Kiểm tra nếu header là số -> Phone
+
+        let query = '';
+        let params = [];
+
+        if (isPhone) {
+            query = 'UPDATE users SET full_name = $1 WHERE phone_number = $2 RETURNING full_name, email, phone_number, role';
+            params = [full_name, req.userEmail];
+        } else {
+            query = 'UPDATE users SET full_name = $1 WHERE email = $2 RETURNING full_name, email, phone_number, role';
+            params = [full_name, req.userEmail];
+        }
+        
+        const result = await pool.query(query, params);
+        
+        if (result.rowCount === 0) return res.status(404).json({ error: "User not found" });
+
         res.json({ message: "Cập nhật tên thành công!", user: result.rows[0] });
     } catch (err) {
         console.error("Profile Error:", err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Yêu cầu OTP (Gửi Mail)
-app.post('/api/account/request-otp', requireAuth, async (req, res) => {
-    try {
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 5 * 60000); // 5 phút
-
-        const updateRes = await pool.query(
-            'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE email = $3',
-            [otp, expiresAt, req.userEmail]
-        );
-
-        if (updateRes.rowCount === 0) return res.status(404).json({ error: "Không tìm thấy user." });
-
-        const mailOptions = {
-            from: '"HR Tech Security" <no-reply@hrtech.com>',
-            to: req.userEmail,
-            subject: '🔐 Mã OTP Đổi Mật Khẩu - HR Tech',
-            html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                    <h2 style="color: #2EFF7B;">HR Tech Platform</h2>
-                    <p>Mã xác thực đổi mật khẩu của bạn là:</p>
-                    <h1 style="background: #f4f4f4; padding: 10px; display: inline-block; letter-spacing: 5px;">${otp}</h1>
-                    <p>Mã này hết hạn sau 5 phút.</p>
-                </div>
-            `
-        };
-
-        await transporter.sendMail(mailOptions);
-        res.json({ message: "Đã gửi OTP qua email!" });
-
-    } catch (err) {
-        console.error("OTP Mail Error:", err);
-        res.status(500).json({ error: "Lỗi gửi mail: " + err.message });
-    }
-});
-
-// Xác nhận OTP & Đổi Mật Khẩu
-app.put('/api/account/change-password', requireAuth, async (req, res) => {
-    try {
-        const { otp, newPassword } = req.body;
-        if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "Mật khẩu quá ngắn." });
-
-        const userRes = await pool.query('SELECT * FROM users WHERE email = $1', [req.userEmail]);
-        const user = userRes.rows[0];
-
-        if (!user.otp_code || user.otp_code !== otp) {
-            return res.status(400).json({ error: "Mã OTP không đúng!" });
-        }
-        if (new Date() > new Date(user.otp_expires_at)) {
-            return res.status(400).json({ error: "Mã OTP đã hết hạn!" });
-        }
-
-        await pool.query(
-            'UPDATE users SET password = $1, otp_code = NULL, otp_expires_at = NULL WHERE email = $2',
-            [newPassword, req.userEmail]
-        );
-
-        res.json({ message: "Đổi mật khẩu thành công!" });
-
-    } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
@@ -254,15 +230,13 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
         const safeName = sanitizeFilename(req.file.originalname);
         const fileName = `${Date.now()}_${safeName}`;
         
-        // FIX: Thêm await và xử lý lỗi chặt chẽ hơn
         const { error: uploadError } = await supabase.storage.from('cv_uploads').upload(fileName, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
         
         if (uploadError) {
             console.error("❌ Lỗi Storage:", uploadError);
-            return res.status(500).json({ error: "Lỗi khi upload file lên Storage. Vui lòng thử lại." });
+            return res.status(500).json({ error: "Lỗi khi upload file lên Storage." });
         }
 
-        // Lấy Public URL sau khi chắc chắn upload thành công
         const { data: { publicUrl } } = supabase.storage.from('cv_uploads').getPublicUrl(fileName);
 
         // 2. AI Processing
@@ -306,7 +280,7 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
                 finalScore, 
                 JSON.stringify(aiResult), 
                 publicUrl, 
-                req.userEmail 
+                req.userEmail // <--- Lưu định danh user (Email hoặc Phone)
             ]
         );
 
@@ -332,7 +306,6 @@ app.get('/api/candidates', requireAuth, async (req, res) => {
 });
 
 app.get('/api/jobs', async (req, res) => { 
-    // Jobs có thể public hoặc private tùy logic, hiện tại để public
     const r = await pool.query('SELECT * FROM job_positions ORDER BY id DESC'); 
     res.json(r.rows); 
 });
