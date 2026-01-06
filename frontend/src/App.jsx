@@ -20,9 +20,13 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // --- HÀM CẤU HÌNH AXIOS ---
 const setupAxiosUser = (user) => {
-    if (user && user.email) {
-        axios.defaults.headers.common['x-user-email'] = user.email;
-        console.log("✅ Đã cấu hình Axios cho user:", user.email);
+    if (user) {
+        // Ưu tiên dùng email, nếu không có thì dùng số điện thoại làm định danh
+        const identifier = user.email || user.phone_number;
+        if (identifier) {
+            axios.defaults.headers.common['x-user-email'] = identifier;
+            console.log("✅ Đã cấu hình Axios cho user:", identifier);
+        }
     } else {
         delete axios.defaults.headers.common['x-user-email'];
         console.log("🔒 Đã xóa cấu hình Axios user");
@@ -72,8 +76,6 @@ const HomeView = ({ onNavigate }) => {
                 Tự động hóa quy trình sàng lọc CV, quản lý thực tập sinh và tối ưu hóa nhân sự. Giúp bạn tìm kiếm ứng viên tài năng nhanh hơn 10x.
             </p>
             
-            {/* --- [SỬA ĐỔI QUAN TRỌNG TẠI ĐÂY] --- */}
-            {/* Chuyển sang dùng var(--accent-color) và chữ đen #000 để luôn nổi bật và rõ ràng trên mọi nền */}
             <button onClick={() => onNavigate('signup')} style={{
                 padding: '16px 45px', 
                 fontSize: '16px', 
@@ -81,9 +83,9 @@ const HomeView = ({ onNavigate }) => {
                 borderRadius: '50px', 
                 border: 'none', 
                 cursor: 'pointer', 
-                background: 'var(--accent-color)',  /* Dùng màu Neon xanh */
-                color: '#000',                      /* Chữ đen (tương phản tốt với xanh Neon) */
-                boxShadow: '0 10px 30px var(--accent-glow)', /* Hiệu ứng phát sáng */
+                background: 'var(--accent-color)', 
+                color: '#000',
+                boxShadow: '0 10px 30px var(--accent-glow)',
                 transition: 'transform 0.2s'
             }}
             onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
@@ -91,8 +93,6 @@ const HomeView = ({ onNavigate }) => {
             >
                 Bắt đầu miễn phí
             </button>
-            {/* ------------------------------------ */}
-
         </div>
 
         {/* FOOTER */}
@@ -102,18 +102,14 @@ const HomeView = ({ onNavigate }) => {
 };
 
 // ==========================================
-// 2. MÀN HÌNH XÁC THỰC
+// 2. MÀN HÌNH XÁC THỰC (PHONE LOGIN - NO OTP)
 // ==========================================
-const AuthView = ({ mode, onLoginSuccess, onBack }) => {
-    const isLogin = mode === 'login';
+const AuthView = ({ onLoginSuccess, onBack }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
-    const [formData, setFormData] = useState({ fullName: '', email: '', password: '' });
+    const [phone, setPhone] = useState('');
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
+    // Xử lý Google Login (Giữ nguyên)
     const handleGoogleLogin = async () => {
         setIsLoading(true);
         try {
@@ -128,23 +124,31 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
         }
     };
 
-    const handleSubmit = async (e) => {
+    // Xử lý Login SĐT (Trực tiếp - Không OTP)
+    const handlePhoneLogin = async (e) => {
         e.preventDefault();
-        setIsLoading(true);
+        setIsLoading(true); 
         setErrorMsg('');
-        try {
-            if (isLogin) {
-                const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email: formData.email, password: formData.password });
-                onLoginSuccess(res.data.user);
-            } else {
-                const res = await axios.post(`${API_BASE_URL}/api/auth/signup`, { fullName: formData.fullName, email: formData.email, password: formData.password });
-                alert("Đăng ký thành công!");
-                onLoginSuccess(res.data.user);
-            }
-        } catch (err) {
-            setErrorMsg(err.response?.data?.error || "Lỗi kết nối Server!");
-        } finally {
+        
+        // Validate sơ bộ số điện thoại (9-11 số)
+        if (!phone || phone.length < 9 || !/^\d+$/.test(phone)) {
             setIsLoading(false);
+            return setErrorMsg("Vui lòng nhập số điện thoại hợp lệ.");
+        }
+
+        try {
+            // Gọi API Login thẳng
+            const res = await axios.post(`${API_BASE_URL}/api/auth/phone-login`, { phone });
+            
+            // Login thành công ngay lập tức -> Vào Dashboard
+            // Server trả về object user đầy đủ
+            onLoginSuccess(res.data.user);
+            
+        } catch (err) {
+            console.error("Login Error:", err);
+            setErrorMsg(err.response?.data?.error || "Lỗi kết nối Server! Vui lòng thử lại.");
+        } finally { 
+            setIsLoading(false); 
         }
     };
 
@@ -157,68 +161,75 @@ const AuthView = ({ mode, onLoginSuccess, onBack }) => {
             transition: 'background-color 0.3s ease'
         }}>
             <button onClick={onBack} style={{position: 'absolute', top: '20px', left: '20px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '16px'}}>
-                <i className="fa-solid fa-arrow-left"></i> Quay lại trang chủ
+                <i className="fa-solid fa-arrow-left"></i> Trang chủ
             </button>
 
-            <div style={{width: '420px', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', boxShadow: 'var(--card-shadow)'}}>
-                <div style={{textAlign: 'center', marginBottom: '30px'}}>
-                    <h2 style={{fontSize: '28px', color: 'var(--text-primary)', marginBottom: '10px'}}>{isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}</h2>
+            <div className="card-common" style={{width: '400px', padding: '40px', borderRadius: '20px', textAlign: 'center'}}>
+                
+                <div style={{marginBottom: '30px'}}>
+                    <h2 style={{fontSize: '24px', margin: '0 0 10px 0'}}>Chào mừng trở lại!</h2>
+                    <p style={{fontSize: '13px', color: 'var(--text-secondary)', margin: 0}}>
+                        Đăng nhập để tiếp tục quản lý tuyển dụng
+                    </p>
                 </div>
 
                 {errorMsg && (
-                    <div style={{background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', padding: '10px', borderRadius: '6px', fontSize: '13px', marginBottom: '15px', border: '1px solid var(--danger-color)', textAlign: 'center'}}>
+                    <div style={{background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '20px', border: '1px solid var(--danger-color)'}}>
                         <i className="fa-solid fa-circle-exclamation"></i> {errorMsg}
                     </div>
                 )}
 
-                <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px'}}>
-                    <button type="button" onClick={handleGoogleLogin} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '12px', borderRadius: '6px', background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', cursor: 'pointer', fontWeight: '600'}}>
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="20" />
-                        {isLogin ? 'Đăng nhập với Google' : 'Đăng ký với Google'}
-                    </button>
-                    <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '12px'}}>
-                        <div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>HOẶC<div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>
-                    </div>
+                {/* Google Login */}
+                <button onClick={handleGoogleLogin} style={{
+                    width: '100%', padding: '12px', borderRadius: '10px', 
+                    background: '#FFFFFF', color: '#000', border: '1px solid #ddd', 
+                    cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '25px'
+                }}>
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="G" width="20" />
+                    Tiếp tục với Google
+                </button>
+
+                <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '25px'}}>
+                    <div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>HOẶC<div style={{flex: 1, height: '1px', background: 'var(--border-color)'}}></div>
                 </div>
 
-                <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                    {!isLogin && (
-                         <div>
-                            <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>HỌ VÀ TÊN</label>
-                            <input name="fullName" type="text" placeholder="Ví dụ: Nguyễn Văn A" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none'}} />
+                {/* Phone Form */}
+                <form onSubmit={handlePhoneLogin}>
+                    <div style={{marginBottom: '20px', textAlign: 'left'}}>
+                        <label style={{fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '8px', color: 'var(--text-secondary)'}}>SỐ ĐIỆN THOẠI</label>
+                        <div style={{display: 'flex', border: '1px solid var(--border-color)', borderRadius: '10px', background: 'var(--bg-input)', overflow: 'hidden'}}>
+                            <span style={{padding: '12px', background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px'}}>+84</span>
+                            <input 
+                                type="tel" 
+                                placeholder="987 654 321" 
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                style={{flex: 1, border: 'none', background: 'transparent', padding: '12px', color: 'var(--text-primary)', outline: 'none', fontWeight: '600'}}
+                                autoFocus
+                            />
                         </div>
-                    )}
-                    <div>
-                        <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>EMAIL</label>
-                        <input name="email" type="email" placeholder="admin@hrtech.com" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none'}} />
                     </div>
-                    <div>
-                        <label style={{fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '8px'}}>MẬT KHẨU</label>
-                        <input name="password" type="password" placeholder="••••••" required onChange={handleChange} style={{width: '100%', padding: '12px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none'}} />
-                    </div>
-
-                    <button type="submit" style={{marginTop: '10px', background: 'var(--accent-color)', color: '#000', fontWeight: '700', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', opacity: isLoading ? 0.7 : 1}} disabled={isLoading}>
-                        {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : (isLogin ? 'Truy cập hệ thống' : 'Đăng ký miễn phí')}
+                    <button type="submit" className="btn-primary" style={{width: '100%', padding: '14px', borderRadius: '10px'}} disabled={isLoading}>
+                        {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : 'Vào hệ thống ngay'}
                     </button>
                 </form>
 
-                <p style={{textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-secondary)'}}>
-                    {isLogin ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
-                    <span onClick={onBack} style={{color: 'var(--accent-color)', cursor: 'pointer', textDecoration: 'underline'}}>{isLogin ? 'Đăng ký ngay' : 'Đăng nhập'}</span>
-                </p>
             </div>
         </div>
     );
 };
 
 // ==========================================
-// 3. DASHBOARD LAYOUT & APP CONTROLLER (GIỮ NGUYÊN)
+// 3. DASHBOARD LAYOUT
 // ==========================================
 const DashboardLayout = ({ user, onLogout }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
+
     const DashboardHeader = () => (
         <header className="main-header" style={{
-            background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)'
+            background: 'var(--bg-secondary)', 
+            borderBottom: '1px solid var(--border-color)',
+            color: 'var(--text-primary)'
         }}>
             <div className="logo">
                 <i className="fa-solid fa-atom fa-spin" style={{color: 'var(--accent-color)', fontSize: '24px'}}></i>
@@ -226,9 +237,14 @@ const DashboardLayout = ({ user, onLogout }) => {
             </div>
             <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
                 <div style={{textAlign: 'right'}}>
-                    <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)'}}>{user ? user.full_name : 'User'}</span>
-                    <span style={{fontSize: '11px', color: 'var(--accent-color)'}}>{user ? user.role : 'Member'}</span>
+                    <span style={{display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)'}}>
+                        {user ? user.full_name : 'User'}
+                    </span>
+                    <span style={{fontSize: '11px', color: 'var(--accent-color)'}}>
+                        {user ? user.role : 'Member'}
+                    </span>
                 </div>
+                
                 {user?.avatar_url ? (
                     <img src={user.avatar_url} alt="Avt" style={{width: '35px', height: '35px', borderRadius: '50%', border: '2px solid var(--accent-color)'}} />
                 ) : (
@@ -236,6 +252,7 @@ const DashboardLayout = ({ user, onLogout }) => {
                         {user && user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
                     </div>
                 )}
+                
                 <button onClick={onLogout} style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', color: '#EF4444', padding: '8px 15px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: '600'}}>
                     <i className="fa-solid fa-right-from-bracket"></i> Logout
                 </button>
@@ -249,7 +266,7 @@ const DashboardLayout = ({ user, onLogout }) => {
             case 'ai-scan': return <CVScanView />;
             case 'intern-book': return <InternBook />;
             case 'ai-training': return <AITraining />;
-            case 'settings': return <AccountSettings user={user} onUpdateUser={(u) => console.log("Updated", u)} />; // <--- ROUTE MỚI
+            case 'settings': return <AccountSettings user={user} onUpdateUser={(u) => console.log("Updated", u)} />;
             default: return <Dashboard />;
         }
     };
@@ -265,12 +282,16 @@ const DashboardLayout = ({ user, onLogout }) => {
     );
 };
 
+// ==========================================
+// APP CONTROLLER
+// ==========================================
 function App() {
     const [view, setView] = useState('home'); 
     const [currentUser, setCurrentUser] = useState(null);
 
     const navigateTo = (target) => setView(target);
 
+    // Lắng nghe sự kiện login từ Google
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
@@ -281,7 +302,10 @@ function App() {
                     avatar_url: session.user.user_metadata.avatar_url
                 };
                 setCurrentUser(googleUser);
+                
+                // [CONFIG AXIOS] Gắn header khi session tồn tại
                 setupAxiosUser(googleUser);
+                
                 setView('dashboard');
             }
         });
@@ -289,7 +313,10 @@ function App() {
 
     const handleLoginSuccess = (userData) => {
         setCurrentUser(userData);
+        
+        // [CONFIG AXIOS] Gắn header khi login thường
         setupAxiosUser(userData);
+        
         setView('dashboard');
     };
 
@@ -297,13 +324,20 @@ function App() {
         if(window.confirm("Bạn muốn đăng xuất?")) {
             await supabase.auth.signOut();
             setCurrentUser(null);
+            
+            // [CLEAR AXIOS] Xóa header khi logout
             setupAxiosUser(null);
+            
             setView('home'); 
         }
     };
 
+    // Render Views
     if (view === 'dashboard') return <DashboardLayout user={currentUser} onLogout={handleLogout} />;
+    
+    // Gom chung login/signup vào một giao diện Auth duy nhất
     if (view === 'login' || view === 'signup') return <AuthView mode={view} onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
+
     return <HomeView onNavigate={navigateTo} />;
 }
 
