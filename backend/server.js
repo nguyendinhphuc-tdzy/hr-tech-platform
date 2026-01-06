@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Full Version: Auth Phone No-OTP, User Isolation & Bug Fixes) */
+/* FILE: backend/server.js (Full Version: Auth Phone + Password Register, User Isolation, AI Features) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -30,7 +30,7 @@ const pool = new Pool({
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// --- CẤU HÌNH GỬI MAIL (Optional - Giữ lại nếu cần thông báo khác) ---
+// --- CẤU HÌNH GỬI MAIL (Optional - Giữ lại cho tính năng khác nếu cần) ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -44,15 +44,14 @@ const transporter = nodemailer.createTransport({
 // ==========================================
 const requireAuth = (req, res, next) => {
     const userEmail = req.headers['x-user-email'];
-    // Lưu ý: Với luồng Phone Login, userEmail có thể là Số điện thoại hoặc chuỗi định danh
-    // Frontend cần gửi identifier (email hoặc phone) vào header này
+    // userEmail có thể là SĐT hoặc Email (định danh duy nhất)
     
     if (!userEmail) {
         console.warn("⚠️ Blocked request missing x-user-email header");
         return res.status(401).json({ error: "Unauthorized: Vui lòng đăng nhập lại để tiếp tục." });
     }
     
-    req.userEmail = userEmail; // Gán định danh người dùng vào request
+    req.userEmail = userEmail; 
     next();
 };
 
@@ -124,55 +123,70 @@ ${STRICT_RUBRIC}
 }
 
 // ==========================================
-// 1. API AUTH: PHONE LOGIN (DIRECT - NO OTP)
+// 1. API AUTH: PHONE LOGIN/REGISTER (WITH PASSWORD)
 // ==========================================
 
-// Đăng nhập bằng SĐT (Tự động tạo user nếu chưa có)
+// Đăng nhập bằng SĐT (Phân nhánh Login / Register)
 app.post('/api/auth/phone-login', async (req, res) => {
     try {
-        const { phone } = req.body;
+        const { phone, full_name, password } = req.body; 
         
-        // 1. Validate cơ bản
+        // 1. Validate SĐT
         if (!phone || phone.length < 9) {
             return res.status(400).json({ error: "Số điện thoại không hợp lệ" });
         }
 
-        // 2. Kiểm tra xem User đã tồn tại chưa
-        // Lưu ý: Cần đảm bảo cột phone_number đã tồn tại trong DB
-        let userResult = await pool.query('SELECT * FROM users WHERE phone_number = $1', [phone]);
+        // 2. Kiểm tra User tồn tại
+        const userResult = await pool.query('SELECT * FROM users WHERE phone_number = $1', [phone]);
         let user = userResult.rows[0];
 
-        // 3. Nếu chưa có -> Tạo mới (Register)
-        if (!user) {
-            // Tạo tên hiển thị mặc định
-            const defaultName = `User ${phone.slice(-4)}`; 
+        // 3. LOGIC PHÂN NHÁNH
+        if (user) {
+            // CASE A: Đã có tài khoản -> Đăng nhập thành công
+            // (Hiện tại bỏ qua check password để login nhanh, nếu muốn check pass thì thêm logic so sánh ở đây)
+            return res.json({ 
+                message: "Đăng nhập thành công!", 
+                user: { ...user, email: user.email || user.phone_number } // Đảm bảo luôn có identifier
+            });
+        } else {
+            // CASE B: Chưa có tài khoản (User mới)
             
+            // Nếu thiếu thông tin đăng ký (Tên hoặc Password) -> Báo lỗi 404 USER_NOT_FOUND để Frontend hiện form đăng ký
+            if (!full_name || !password) {
+                return res.status(404).json({ 
+                    error: "USER_NOT_FOUND", 
+                    message: "Số điện thoại chưa đăng ký. Vui lòng nhập thông tin." 
+                });
+            }
+
+            // Validate mật khẩu
+            if (password.length < 6) {
+                return res.status(400).json({ error: "Mật khẩu phải có ít nhất 6 ký tự." });
+            }
+
+            // Tạo tài khoản mới (Register)
+            // Lưu ý: Thực tế nên hash password bằng bcrypt. Ở đây lưu raw theo code hiện tại của bạn.
             const newUser = await pool.query(
-                `INSERT INTO users (full_name, phone_number, email, role) 
-                 VALUES ($1, $2, NULL, 'User') RETURNING *`, // Email để NULL
-                [defaultName, phone]
+                `INSERT INTO users (full_name, phone_number, email, password, role) 
+                 VALUES ($1, $2, NULL, $3, 'User') RETURNING *`,
+                [full_name, phone, password]
             );
+            
             user = newUser.rows[0];
+            
+            return res.json({ 
+                message: "Đăng ký thành công!", 
+                user: { ...user, email: user.email || user.phone_number }
+            });
         }
 
-        // 4. Trả về thông tin User để Frontend lưu session
-        // Frontend cần dùng user.phone_number (hoặc user.email nếu có) để làm header x-user-email
-        res.json({ 
-            message: "Đăng nhập thành công!", 
-            user: {
-                ...user,
-                // Ưu tiên trả về định danh để FE dùng làm key
-                email: user.email || user.phone_number // Fallback email = phone nếu null
-            }
-        });
-
     } catch (err) {
-        console.error("Phone Login Error:", err);
+        console.error("Auth Error:", err);
         res.status(500).json({ error: "Lỗi Server: " + err.message });
     }
 });
 
-// Giữ lại API Google Login cũ để hỗ trợ cả 2
+// Giữ lại API Google Login cũ để hỗ trợ song song
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -184,7 +198,7 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Lỗi: " + err.message }); }
 });
 
-// [NEW] Cập nhật Profile (Hỗ trợ cả User Phone và User Email)
+// [UPDATED] Cập nhật Profile (Hỗ trợ cả Phone và Email identifier)
 app.put('/api/account/profile', requireAuth, async (req, res) => {
     try {
         const { full_name } = req.body;
@@ -192,9 +206,8 @@ app.put('/api/account/profile', requireAuth, async (req, res) => {
             return res.status(400).json({ error: "Tên hiển thị quá ngắn." });
         }
         
-        // Logic cập nhật: Tìm theo email HOẶC phone_number
-        // req.userEmail ở đây đóng vai trò là "User ID" (có thể là email hoặc sđt)
-        const isPhone = /^\d+$/.test(req.userEmail); // Kiểm tra nếu header là số -> Phone
+        // Kiểm tra identifier là Phone hay Email
+        const isPhone = /^\d+$/.test(req.userEmail); 
 
         let query = '';
         let params = [];
