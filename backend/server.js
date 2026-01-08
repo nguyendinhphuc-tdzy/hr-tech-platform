@@ -17,7 +17,7 @@ app.use(cors());
 app.use(express.json());
 
 // --- CẤU HÌNH ---
-let ACTIVE_MODEL_NAME = "gemini-1.5-flash"; // Dùng bản 1.5 ổn định hơn
+let ACTIVE_MODEL_NAME = "gemini-2.5-flash"; // Dùng bản 1.5 ổn định hơn
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
