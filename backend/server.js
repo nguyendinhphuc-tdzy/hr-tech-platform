@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Final Fix: PDF Import & Variable Renaming) */
+/* FILE: backend/server.js (Fixed: PDF Import Variable Name Mismatch) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -8,7 +8,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { createClient } = require('@supabase/supabase-js');
 const csv = require('csv-parser');
 const mammoth = require('mammoth'); 
-const pdfParse = require('pdf-parse'); // <--- ĐỔI TÊN BIẾN ĐỂ TRÁNH XUNG ĐỘT
+const pdfParse = require('pdf-parse'); // <--- SỬA TÊN BIẾN Ở ĐÂY CHO ĐỒNG BỘ
 const fs = require('fs');
 const nodemailer = require('nodemailer'); 
 const { Readable } = require('stream'); 
@@ -277,7 +277,7 @@ app.put('/api/account/profile', requireAuth, async (req, res) => {
 });
 
 // ==========================================
-// API JOB IMPORT (ĐÃ CẬP NHẬT: PDF + CSV)
+// API JOB IMPORT (ĐÃ FIX TÊN BIẾN pdfParse)
 // ==========================================
 app.post('/api/jobs/import', upload.single('jd_file'), async (req, res) => {
     try {
@@ -312,7 +312,7 @@ app.post('/api/jobs/import', upload.single('jd_file'), async (req, res) => {
             return;
         }
 
-        // --- TRƯỜNG HỢP 2: FILE PDF (Logic dùng AI) ---
+        // --- TRƯỜNG HỢP 2: FILE PDF (Logic mới dùng AI) ---
         if (req.file.mimetype === 'application/pdf') {
             // SỬA LỖI: Dùng pdfParse thay vì pdf
             const pdfData = await pdfParse(req.file.buffer);
