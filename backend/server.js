@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Fixed: PDF Import Variable Name Mismatch) */
+/* FILE: backend/server.js (Final Fix: Native Gemini PDF Reading - No pdf-parse needed) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -8,7 +8,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { createClient } = require('@supabase/supabase-js');
 const csv = require('csv-parser');
 const mammoth = require('mammoth'); 
-const pdfParse = require('pdf-parse'); // <--- SỬA TÊN BIẾN Ở ĐÂY CHO ĐỒNG BỘ
+// const pdfParse = require('pdf-parse'); <--- ĐÃ XÓA BỎ THƯ VIỆN GÂY LỖI
 const fs = require('fs');
 const nodemailer = require('nodemailer'); 
 const { Readable } = require('stream'); 
@@ -78,7 +78,7 @@ Hệ thống PHẢI tuân thủ trọng số sau đây, không được chấm t
 4. **Soft Skills & Presentation (20% - Max 2.0):** Cách trình bày, tư duy logic, thái độ.
 `;
 
-// --- KHO PROMPT ---
+// --- KHO PROMPT (GIỮ NGUYÊN) ---
 function getSpecificPrompt(jobTitle, jobRequirements) {
     const title = jobTitle?.toLowerCase().trim() || "";
     
@@ -277,14 +277,14 @@ app.put('/api/account/profile', requireAuth, async (req, res) => {
 });
 
 // ==========================================
-// API JOB IMPORT (ĐÃ FIX TÊN BIẾN pdfParse)
+// API JOB IMPORT (NEW LOGIC: GEMINI NATIVE PDF READ)
 // ==========================================
 app.post('/api/jobs/import', upload.single('jd_file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "Thiếu file JD" });
         console.log(`📂 Đang xử lý JD: ${req.file.originalname} (${req.file.mimetype})`);
 
-        // --- TRƯỜNG HỢP 1: FILE CSV (Logic cũ) ---
+        // --- TRƯỜNG HỢP 1: FILE CSV ---
         if (req.file.mimetype === 'text/csv' || req.file.mimetype === 'application/vnd.ms-excel') {
             const results = [];
             const stream = Readable.from(req.file.buffer);
@@ -298,7 +298,7 @@ app.post('/api/jobs/import', upload.single('jd_file'), async (req, res) => {
                             const reqs = {
                                 skills: row.Skills || "",
                                 experience: row.Experiences || "",
-                                education: row.Level || "", // Map Level -> education
+                                education: row.Level || "", 
                                 description: row.Description || ""
                             };
                             await pool.query(
@@ -312,42 +312,37 @@ app.post('/api/jobs/import', upload.single('jd_file'), async (req, res) => {
             return;
         }
 
-        // --- TRƯỜNG HỢP 2: FILE PDF (Logic mới dùng AI) ---
+        // --- TRƯỜNG HỢP 2: FILE PDF (SỬ DỤNG GEMINI ĐỌC TRỰC TIẾP) ---
         if (req.file.mimetype === 'application/pdf') {
-            // SỬA LỖI: Dùng pdfParse thay vì pdf
-            const pdfData = await pdfParse(req.file.buffer);
-            const rawText = pdfData.text;
-
-            if (!rawText || rawText.length < 50) return res.status(400).json({ error: "PDF nội dung quá ngắn hoặc là ảnh." });
-
+            // Không dùng pdf-parse nữa! Gửi thẳng PDF cho Gemini.
             const model = genAI.getGenerativeModel({ model: ACTIVE_MODEL_NAME });
             
-            // Prompt trích xuất JSON từ PDF để match với cấu trúc CSV
             const prompt = `
             # NHIỆM VỤ:
-            Phân tích văn bản JD tuyển dụng sau đây và trích xuất thông tin thành JSON.
-            Cố gắng bám sát cấu trúc dữ liệu như sau:
-            - skills: Liệt kê kỹ năng (ngăn cách bởi dấu | nếu có thể, hoặc dấu phẩy).
-            - experience: Yêu cầu kinh nghiệm (số năm, dự án).
-            - education: Yêu cầu bằng cấp (Level).
-            - description: Tóm tắt mô tả công việc.
+            Bạn là một trợ lý AI chuyên phân tích Job Description (JD).
+            Hãy đọc file PDF đính kèm và trích xuất thông tin thành JSON chuẩn.
 
-            # NỘI DUNG JD:
-            """${rawText.substring(0, 10000)}""" 
-
-            # OUTPUT JSON:
+            # YÊU CẦU OUTPUT JSON:
             {
                 "title": "Tên vị trí công việc",
                 "requirements": {
-                    "skills": "...",
-                    "experience": "...",
-                    "education": "...",
-                    "description": "..."
+                    "skills": "Liệt kê kỹ năng chuyên môn (ngăn cách bằng dấu |)",
+                    "experience": "Yêu cầu kinh nghiệm",
+                    "education": "Yêu cầu bằng cấp",
+                    "description": "Tóm tắt mô tả công việc"
                 }
             }
             `;
 
-            const result = await model.generateContent(prompt);
+            // Gửi PDF buffer dưới dạng base64 (Inline Data)
+            const pdfPart = {
+                inlineData: {
+                    data: req.file.buffer.toString("base64"),
+                    mimeType: "application/pdf"
+                }
+            };
+
+            const result = await model.generateContent([prompt, pdfPart]);
             const aiJson = JSON.parse(cleanJsonString(result.response.text()));
 
             const dbRes = await pool.query(
@@ -356,7 +351,7 @@ app.post('/api/jobs/import', upload.single('jd_file'), async (req, res) => {
             );
 
             return res.json({ 
-                message: "Đã import JD từ PDF thành công!", 
+                message: "Đã import JD từ PDF thành công (Sử dụng Gemini)!", 
                 job: dbRes.rows[0] 
             });
         }
