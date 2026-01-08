@@ -23,8 +23,6 @@ const AITraining = () => {
         
         const formData = new FormData();
         // Đổi tên field thành 'jd_file' để khớp với backend mới hỗ trợ cả 2 loại file
-        // Nếu backend cũ dùng 'csv_file', ta có thể gửi cả 2 hoặc đổi tên thống nhất
-        // Ở bước trước tôi đã update backend nhận 'jd_file', nên ở đây dùng 'jd_file'
         formData.append('jd_file', file); 
         
         setUploading(true);
@@ -35,7 +33,11 @@ const AITraining = () => {
             });
             alert(`✅ ${res.data.message}`);
             setFile(null);
-            // Reset input file (nếu cần thiết có thể thêm ref)
+            
+            // Reset input file (dùng DOM trick vì input file là uncontrolled)
+            const fileInput = document.querySelector('input[type="file"]');
+            if(fileInput) fileInput.value = '';
+
             fetchJobs(); // Load lại danh sách
         } catch (err) {
             alert("Lỗi Import: " + (err.response?.data?.error || err.message));
@@ -104,10 +106,14 @@ const AITraining = () => {
                         {uploading ? "Đang Phân Tích..." : "Import Ngay"}
                     </button>
                 </div>
+                {/* Thông báo thông minh khi chọn PDF */}
                 {file && file.type === 'application/pdf' && (
-                    <p style={{fontSize: '12px', color: '#FCD34D', marginTop: '10px', fontStyle: 'italic'}}>
-                        <i className="fa-solid fa-circle-info"></i> Bạn đang chọn file PDF. Hệ thống sẽ dùng AI để trích xuất thông tin tự động.
-                    </p>
+                    <div style={{marginTop: '15px', padding: '10px', background: 'rgba(252, 211, 77, 0.1)', border: '1px solid #FCD34D', borderRadius: '6px', fontSize: '13px', color: '#FCD34D', display: 'flex', gap: '10px', alignItems: 'center'}}>
+                        <i className="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>
+                            Bạn đang chọn file <strong>PDF</strong>. Hệ thống sẽ dùng AI để đọc và trích xuất cấu trúc JD tự động. Quá trình này có thể mất vài giây.
+                        </span>
+                    </div>
                 )}
             </div>
 
@@ -179,7 +185,7 @@ const AITraining = () => {
                                 padding: '4px 10px', 
                                 borderRadius: '20px', 
                                 fontSize: '11px', 
-                                fontWeight: 700,
+                                fontWeight: 700, 
                                 border: '1px solid var(--neon-green)',
                                 textTransform: 'uppercase'
                             }}>
