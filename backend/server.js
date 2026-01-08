@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Full Version: Auth, PDF/CSV Job Import, Strict AI Scoring) */
+/* FILE: backend/server.js (Final Fix: PDF Import & Variable Renaming) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -8,17 +8,17 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { createClient } = require('@supabase/supabase-js');
 const csv = require('csv-parser');
 const mammoth = require('mammoth'); 
-const pdf = require('pdf-parse'); 
+const pdfParse = require('pdf-parse'); // <--- ĐỔI TÊN BIẾN ĐỂ TRÁNH XUNG ĐỘT
 const fs = require('fs');
 const nodemailer = require('nodemailer'); 
-const { Readable } = require('stream'); // Module để đọc buffer stream cho CSV
+const { Readable } = require('stream'); 
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // --- CẤU HÌNH ---
-let ACTIVE_MODEL_NAME = "gemini-1.5-flash"; // Bản ổn định, tối ưu chi phí và tốc độ
+let ACTIVE_MODEL_NAME = "gemini-1.5-flash"; 
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -78,7 +78,7 @@ Hệ thống PHẢI tuân thủ trọng số sau đây, không được chấm t
 4. **Soft Skills & Presentation (20% - Max 2.0):** Cách trình bày, tư duy logic, thái độ.
 `;
 
-// --- KHO PROMPT (GIỮ NGUYÊN TOÀN BỘ LOGIC CŨ) ---
+// --- KHO PROMPT ---
 function getSpecificPrompt(jobTitle, jobRequirements) {
     const title = jobTitle?.toLowerCase().trim() || "";
     
@@ -284,7 +284,7 @@ app.post('/api/jobs/import', upload.single('jd_file'), async (req, res) => {
         if (!req.file) return res.status(400).json({ error: "Thiếu file JD" });
         console.log(`📂 Đang xử lý JD: ${req.file.originalname} (${req.file.mimetype})`);
 
-        // --- TRƯỜNG HỢP 1: FILE CSV (Logic cũ, dùng stream) ---
+        // --- TRƯỜNG HỢP 1: FILE CSV (Logic cũ) ---
         if (req.file.mimetype === 'text/csv' || req.file.mimetype === 'application/vnd.ms-excel') {
             const results = [];
             const stream = Readable.from(req.file.buffer);
@@ -295,7 +295,6 @@ app.post('/api/jobs/import', upload.single('jd_file'), async (req, res) => {
                 .on('end', async () => {
                     for (const row of results) {
                         if (row.Title) {
-                            // Map đúng tên cột trong CSV: Title, Skills, Experiences, Level, Description
                             const reqs = {
                                 skills: row.Skills || "",
                                 experience: row.Experiences || "",
@@ -313,9 +312,10 @@ app.post('/api/jobs/import', upload.single('jd_file'), async (req, res) => {
             return;
         }
 
-        // --- TRƯỜNG HỢP 2: FILE PDF (Logic mới dùng AI) ---
+        // --- TRƯỜNG HỢP 2: FILE PDF (Logic dùng AI) ---
         if (req.file.mimetype === 'application/pdf') {
-            const pdfData = await pdf(req.file.buffer);
+            // SỬA LỖI: Dùng pdfParse thay vì pdf
+            const pdfData = await pdfParse(req.file.buffer);
             const rawText = pdfData.text;
 
             if (!rawText || rawText.length < 50) return res.status(400).json({ error: "PDF nội dung quá ngắn hoặc là ảnh." });
