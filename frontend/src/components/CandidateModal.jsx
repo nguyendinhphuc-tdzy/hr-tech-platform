@@ -1,4 +1,4 @@
-/* FILE: frontend/src/components/CandidateModal.jsx (Professional & Theme Aware) */
+/* FILE: frontend/src/components/CandidateModal.jsx */
 import React, { useState } from 'react';
 import axios from 'axios';
 import API_BASE_URL from './config';
@@ -37,11 +37,11 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.75)', zIndex: 9999, // Dim background tối hơn để tập trung
-      display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(8px)'
+      backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: 9999, // Dim background tối hơn
+      display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(10px)'
     }}>
       <div className="card-modal" style={{
-        width: '90%', maxWidth: '1200px', height: '90%', borderRadius: '16px', 
+        width: '95%', maxWidth: '1400px', height: '90%', borderRadius: '16px', 
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', 
         background: 'var(--bg-secondary)', // Nền chính theo theme
@@ -50,14 +50,14 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
         
         {/* --- HEADER --- */}
         <div style={{
-          padding: '20px 30px', borderBottom: '1px solid var(--border-color)', 
+          padding: '15px 30px', borderBottom: '1px solid var(--border-color)', 
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-          background: 'var(--bg-tertiary)' // Nền header đậm hơn chút
+          background: 'var(--bg-tertiary)' 
         }}>
           <div style={{display:'flex', alignItems:'center', gap:'20px'}}>
             <div>
-                <h2 style={{margin: 0, fontSize: '22px', color: 'var(--text-primary)', fontWeight: '700'}}>{candidate.full_name}</h2>
-                <p style={{margin: '4px 0 0 0', fontSize: '14px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <h2 style={{margin: 0, fontSize: '20px', color: 'var(--text-primary)', fontWeight: '700'}}>{candidate.full_name}</h2>
+                <p style={{margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px'}}>
                     <i className="fa-solid fa-briefcase" style={{color: 'var(--accent-color)'}}></i> {candidate.role}
                     <span style={{fontSize: '12px', opacity: 0.5}}>|</span>
                     <i className="fa-solid fa-envelope" style={{fontSize: '12px'}}></i> {candidate.email}
@@ -103,11 +103,11 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
           </button>
         </div>
 
-        {/* --- BODY --- */}
+        {/* --- BODY (Đã chỉnh layout: 35% PDF - 65% AI Analysis) --- */}
         <div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>
           
-          {/* TRÁI: PDF VIEWER (Giữ nguyên nền tối để dễ đọc PDF) */}
-          <div style={{flex: 1, borderRight: '1px solid var(--border-color)', background: '#374151'}}> 
+          {/* TRÁI: PDF VIEWER (Thu nhỏ lại còn 35%) */}
+          <div style={{flex: '0 0 35%', borderRight: '1px solid var(--border-color)', background: '#374151', position: 'relative'}}> 
             {candidate.cv_file_url ? (
               <iframe src={candidate.cv_file_url} width="100%" height="100%" style={{border: 'none'}} title="CV Preview"></iframe>
             ) : (
@@ -118,78 +118,129 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                  </div>
               </div>
             )}
+            <div style={{position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '5px 10px', borderRadius: '5px', fontSize: '12px'}}>
+                CV Gốc
+            </div>
           </div>
 
-          {/* PHẢI: AI ANALYSIS (THEME AWARE) */}
+          {/* PHẢI: AI ANALYSIS (Mở rộng ra 65%) */}
           <div style={{
-              flex: '0 0 450px', padding: '30px', overflowY: 'auto', 
+              flex: 1, padding: '30px', overflowY: 'auto', 
               background: 'var(--bg-secondary)' // Nền sidebar phải theo theme
           }}>
              
-             {/* 1. SCORE CARD (Thiết kế mới) */}
+             {/* 1. SCORE CARD & SUMMARY (Thiết kế mới) */}
              <div style={{
-                 display:'flex', alignItems: 'center', gap:'20px', marginBottom:'30px', 
+                 display:'grid', gridTemplateColumns: '150px 1fr', gap:'25px', marginBottom:'30px', 
                  background: 'var(--bg-tertiary)', // Nền card nổi
                  padding:'25px', borderRadius:'16px', border: '1px solid var(--border-color)',
                  boxShadow: 'var(--card-shadow)'
              }}>
-                <div style={{textAlign:'center', minWidth:'90px'}}>
+                <div style={{textAlign:'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderRight: '1px solid var(--border-color)', paddingRight: '20px'}}>
                    <div style={{
-                       fontSize:'48px', fontWeight:'800', lineHeight: 1,
+                       fontSize:'56px', fontWeight:'800', lineHeight: 1,
                        color: scoreColor,
                        textShadow: `0 0 20px ${scoreColor}40` // Glow nhẹ theo màu điểm
                    }}>
                       {candidate.ai_rating}
                    </div>
-                   <div style={{fontSize:'11px', fontWeight:'700', color:'var(--text-secondary)', letterSpacing:'1px', marginTop: '5px'}}>MATCH SCORE</div>
+                   <div style={{fontSize:'12px', fontWeight:'700', color:'var(--text-secondary)', letterSpacing:'1px', marginTop: '10px', textTransform: 'uppercase'}}>Match Score</div>
                 </div>
-                <div style={{paddingLeft:'20px', borderLeft:'1px solid var(--border-color)'}}>
-                   <h4 style={{margin:0, color:'var(--text-primary)', fontSize: '15px', textTransform:'uppercase', fontWeight: '700'}}>
-                       <i className="fa-solid fa-wand-magic-sparkles" style={{marginRight:'8px', color:'var(--accent-color)'}}></i> AI NHẬN XÉT
+                <div>
+                   <h4 style={{margin:0, color:'var(--text-primary)', fontSize: '16px', textTransform:'uppercase', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px'}}>
+                       <i className="fa-solid fa-wand-magic-sparkles" style={{color:'var(--accent-color)'}}></i> TÓM TẮT AI
                    </h4>
-                   <p style={{margin:'8px 0 0', fontSize:'14px', color:'var(--text-secondary)', fontStyle:'italic', lineHeight:'1.5'}}>
-                       "{aiData.summary || "Đang chờ phân tích..."}"
+                   <p style={{margin:'12px 0 0', fontSize:'15px', color:'var(--text-primary)', lineHeight:'1.6', fontWeight: '500'}}>
+                       {aiData.summary || "Đang chờ phân tích..."}
                    </p>
+                   {/* Recommendation Badge */}
+                   <div style={{marginTop: '15px'}}>
+                        <span style={{
+                            background: scoreColor, color: '#000', padding: '4px 12px', borderRadius: '20px', 
+                            fontSize: '12px', fontWeight: '700', textTransform: 'uppercase'
+                        }}>
+                            Đề xuất: {aiData.recommendation || "N/A"}
+                        </span>
+                        <span style={{marginLeft: '10px', fontSize: '12px', color: 'var(--text-secondary)'}}>
+                            Độ tin cậy: {aiData.confidence || "N/A"}
+                        </span>
+                   </div>
                 </div>
              </div>
 
-             {/* 2. KỸ NĂNG */}
-             <div style={{marginBottom: '30px'}}>
-                <h4 style={{
-                    display:'flex', alignItems:'center', gap:'10px', color:'var(--text-primary)', 
-                    marginBottom:'15px', fontSize: '14px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px'
-                }}>
-                    <i className="fa-solid fa-layer-group" style={{color:'#F59E0B'}}></i> Kỹ năng chuyên môn
-                </h4>
-                <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
-                    {aiData.skills && aiData.skills.length > 0 ? (
-                        aiData.skills.map((skill, idx) => (
-                            <span key={idx} style={{
-                                background: 'var(--bg-input)', color: 'var(--text-primary)', 
-                                padding: '8px 14px', borderRadius: '8px', 
-                                fontSize: '13px', fontWeight: '500', 
-                                border: '1px solid var(--border-color)'
-                            }}>
-                                {skill}
-                            </span>
-                        ))
-                    ) : ( <span style={{color:'var(--text-secondary)', fontSize:'13px', fontStyle: 'italic'}}>Chưa xác định kỹ năng</span> )}
-                </div>
+             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px'}}>
+                 {/* 2. KỸ NĂNG */}
+                 <div style={{
+                     background: 'var(--bg-input)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)'
+                 }}>
+                    <h4 style={{
+                        display:'flex', alignItems:'center', gap:'10px', color:'var(--text-primary)', 
+                        margin: '0 0 15px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '700'
+                    }}>
+                        <i className="fa-solid fa-layer-group" style={{color:'#F59E0B'}}></i> Kỹ năng chuyên môn
+                    </h4>
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '8px'}}>
+                        {aiData.skills && aiData.skills.length > 0 ? (
+                            aiData.skills.map((skill, idx) => (
+                                <span key={idx} style={{
+                                    background: 'var(--bg-tertiary)', color: 'var(--text-primary)', 
+                                    padding: '6px 12px', borderRadius: '6px', 
+                                    fontSize: '13px', fontWeight: '500', 
+                                    border: '1px solid var(--border-color)'
+                                }}>
+                                    {skill}
+                                </span>
+                            ))
+                        ) : ( <span style={{color:'var(--text-secondary)', fontSize:'13px', fontStyle: 'italic'}}>Chưa xác định kỹ năng</span> )}
+                    </div>
+                 </div>
+
+                 {/* 4. BREAKDOWN ĐIỂM (New Feature) */}
+                 <div style={{
+                     background: 'var(--bg-input)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)'
+                 }}>
+                    <h4 style={{
+                        display:'flex', alignItems:'center', gap:'10px', color:'var(--text-primary)', 
+                        margin: '0 0 15px 0', fontSize: '14px', textTransform: 'uppercase', fontWeight: '700'
+                    }}>
+                        <i className="fa-solid fa-chart-pie" style={{color:'#10B981'}}></i> Chi tiết điểm số
+                    </h4>
+                    {/* Giả lập hiển thị breakdown nếu có, hoặc hiển thị placeholder */}
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                            <span>Hard Skills (40%)</span>
+                            <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{candidate.ai_analysis?.breakdown?.hard_skills || '-'} / 4.0</span>
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                            <span>Experience (30%)</span>
+                            <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{candidate.ai_analysis?.breakdown?.experience || '-'} / 3.0</span>
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                            <span>Education (10%)</span>
+                            <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{candidate.ai_analysis?.breakdown?.education || '-'} / 1.0</span>
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                            <span>Soft Skills (20%)</span>
+                            <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{candidate.ai_analysis?.breakdown?.soft_skills || '-'} / 2.0</span>
+                        </div>
+                    </div>
+                 </div>
              </div>
              
-             {/* 3. CHI TIẾT ĐÁNH GIÁ */}
+             {/* 3. CHI TIẾT ĐÁNH GIÁ (MATCH REASON) */}
              <div>
                 <h4 style={{
                     display:'flex', alignItems:'center', gap:'10px', color:'var(--text-primary)', 
                     marginBottom:'15px', fontSize: '14px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px'
                 }}>
-                    <i className="fa-solid fa-align-left" style={{color:'#3B82F6'}}></i> Chi tiết phân tích
+                    <i className="fa-solid fa-align-left" style={{color:'#3B82F6'}}></i> Phân tích chi tiết
                 </h4>
                 <div style={{
-                    fontSize:'14px', lineHeight:'1.8', color:'var(--text-primary)', 
-                    background:'var(--bg-input)', padding:'20px', borderRadius:'12px',
+                    fontSize:'15px', lineHeight:'1.8', color:'var(--text-primary)', 
+                    background:'var(--bg-input)', padding:'25px', borderRadius:'12px',
                     whiteSpace: 'pre-line', // Giữ format xuống dòng
-                    border: '1px solid var(--border-color)'
+                    border: '1px solid var(--border-color)',
+                    fontFamily: 'inherit'
                 }}>
                     {aiData.match_reason || "Chưa có dữ liệu chi tiết."}
                 </div>
