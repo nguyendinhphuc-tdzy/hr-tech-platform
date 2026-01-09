@@ -1,98 +1,125 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import API_BASE_URL from './config';
+/* FILE: frontend/src/components/CVUpload.jsx (Batch Support & Validation) */
+import React, { useState, useRef } from 'react';
 
-const CVUpload = ({ onUploadSuccess }) => {
-    const [file, setFile] = useState(null);
-    const [name, setName] = useState('');
-    const [selectedJob, setSelectedJob] = useState('');
-    const [jobs, setJobs] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState(null);
+const CVUpload = ({ onScan, disabled }) => {
+    const [files, setFiles] = useState([]);
+    const [isDragging, setIsDragging] = useState(false);
+    const fileInputRef = useRef(null);
+    const MAX_FILES = 5; // Giới hạn 5 file mỗi lần quét
 
-    // Lấy danh sách Job để điền vào ô chọn
-    useEffect(() => {
-        axios.get(`${API_BASE_URL}/api/jobs`)
-            .then(res => setJobs(res.data))
-            .catch(err => console.error("Lỗi lấy danh sách job", err));
-    }, []);
+    const handleFileChange = (e) => {
+        const selectedFiles = Array.from(e.target.files);
+        validateAndSetFiles(selectedFiles);
+    };
 
-    const handleUpload = async () => {
-        if (!file) return alert("Chọn file CV đi bạn!");
-
-        const formData = new FormData();
-        formData.append('cv_file', file);
-        formData.append('full_name', name);
-        if (selectedJob) formData.append('job_id', selectedJob); // Gửi kèm ID Job
-
-        setLoading(true);
-        try {
-            const response = await axios.post(`${API_BASE_URL}/api/cv/upload`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-
-            setResult(response.data.candidate);
-            alert(`✅ Đã so khớp xong!\nĐiểm phù hợp: ${response.data.candidate.ai_rating}/10`);
-            
-            if (onUploadSuccess) onUploadSuccess();
-            
-        } catch (error) {
-            alert("Lỗi: " + (error.response?.data?.error || error.message));
-        } finally {
-            setLoading(false);
+    const validateAndSetFiles = (fileList) => {
+        if (fileList.length > MAX_FILES) {
+            alert(`⚠️ Bạn chỉ được phép quét tối đa ${MAX_FILES} CV mỗi lần để đảm bảo chất lượng AI.`);
+            return;
         }
+        
+        // Lọc chỉ lấy PDF
+        const validFiles = fileList.filter(f => f.type === 'application/pdf');
+        if (validFiles.length !== fileList.length) {
+            alert("⚠️ Một số file không phải là PDF và đã bị loại bỏ.");
+        }
+        
+        setFiles(validFiles);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (disabled) return;
+        const droppedFiles = Array.from(e.dataTransfer.files);
+        validateAndSetFiles(droppedFiles);
+    };
+
+    const handleSubmit = () => {
+        if (files.length === 0) return;
+        if (onScan) {
+            onScan(files); // Gửi mảng file ra ngoài cho Parent xử lý
+        }
+        setFiles([]); // Reset sau khi gửi
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     return (
-        <div style={{padding: '20px', background: '#131F2E', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '20px'}}>
-            <h3 style={{marginTop: 0, color: '#4F46E5'}}><i className="fa-solid fa-crosshairs"></i> Scan & So Khớp</h3>
+        <div 
+            className={`cv-upload-card ${isDragging ? 'dragging' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            style={{
+                border: '2px dashed var(--border-color)', borderRadius: '16px',
+                padding: '40px', textAlign: 'center', background: isDragging ? 'rgba(46, 255, 123, 0.05)' : 'var(--bg-secondary)',
+                transition: 'all 0.3s', position: 'relative'
+            }}
+        >
+            <input 
+                type="file" 
+                multiple // CHO PHÉP NHIỀU FILE
+                accept=".pdf" 
+                onChange={handleFileChange} 
+                style={{display: 'none'}} 
+                ref={fileInputRef}
+                disabled={disabled}
+            />
             
-            <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end'}}>
-                {/* Chọn Job */}
-                <div style={{flex: 1, minWidth: '200px'}}>
-                    <label style={{display: 'block', fontWeight: 500, fontSize:'14px', marginBottom:'5px'}}>Vị trí ứng tuyển:</label>
-                    <select 
-                        value={selectedJob}
-                        onChange={(e) => setSelectedJob(e.target.value)}
-                        style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB'}}
-                    >
-                        <option value="">-- Quét tự do (Không so sánh) --</option>
-                        {jobs.map(job => (
-                            <option key={job.id} value={job.id}>{job.title}</option>
-                        ))}
-                    </select>
+            <div style={{marginBottom: '20px'}}>
+                <div style={{
+                    width: '70px', height: '70px', borderRadius: '50%', background: 'var(--bg-input)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px',
+                    border: '1px solid var(--border-color)'
+                }}>
+                    <i className="fa-solid fa-cloud-arrow-up" style={{fontSize: '28px', color: 'var(--accent-color)'}}></i>
                 </div>
-
-                <div style={{flex: 1, minWidth: '200px'}}>
-                    <label style={{display: 'block', fontWeight: 500, fontSize:'14px', marginBottom:'5px'}}>Tên ứng viên (Tùy chọn):</label>
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nhập tên..." style={{width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB'}} />
-                </div>
-
-                <div style={{flex: 1, minWidth: '200px'}}>
-                    <label style={{display: 'block', fontWeight: 500, fontSize:'14px', marginBottom:'5px'}}>File CV (PDF):</label>
-                    <input type="file" accept=".pdf" onChange={(e) => setFile(e.target.files[0])} style={{fontSize:'14px'}} />
-                </div>
-
-                <button 
-                    onClick={handleUpload} 
-                    disabled={loading}
-                    style={{background: loading ? '#9CA3AF' : '#2EFF7B', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '6px', fontWeight: 600, height: '42px', cursor: 'pointer'}}
-                >
-                    {loading ? 'Đang chấm điểm...' : 'Scan Ngay'}   
-                </button>
+                <h3 style={{fontSize: '18px', color: 'var(--text-primary)', margin: '0 0 10px 0'}}>
+                    Kéo thả hoặc Chọn CV
+                </h3>
+                <p style={{fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '300px', margin: '0 auto'}}>
+                    Hỗ trợ định dạng PDF. Tối đa <strong>{MAX_FILES} CV</strong> / lần quét.
+                </p>
             </div>
 
-            {/* Hiển thị kết quả nhanh */}
-            {result && result.ai_analysis && (
-                <div style={{marginTop: '15px', padding: '15px', background: '#F0FDF4', borderRadius: '8px', border: '1px solid #BBF7D0'}}>
-                    <p style={{margin: 0, fontWeight: 600, color: '#166534'}}>
-                        🎯 Kết quả: {result.ai_rating}/10 điểm
-                    </p>
-                    <p style={{margin: '5px 0 0 0', fontSize: '14px', color: '#15803D'}}>
-                        {result.ai_analysis.match_reason || result.ai_analysis.summary}
-                    </p>
+            {/* DANH SÁCH FILE ĐÃ CHỌN */}
+            {files.length > 0 && (
+                <div style={{marginBottom: '20px', background: 'var(--bg-input)', padding: '10px', borderRadius: '8px', maxHeight: '150px', overflowY: 'auto'}}>
+                    {files.map((f, idx) => (
+                        <div key={idx} style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'var(--text-primary)', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+                            <i className="fa-solid fa-file-pdf" style={{color: '#F59E0B'}}></i>
+                            <span style={{flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{f.name}</span>
+                            <span style={{color: 'var(--text-secondary)'}}>{(f.size / 1024).toFixed(0)} KB</span>
+                        </div>
+                    ))}
                 </div>
             )}
+
+            <div style={{display: 'flex', gap: '15px', justifyContent: 'center'}}>
+                <button 
+                    onClick={() => fileInputRef.current.click()} 
+                    style={{
+                        background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)',
+                        padding: '12px 25px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'
+                    }}
+                    disabled={disabled}
+                >
+                    Chọn File
+                </button>
+                <button 
+                    onClick={handleSubmit}
+                    disabled={disabled || files.length === 0}
+                    style={{
+                        background: disabled || files.length === 0 ? 'var(--bg-input)' : 'var(--accent-color)', 
+                        color: disabled || files.length === 0 ? 'var(--text-secondary)' : '#000',
+                        border: 'none', padding: '12px 30px', borderRadius: '8px', 
+                        cursor: disabled || files.length === 0 ? 'not-allowed' : 'pointer', fontWeight: '700',
+                        boxShadow: disabled ? 'none' : '0 0 15px var(--accent-glow)'
+                    }}
+                >
+                    {disabled ? 'Đang xử lý...' : `Quét ${files.length > 0 ? files.length : ''} CV Ngay`}
+                </button>
+            </div>
         </div>
     );
 };
