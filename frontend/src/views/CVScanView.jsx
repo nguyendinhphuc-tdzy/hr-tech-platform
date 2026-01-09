@@ -217,7 +217,7 @@ const CVScanView = () => {
                                     <h3 style={{ margin: '0 0 10px 0', color: 'var(--neon-green)', fontSize: '16px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <i className="fa-solid fa-wand-magic-sparkles"></i> TỔNG QUAN
                                     </h3>
-                                    <p style={{ margin: 0, lineHeight: '1.6', color: '#2b2a2aff', fontSize: '14px', fontStyle: 'italic' }}>
+                                    <p style={{ margin: 0, lineHeight: '1.6', color: '#10670cff', fontSize: '14px', fontStyle: 'italic' }}>
                                         "{result.ai_analysis?.summary || "Không có tóm tắt."}"
                                     </p>
                                 </div>
