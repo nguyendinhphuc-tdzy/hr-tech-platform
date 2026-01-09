@@ -1,97 +1,278 @@
-/* FILE: frontend/src/views/Dashboard.jsx */
+/* FILE: frontend/src/views/Dashboard.jsx (Enterprise Scale: Job-Centric & Batch Upload) */
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../components/config';
 import CandidateCard from '../components/CandidateCard';
 import CandidateModal from '../components/CandidateModal';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { supabase } from '../supabaseClient'; // Import Supabase Client
+import { supabase } from '../supabaseClient'; 
 
 const Dashboard = () => {
-  const [candidates, setCandidates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCandidate, setSelectedCandidate] = useState(null);
+  // --- STATE QUẢN LÝ VIEW ---
+  const [viewMode, setViewMode] = useState('jobList'); // 'jobList' hoặc 'pipeline'
+  const [selectedJob, setSelectedJob] = useState(null); // Job đang chọn để xem Pipeline
   
-  // --- STATE BỘ LỌC NGÀY ---
+  // --- DATA STATE ---
+  const [jobsStats, setJobsStats] = useState([]); // Dữ liệu Job + Thống kê
+  const [candidates, setCandidates] = useState([]); // Ứng viên của Job đang chọn
+  const [selectedCandidate, setSelectedCandidate] = useState(null); // Modal chi tiết
+  
+  // --- BATCH UPLOAD STATE ---
+  const [uploadingFiles, setUploadingFiles] = useState([]); // Danh sách file đang upload
+  const [isBatchUploading, setIsBatchUploading] = useState(false);
+
+  // --- FILTER STATE (Giữ nguyên logic cũ) ---
   const [dateFilterType, setDateFilterType] = useState('all'); 
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
 
-  // --- LẤY DANH SÁCH ỨNG VIÊN (CÓ AUTH TOKEN) ---
-  const fetchCandidates = async () => {
-    setLoading(true);
-    
-    // 1. Lấy token từ session
+  // 1. FETCH DANH SÁCH JOB & THỐNG KÊ (MÀN HÌNH CHÍNH)
+  const fetchDashboardStats = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
+    if (!token) return;
 
-    if (!token) {
-        console.warn("Chưa đăng nhập, không thể tải dữ liệu.");
-        setLoading(false);
-        return;
-    }
-
-    // 2. Gọi API với Token
-    axios.get(`${API_BASE_URL}/api/candidates`, {
-        headers: {
-            'Authorization': `Bearer ${token}` // QUAN TRỌNG: Gửi token để Backend biết user nào
-        }
+    axios.get(`${API_BASE_URL}/api/dashboard/stats`, {
+        headers: { 'Authorization': `Bearer ${token}` }
     })
-      .then(response => {
-        setCandidates(response.data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Lỗi tải dữ liệu:", err);
-        setLoading(false);
-      });
+      .then(res => setJobsStats(res.data))
+      .catch(err => console.error("Lỗi lấy stats:", err));
   };
 
-  useEffect(() => { fetchCandidates(); }, []);
+  // 2. FETCH ỨNG VIÊN CỦA 1 JOB (KHI CLICK VÀO JOB)
+  const fetchCandidatesByJob = async (jobId) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
 
-  // --- XỬ LÝ CHUYỂN TRẠNG THÁI (CÓ AUTH TOKEN) ---
-  const handleStatusChange = async (candidateId, newStatus) => {
-      // 1. Lấy token
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+    axios.get(`${API_BASE_URL}/api/candidates?job_id=${jobId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => setCandidates(res.data)) // Backend đã sort điểm cao nhất lên đầu
+      .catch(err => console.error("Lỗi lấy ứng viên:", err));
+  };
 
-      if (!token) {
-          alert("Phiên đăng nhập hết hạn. Vui lòng login lại!");
+  useEffect(() => { fetchDashboardStats(); }, []);
+
+  // --- XỬ LÝ BATCH UPLOAD (UPLOAD HÀNG LOẠT) ---
+  const handleBatchUpload = async (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      if (!selectedJob) {
+          alert("Vui lòng chọn một Job trước khi upload CV!");
           return;
       }
 
-      // 2. Optimistic Update (Cập nhật UI ngay lập tức)
-      const updatedCandidates = candidates.map(c => 
-          c.id === candidateId ? { ...c, status: newStatus } : c
-      );
-      setCandidates(updatedCandidates);
+      setIsBatchUploading(true);
+      // Tạo danh sách trạng thái ảo để hiện UI
+      setUploadingFiles(files.map(f => ({ name: f.name, status: 'pending' })));
 
-      // 3. Gọi API Background
-      try {
-          await axios.put(
-              `${API_BASE_URL}/api/candidates/${candidateId}/status`, 
-              { status: newStatus },
-              { headers: { 'Authorization': `Bearer ${token}` } } // Gửi token
-          );
-      } catch (error) {
-          console.error("Lỗi update:", error);
-          alert("Không thể cập nhật trạng thái (Lỗi phân quyền hoặc mạng).");
-          fetchCandidates(); // Revert nếu lỗi
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      // Xử lý tuần tự để tạo cảm giác "process từng cái" và tránh nghẽn mạng
+      for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          
+          // Update status: uploading
+          setUploadingFiles(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'processing' } : item));
+
+          const formData = new FormData();
+          formData.append('cv_file', file);
+          formData.append('job_id', selectedJob.id); // Gắn chặt CV với Job ID
+
+          try {
+              await axios.post(`${API_BASE_URL}/api/cv/upload`, formData, {
+                  headers: { 
+                      'Content-Type': 'multipart/form-data',
+                      'Authorization': `Bearer ${token}` 
+                  }
+              });
+              // Update status: done
+              setUploadingFiles(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'success' } : item));
+          } catch (error) {
+              console.error(`Lỗi file ${file.name}:`, error);
+              setUploadingFiles(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'error' } : item));
+          }
+      }
+
+      setIsBatchUploading(false);
+      fetchCandidatesByJob(selectedJob.id); // Refresh lại bảng sau khi xong hết
+      // Tự động tắt bảng upload sau 5s
+      setTimeout(() => setUploadingFiles([]), 5000); 
+  };
+
+  // --- VIEW 1: DANH SÁCH JOB (JOB CARDS) ---
+  const renderJobListView = () => (
+      <div className="job-list-view fade-in">
+          <div style={{marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <div>
+                <h2 className="section-title" style={{ color: 'var(--text-primary)', margin: 0, fontSize: '24px' }}>Tổng quan Tuyển dụng</h2>
+                <p style={{color: 'var(--text-secondary)', marginTop: '5px', fontSize: '14px'}}>Chọn một vị trí để xem phễu ứng viên chi tiết</p>
+              </div>
+              <button onClick={fetchDashboardStats} style={{background: 'var(--bg-input)', border:'1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'8px'}}>
+                  <i className="fa-solid fa-rotate-right"></i> Làm mới
+              </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '25px' }}>
+              {jobsStats.map(job => (
+                  <div key={job.id} 
+                       onClick={() => { setSelectedJob(job); setViewMode('pipeline'); fetchCandidatesByJob(job.id); }}
+                       className="job-card"
+                       style={{
+                           background: 'var(--bg-secondary)', padding: '25px', borderRadius: '16px',
+                           border: '1px solid var(--border-color)', cursor: 'pointer',
+                           transition: 'all 0.2s', position: 'relative', overflow: 'hidden',
+                           boxShadow: 'var(--card-shadow)'
+                       }}
+                       onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
+                       onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+                  >
+                      {/* Badge Total */}
+                      <div style={{position: 'absolute', top: '20px', right: '20px', background: 'var(--bg-input)', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', color: 'var(--text-primary)', border: '1px solid var(--border-color)'}}>
+                          {job.total} hồ sơ
+                      </div>
+
+                      <h3 style={{margin: '0 0 10px 0', fontSize: '18px', color: 'var(--text-primary)', paddingRight: '60px'}}>{job.title}</h3>
+                      <div style={{height: '3px', width: '40px', background: 'var(--accent-color)', marginBottom: '25px', borderRadius: '2px'}}></div>
+
+                      {/* Mini Stats Grid */}
+                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                          <StatItem label="Mới / Sàng lọc" value={job.stats.Screening} color="#A5B4FC" />
+                          <StatItem label="Phỏng vấn" value={job.stats.Interview} color="#FCD34D" />
+                          <StatItem label="Offer" value={job.stats.Offer} color="#6EE7B7" />
+                          <StatItem label="Đã tuyển" value={job.stats.Hired} color="var(--accent-color)" bold />
+                      </div>
+                  </div>
+              ))}
+              {jobsStats.length === 0 && (
+                  <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '50px', color: 'var(--text-secondary)'}}>
+                      <i className="fa-solid fa-folder-open" style={{fontSize: '40px', marginBottom: '15px', opacity: 0.5}}></i>
+                      <p>Chưa có dữ liệu vị trí nào. Hãy import JD trong phần AI Training.</p>
+                  </div>
+              )}
+          </div>
+      </div>
+  );
+
+  const StatItem = ({ label, value, color, bold }) => (
+      <div style={{background: 'var(--bg-input)', padding: '10px 15px', borderRadius: '10px', border: '1px solid var(--border-color)'}}>
+          <div style={{fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '5px', textTransform: 'uppercase'}}>{label}</div>
+          <div style={{fontSize: '20px', fontWeight: bold ? '800' : '600', color: color}}>{value}</div>
+      </div>
+  );
+
+  // --- VIEW 2: PIPELINE DETAIL (KANBAN) ---
+  const renderPipelineView = () => (
+      <div className="pipeline-view fade-in" style={{height: '100%', display: 'flex', flexDirection: 'column'}}>
+          {/* Header Navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexShrink: 0 }}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
+                  <button onClick={() => { setViewMode('jobList'); setSelectedJob(null); }} 
+                      style={{background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', transition: 'background 0.2s'}}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-input)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                      <i className="fa-solid fa-arrow-left"></i> Quay lại
+                  </button>
+                  <div>
+                      <h2 className="section-title" style={{ color: 'var(--accent-color)', margin: 0, textTransform: 'uppercase', fontSize: '20px' }}>
+                          {selectedJob?.title}
+                      </h2>
+                      <span style={{color: 'var(--text-secondary)', fontSize: '13px'}}>Pipeline tuyển dụng chi tiết</span>
+                  </div>
+              </div>
+
+              <div style={{display: 'flex', gap: '15px', alignItems: 'center'}}>
+                  {/* BATCH UPLOAD BUTTON */}
+                  <label style={{
+                      background: 'var(--accent-color)', color: '#000', padding: '12px 25px', borderRadius: '8px', 
+                      fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px',
+                      boxShadow: '0 0 15px var(--accent-glow)', transition: 'transform 0.2s'
+                  }}
+                  onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                      <input type="file" multiple accept=".pdf" style={{display: 'none'}} onChange={handleBatchUpload} />
+                      <i className="fa-solid fa-cloud-arrow-up"></i> Upload CV Hàng Loạt
+                  </label>
+              </div>
+          </div>
+
+          {/* UPLOAD PROGRESS BAR (Hiện ra khi đang upload) */}
+          {(isBatchUploading || uploadingFiles.length > 0) && (
+              <div style={{marginBottom: '20px', background: 'var(--bg-secondary)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', animation: 'slideDown 0.3s ease-out'}}>
+                  <h4 style={{margin: '0 0 15px 0', fontSize: '14px', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between'}}>
+                      <span><i className="fa-solid fa-list-check" style={{marginRight: '8px'}}></i> Trạng thái Upload</span>
+                      <span>{uploadingFiles.filter(f => f.status === 'success').length}/{uploadingFiles.length} Hoàn thành</span>
+                  </h4>
+                  <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap', maxHeight: '100px', overflowY: 'auto'}}>
+                      {uploadingFiles.map((f, idx) => (
+                          <div key={idx} style={{
+                              padding: '6px 12px', borderRadius: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px',
+                              background: f.status === 'processing' ? 'rgba(252, 211, 77, 0.2)' : f.status === 'success' ? 'rgba(16, 185, 129, 0.2)' : f.status === 'error' ? 'rgba(239, 68, 68, 0.2)' : 'var(--bg-input)',
+                              border: `1px solid ${f.status === 'processing' ? '#FCD34D' : f.status === 'success' ? '#10B981' : f.status === 'error' ? '#EF4444' : 'var(--border-color)'}`,
+                              color: 'var(--text-primary)'
+                          }}>
+                              {f.status === 'processing' && <i className="fa-solid fa-spinner fa-spin" style={{color: '#FCD34D'}}></i>}
+                              {f.status === 'success' && <i className="fa-solid fa-check" style={{color: '#10B981'}}></i>}
+                              {f.status === 'error' && <i className="fa-solid fa-triangle-exclamation" style={{color: '#EF4444'}}></i>}
+                              {f.name}
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          )}
+
+          {/* KANBAN BOARD (Tái sử dụng logic cũ nhưng trong context mới) */}
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+              <DragDropContext onDragEnd={onDragEnd}>
+                <div className="recruitment-pipeline" style={{ 
+                    display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px',
+                    alignItems: 'start', height: '100%', minWidth: '1200px', overflowX: 'auto',
+                    paddingBottom: '10px'
+                }}>
+                   {['Screening', 'Interview', 'Offer', 'Hired', 'Rejected'].map(status => (
+                       <PipelineColumn 
+                            key={status} status={status} 
+                            list={getList(status)} 
+                            onSelect={setSelectedCandidate}
+                            onStatusChange={handleStatusChange} 
+                       />
+                   ))}
+                </div>
+              </DragDropContext>
+          </div>
+      </div>
+  );
+
+  // --- LOGIC KANBAN (GIỮ NGUYÊN) ---
+  const handleStatusChange = async (candidateId, newStatus) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if(!token) return;
+
+      const updatedCandidates = candidates.map(c => c.id === candidateId ? { ...c, status: newStatus } : c);
+      setCandidates(updatedCandidates);
+      
+      try { 
+          await axios.put(`${API_BASE_URL}/api/candidates/${candidateId}/status`, { status: newStatus }, { headers: { 'Authorization': `Bearer ${token}` } }); 
+      } catch (error) { 
+          console.error("Lỗi update:", error); 
+          fetchCandidatesByJob(selectedJob.id); // Revert
       }
   };
 
   const onDragEnd = async (result) => {
-    const { source, destination, draggableId } = result;
+    const { destination, draggableId } = result;
     if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
-
-    const newStatus = destination.droppableId;
-    handleStatusChange(parseInt(draggableId), newStatus);
+    handleStatusChange(parseInt(draggableId), destination.droppableId);
   };
 
-  // --- LOGIC LỌC ỨNG VIÊN NÂNG CAO (GIỮ NGUYÊN) ---
+  // Logic lọc ngày (Áp dụng cho candidates của Job hiện tại)
   const filteredCandidates = useMemo(() => {
       if (candidates.length === 0) return [];
-
       return candidates.filter(c => {
           const createdDate = new Date(c.created_at || Date.now());
           createdDate.setHours(0, 0, 0, 0);
@@ -101,13 +282,11 @@ const Dashboard = () => {
           if (dateFilterType !== 'custom') {
               const diffTime = Math.abs(now - createdDate);
               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
               if (dateFilterType === 'all') return true;
               if (dateFilterType === 'today') return diffDays === 0;
               if (dateFilterType === 'week') return diffDays <= 7;
               if (dateFilterType === 'month') return diffDays <= 30;
           }
-
           if (dateFilterType === 'custom') {
               if (!customRange.start && !customRange.end) return true;
               const start = customRange.start ? new Date(customRange.start) : new Date('1970-01-01');
@@ -121,89 +300,19 @@ const Dashboard = () => {
 
   const getList = (status) => filteredCandidates.filter(c => (c.status || '').toLowerCase() === status.toLowerCase());
 
+  // --- RENDER MAIN ---
   return (
     <div className="hr-dashboard" style={{ color: 'var(--text-primary)', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {viewMode === 'jobList' ? renderJobListView() : renderPipelineView()}
       
-      {/* 1. KPI SECTION (REDESIGNED NO-BOX) */}
-      <section className="kpi-grid" style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '20px', marginBottom: '25px', flexShrink: 0 
-      }}>
-        <KpiCard title="Tổng hồ sơ" value={filteredCandidates.length} icon="fa-users" color="var(--text-primary)" />
-        <KpiCard title="Phỏng vấn" value={getList('Interview').length} icon="fa-comments" color="#FCD34D" />
-        <KpiCard title="Offer" value={getList('Offer').length} icon="fa-envelope-open-text" color="#6EE7B7" />
-        <KpiCard title="Hired" value={getList('Hired').length} icon="fa-handshake" color="var(--accent-color)" glow={true} />
-      </section>
-
-      {/* 2. TOOLBAR & FILTER */}
-      <div style={{ 
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-          marginBottom: '15px', flexShrink: 0, flexWrap: 'wrap', gap: '15px'
-      }}>
-          <h2 className="section-title" style={{ color: 'var(--accent-color)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '16px' }}>
-            <i className="fa-solid fa-layer-group" style={{marginRight:'10px'}}></i> Quy trình Tuyển dụng
-          </h2>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-tertiary)', padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div style={{position: 'relative'}}>
-                  <i className="fa-solid fa-filter" style={{position:'absolute', left:'10px', top:'50%', transform:'translateY(-50%)', color:'var(--accent-color)', fontSize:'12px'}}></i>
-                  <select 
-                      value={dateFilterType}
-                      onChange={(e) => setDateFilterType(e.target.value)}
-                      style={{
-                          padding: '8px 10px 8px 30px', borderRadius: '6px',
-                          background: 'var(--bg-input)', border: '1px solid var(--border-color)',
-                          color: 'var(--text-primary)', fontSize: '12px', fontWeight: '600',
-                          cursor: 'pointer', outline: 'none', minWidth: '150px'
-                      }}
-                  >
-                      <option value="all">Tất cả thời gian</option>
-                      <option value="today">Hôm nay</option>
-                      <option value="week">7 ngày qua</option>
-                      <option value="month">Tháng này</option>
-                      <option value="custom">📅 Tùy chọn ngày...</option>
-                  </select>
-              </div>
-
-              {dateFilterType === 'custom' && (
-                  <div className="fade-in" style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
-                      <input type="date" value={customRange.start} onChange={(e) => setCustomRange({...customRange, start: e.target.value})} style={{ padding: '7px 10px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '12px', colorScheme: 'dark' }} />
-                      <span style={{color: 'var(--text-secondary)'}}>-</span>
-                      <input type="date" value={customRange.end} onChange={(e) => setCustomRange({...customRange, end: e.target.value})} style={{ padding: '7px 10px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '12px', colorScheme: 'dark' }} />
-                  </div>
-              )}
-          </div>
-      </div>
-      
-      {/* 3. KANBAN BOARD */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-          <DragDropContext onDragEnd={onDragEnd}>
-            <div className="recruitment-pipeline" style={{ 
-                display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px',
-                alignItems: 'start', height: '100%', minWidth: '1000px', overflowX: 'auto'
-            }}>
-               {['Screening', 'Interview', 'Offer', 'Hired', 'Rejected'].map(status => (
-                   <PipelineColumn 
-                        key={status} status={status} 
-                        list={getList(status)} 
-                        onSelect={setSelectedCandidate}
-                        onStatusChange={handleStatusChange} 
-                   />
-               ))}
-            </div>
-          </DragDropContext>
-      </div>
-
-      {/* MODAL */}
       {selectedCandidate && (
-        <CandidateModal candidate={selectedCandidate} onClose={() => setSelectedCandidate(null)} onUpdate={fetchCandidates} />
+        <CandidateModal candidate={selectedCandidate} onClose={() => setSelectedCandidate(null)} onUpdate={() => fetchCandidatesByJob(selectedJob.id)} />
       )}
     </div>
   );
 };
 
-// --- SUB-COMPONENTS ---
+// --- SUB-COMPONENTS (PIPELINE COLUMN & CARD - GIỮ NGUYÊN) ---
 const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
     const config = {
         'Screening': { icon: 'fa-magnifying-glass', color: '#A5B4FC', border: '#A5B4FC' },
@@ -212,7 +321,6 @@ const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
         'Hired':     { icon: 'fa-handshake', color: 'var(--accent-color)', border: 'var(--accent-color)', bgGlow: 'var(--accent-glow)' },
         'Rejected':  { icon: 'fa-ban', color: '#FCA5A5', border: '#FCA5A5' }
     }[status] || { icon: 'fa-circle', color: 'var(--text-secondary)', border: 'var(--border-color)' };
-
     const isHiredColumn = status === 'Hired';
 
     return (
@@ -221,30 +329,24 @@ const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
                 <div ref={provided.innerRef} {...provided.droppableProps} className="pipeline-column" 
                     style={{
                         background: snapshot.isDraggingOver ? 'var(--bg-input)' : (isHiredColumn ? 'var(--bg-tertiary)' : 'var(--pipeline-bg)'),
-                        padding: '10px', borderRadius: '12px', 
+                        padding: '12px', borderRadius: '12px', 
                         border: isHiredColumn ? `1px solid ${config.border}` : '1px solid var(--border-color)',
                         display: 'flex', flexDirection: 'column', height: '100%', transition: 'all 0.2s',
                         boxShadow: isHiredColumn ? '0 0 15px var(--accent-glow)' : 'none'
                     }}
                 >
                     <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 5px 10px 5px', marginBottom: '10px', borderBottom: `2px solid ${isHiredColumn ? config.border : 'var(--border-color)'}`}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden'}}>
                             <i className={`fa-solid ${config.icon}`} style={{color: config.color, fontSize: '13px'}}></i>
-                            <span style={{fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', color: isHiredColumn ? config.color : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{status}</span>
+                            <span style={{fontWeight: '700', fontSize: '13px', textTransform: 'uppercase', color: isHiredColumn ? config.color : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{status}</span>
                         </div>
-                        <span style={{background: isHiredColumn ? config.color : 'var(--bg-input)', color: isHiredColumn ? '#000' : 'var(--text-secondary)', borderRadius: '10px', padding: '1px 8px', fontSize: '10px', fontWeight: 'bold', border: `1px solid ${isHiredColumn ? 'transparent' : 'var(--border-color)'}`}}>{list.length}</span>
+                        <span style={{background: isHiredColumn ? config.color : 'var(--bg-input)', color: isHiredColumn ? '#000' : 'var(--text-secondary)', borderRadius: '10px', padding: '1px 8px', fontSize: '11px', fontWeight: 'bold', border: `1px solid ${isHiredColumn ? 'transparent' : 'var(--border-color)'}`}}>{list.length}</span>
                     </div>
                     <div style={{flex: 1, overflowY: 'auto', paddingRight: '2px'}} className="custom-scrollbar">
-                        {list.length === 0 && (
-                            <div style={{textAlign: 'center', padding: '40px 0', opacity: 0.5, color: 'var(--text-secondary)'}}>
-                                <i className="fa-regular fa-folder-open" style={{fontSize: '20px', marginBottom: '8px'}}></i>
-                                <p style={{fontSize: '11px', margin: 0}}>Trống</p>
-                            </div>
-                        )}
                         {list.map((c, index) => (
                             <Draggable key={c.id.toString()} draggableId={c.id.toString()} index={index}>
                                 {(provided, snapshot) => (
-                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} style={{ ...provided.draggableProps.style, marginBottom: '8px', transform: snapshot.isDragging ? provided.draggableProps.style.transform : 'none' }}>
+                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} style={{ ...provided.draggableProps.style, marginBottom: '10px', transform: snapshot.isDragging ? provided.draggableProps.style.transform : 'none' }}>
                                         <CandidateCard data={c} onClick={() => onSelect(c)} onStatusChange={onStatusChange} />
                                     </div>
                                 )}
@@ -258,42 +360,6 @@ const PipelineColumn = ({ status, list, onSelect, onStatusChange }) => {
     );
 };
 
-// --- REDESIGNED KPI CARD (CLEAN & MINIMALIST) ---
-const KpiCard = ({ title, value, icon, color, glow }) => (
-    <div style={{
-        background: 'var(--bg-tertiary)', padding: '20px 24px', borderRadius: '16px',
-        border: `1px solid ${glow ? 'var(--accent-color)' : 'var(--border-color)'}`,
-        boxShadow: glow ? '0 0 20px var(--accent-glow)' : 'var(--card-shadow)',
-        position: 'relative', overflow: 'hidden', transition: 'all 0.3s ease',
-        minHeight: '110px', display: 'flex', flexDirection: 'column', justifyContent: 'center'
-    }}
-    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
-    >
-        {/* Glow Line Top */}
-        {glow && <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'var(--accent-color)', boxShadow: '0 0 10px var(--accent-color)'}}></div>}
-
-        <div style={{position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-            <div>
-                <h3 style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'uppercase', margin: '0 0 8px 0', letterSpacing: '0.5px', fontWeight: 600 }}>{title}</h3>
-                <p style={{ fontSize: '32px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>{value}</p>
-            </div>
-            
-            {/* ICON CHÍNH (Đã xóa ô vuông) */}
-            <div style={{ fontSize: '28px', color: color, opacity: 1, filter: 'drop-shadow(0 0 5px rgba(0,0,0,0.1))' }}>
-                <i className={`fa-solid ${icon}`}></i>
-            </div>
-        </div>
-
-        {/* ICON BACKGROUND (Watermark trang trí) */}
-        <div style={{ 
-            position: 'absolute', right: '-20px', bottom: '-20px',
-            fontSize: '90px', color: color, opacity: 0.08, 
-            transform: 'rotate(-20deg)', pointerEvents: 'none', zIndex: 1
-        }}>
-            <i className={`fa-solid ${icon}`}></i>
-        </div>
-    </div>
-);
+// (KpiCard trong code cũ đã được thay thế bằng Job Card và Stats mới ở trên, nên ta không cần component KpiCard cũ nữa)
 
 export default Dashboard;

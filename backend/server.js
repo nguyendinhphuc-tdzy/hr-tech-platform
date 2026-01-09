@@ -1,4 +1,4 @@
-/* FILE: backend/server.js (Full: Specific Prompts + Strict Rubric + Vietnamese Output) */
+/* FILE: backend/server.js (Full Version: Auth, PDF Import, Vietnamese Prompts, Job Stats & Filtering) */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -18,7 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 // --- CẤU HÌNH ---
-let ACTIVE_MODEL_NAME = "gemini-2.5-flash"; 
+let ACTIVE_MODEL_NAME = "gemini-1.5-flash"; 
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -78,7 +78,7 @@ Hệ thống PHẢI tuân thủ trọng số sau đây, không được chấm t
 4. **Soft Skills & Presentation (20% - Max 2.0):** Cách trình bày, tư duy logic, thái độ.
 `;
 
-// --- KHO PROMPT ĐẦY ĐỦ CÁC VỊ TRÍ ---
+// --- KHO PROMPT (UPDATE: VIETNAMESE & DETAILED) ---
 function getSpecificPrompt(jobTitle, jobRequirements) {
     const title = jobTitle?.toLowerCase().trim() || "";
     
@@ -98,7 +98,7 @@ ${STRICT_RUBRIC}
     "score": 0.0, 
     "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 }, 
     "summary": "Tóm tắt 2-3 câu về mức độ phù hợp (Tiếng Việt).", 
-    "match_reason": "Giải thích chi tiết (Tiếng Việt): Tại sao cho điểm Hard Skills? Tại sao cho điểm Experience?...", 
+    "match_reason": "Giải thích chi tiết (Tiếng Việt):\n- Điểm mạnh: [Chi tiết]\n- Điểm yếu: [Chi tiết]\n- Lý do điểm số: [Chi tiết theo rubric]", 
     "recommendation": "Phỏng vấn/Cân nhắc/Loại",
     "confidence": "Cao" 
 }
@@ -108,19 +108,13 @@ ${STRICT_RUBRIC}
     // 2. INNOVATION INTERN
     if (title.includes("innovation") || title.includes("sáng tạo")) {
         return `
-# Vai trò & Ngữ cảnh
-Bạn là một **Chuyên gia Tuyển dụng**. Vị trí: **Thực tập sinh Sáng tạo (Innovation Intern)**.
-Ngữ cảnh: Hỗ trợ truyền thông nội bộ, thiết kế và tổ chức sự kiện.
-Mục tiêu: Tìm người có kỹ năng tổ chức "Bắt buộc" và sáng tạo "Ưu tiên".
-**Kỹ năng:** Microsoft Office | Thiết kế (Canva/Adobe) | Tổ chức sự kiện | Truyền thông nội bộ.
-
+# Vai trò: Chuyên gia Tuyển dụng Sáng tạo.
+# Vị trí: Innovation Intern
+# Ngữ cảnh: Hỗ trợ truyền thông nội bộ, tổ chức sự kiện, thiết kế.
 ${STRICT_RUBRIC}
-
 # Nhiệm vụ:
-1. **Phân tích:** Tìm kỹ năng Office, Thiết kế, Tổ chức sự kiện.
-2. **Đối chiếu:** Tìm kinh nghiệm tổ chức sự kiện nội bộ, viết content.
-3. **Tính điểm:** Theo Rubric.
-
+1. Tìm kỹ năng: MS Office (Excel/PPT), Thiết kế (Canva/Adobe), Tổ chức sự kiện.
+2. Tìm tố chất: Tỉ mỉ + Sáng tạo.
 # Output JSON (Tiếng Việt): (Cấu trúc như trên)
 `;
     }
@@ -128,18 +122,13 @@ ${STRICT_RUBRIC}
     // 3. MARKETING INTERN
     if (title.includes("marketing")) {
         return `
-# Vai trò & Ngữ cảnh
-Bạn là một **Chuyên gia Tuyển dụng Marketing**. Vị trí: **Thực tập sinh Marketing**.
-Bối cảnh: Digital Native, đa năng (SEO/Content, Social, PR, Event).
-**Kỹ năng:** SEO | Content | Social Media (TikTok/Zalo/FB) | Edit Video | Hậu cần sự kiện.
-
+# Vai trò: Chuyên gia Tuyển dụng Marketing.
+# Vị trí: Marketing Intern
+# Ngữ cảnh: Digital Native, đa năng (SEO, Content, Social, Event).
 ${STRICT_RUBRIC}
-
 # Nhiệm vụ:
-1. Phân tích 5 trụ cột: SEO/Content, Social Media, PR, Hậu cần, Cộng đồng.
-2. Xác thực bằng chứng thực thi (KPIs, Link bài viết).
-3. Tính điểm theo Rubric.
-
+1. Tìm kỹ năng: SEO, Content, Social Media (TikTok/Zalo), Edit Video, Tổ chức sự kiện.
+2. Tìm kinh nghiệm thực thi cụ thể (KPIs, Link bài viết).
 # Output JSON (Tiếng Việt): (Cấu trúc như trên)
 `;
     }
@@ -147,18 +136,13 @@ ${STRICT_RUBRIC}
     // 4. NETWORK SECURITY INTERN
     if (title.includes("security") || title.includes("bảo mật")) {
         return `
-# Vai trò & Ngữ cảnh
-Bạn là một **Chuyên gia Tuyển dụng An ninh mạng**. Vị trí: **Network Security Intern**.
-Ngữ cảnh: Vận hành Bảo mật (Security Ops) & Hỗ trợ Kỹ thuật (Sales Eng).
-**Kỹ năng:** Pentest (Nmap/Burp Suite) | Malware Analysis | Scripting | Incident Response.
-
+# Vai trò: Chuyên gia Tuyển dụng An ninh mạng.
+# Vị trí: Network Security Intern
+# Ngữ cảnh: Vận hành bảo mật & Hỗ trợ kỹ thuật (Sales Eng).
 ${STRICT_RUBRIC}
-
 # Nhiệm vụ:
-1. Phân tích 5 trụ cột: Bảo mật mạng, Pentest, Mã độc, IR/SOC, Hỗ trợ kỹ thuật.
-2. Tìm kiếm kinh nghiệm thực hành (Labs, CTF, GitHub).
-3. Tính điểm theo Rubric.
-
+1. Tìm kỹ năng: Network Security, Pentest (Nmap, Burp Suite), Malware Analysis, Scripting.
+2. Đánh giá kinh nghiệm thực tế (Labs, CTF).
 # Output JSON (Tiếng Việt): (Cấu trúc như trên)
 `;
     }
@@ -166,18 +150,13 @@ ${STRICT_RUBRIC}
     // 5. AI ENGINEER INTERN
     if (title.includes("ai engineer") || title.includes("trí tuệ nhân tạo")) {
         return `
-# Vai trò & Ngữ cảnh
-Bạn là **Hệ thống Sàng lọc Tài năng AI**. Vị trí: **AI Engineer Intern (NMT)**.
-Ngữ cảnh: Phát triển mô hình Dịch máy thần kinh (NMT), dataset đa ngữ.
-**Kỹ năng:** Python | C++ | NLP | TensorFlow/PyTorch | Dataset Building.
-
+# Vai trò: Chuyên gia Tuyển dụng AI.
+# Vị trí: AI Engineer Intern (NMT)
+# Ngữ cảnh: Phát triển mô hình dịch máy (NMT), dataset đa ngữ.
 ${STRICT_RUBRIC}
-
 # Nhiệm vụ:
-1. Trích xuất kỹ năng: NMT, NLP, Dataset Engineering, ML/DL.
-2. Xác thực kinh nghiệm: Huấn luyện model, tạo dataset.
-3. Tính điểm theo Rubric.
-
+1. Tìm kỹ năng: Python, C++, NLP, PyTorch/TensorFlow, Dataset Building.
+2. Xác thực kinh nghiệm huấn luyện mô hình.
 # Output JSON (Tiếng Việt): (Cấu trúc như trên)
 `;
     }
@@ -185,18 +164,13 @@ ${STRICT_RUBRIC}
     // 6. BUSINESS ANALYST INTERN
     if (title.includes("business analyst") || title.includes("ba")) {
         return `
-# Vai trò & Ngữ cảnh
-Bạn là **Chuyên gia Tuyển dụng Kỹ thuật**. Vị trí: **Business Analyst Intern**.
-Ngữ cảnh: Insurtech.
-**Kỹ năng:** SDLC | User Stories | SQL | Jira/Figma | Viết tài liệu.
-
+# Vai trò: Chuyên gia Tuyển dụng BA.
+# Vị trí: Business Analyst Intern
+# Ngữ cảnh: Insurtech, hỗ trợ Product Team.
 ${STRICT_RUBRIC}
-
 # Nhiệm vụ:
-1. Trích xuất kỹ năng: Thu thập yêu cầu, Viết User Stories, SQL.
-2. Đối chiếu kinh nghiệm dự án học thuật/thực tế.
-3. Tính điểm theo Rubric.
-
+1. Tìm kỹ năng: User Stories, SDLC, SQL, Jira/Figma, Viết tài liệu.
+2. Ưu tiên nền tảng CS/IS.
 # Output JSON (Tiếng Việt): (Cấu trúc như trên)
 `;
     }
@@ -204,18 +178,13 @@ ${STRICT_RUBRIC}
     // 7. SOFTWARE ENGINEER INTERN
     if (title.includes("software") || title.includes("mobile")) {
         return `
-# Vai trò & Ngữ cảnh
-Bạn là **Chuyên gia Tuyển dụng Kỹ thuật**. Vị trí: **Software Engineer Intern (Mobile)**.
-Ngữ cảnh: Phát triển App Mobile nhanh.
-**Kỹ năng:** iOS/Android/Flutter | DSA | Clean Code.
-
+# Vai trò: Chuyên gia Tuyển dụng Mobile Dev.
+# Vị trí: Software Engineer Intern (Mobile)
+# Ngữ cảnh: Phát triển App Mobile nhanh.
 ${STRICT_RUBRIC}
-
 # Nhiệm vụ:
-1. Trích xuất kỹ năng Mobile Dev, DSA.
-2. Đánh giá chất lượng mã nguồn/dự án (thông qua mô tả).
-3. Tính điểm theo Rubric.
-
+1. Tìm kỹ năng: Mobile Dev (iOS/Android/Flutter), DSA, Clean Code.
+2. Đánh giá dự án thực tế trên Store/Github.
 # Output JSON (Tiếng Việt): (Cấu trúc như trên)
 `;
     }
@@ -223,18 +192,13 @@ ${STRICT_RUBRIC}
     // 8. RISK ANALYST INTERN
     if (title.includes("risk")) {
         return `
-# Vai trò & Ngữ cảnh
-Bạn là **Chuyên gia Tuyển dụng Tài chính**. Vị trí: **Risk Analyst Intern**.
-Ngữ cảnh: Ngân hàng.
-**Kỹ năng:** Phân tích tài chính | Excel | Nghiên cứu thị trường | CFA/ACCA.
-
+# Vai trò: Chuyên gia Tuyển dụng Tài chính/Rủi ro.
+# Vị trí: Risk Analyst Intern
+# Ngữ cảnh: Ngân hàng, Phân tích tài chính.
 ${STRICT_RUBRIC}
-
 # Nhiệm vụ:
-1. Trích xuất kỹ năng: Phân tích báo cáo, Excel, Thị trường.
-2. Đánh giá sự tỉ mỉ và tư duy logic.
-3. Tính điểm theo Rubric.
-
+1. Tìm kỹ năng: Phân tích báo cáo tài chính, Excel, Nghiên cứu thị trường.
+2. Ưu tiên CFA/ACCA.
 # Output JSON (Tiếng Việt): (Cấu trúc như trên)
 `;
     }
@@ -457,10 +421,60 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
     }
 });
 
+// [UPDATED] API LẤY DANH SÁCH ỨNG VIÊN (HỖ TRỢ LỌC THEO JOB_ID)
 app.get('/api/candidates', requireAuth, async (req, res) => { 
     try {
-        const r = await pool.query('SELECT * FROM candidates WHERE owner_email = $1 ORDER BY id DESC', [req.userEmail]); 
+        const { job_id } = req.query; // Lấy tham số job_id
+        
+        let query = 'SELECT * FROM candidates WHERE owner_email = $1';
+        let params = [req.userEmail];
+
+        if (job_id) {
+            query += ' AND job_id = $2';
+            params.push(job_id);
+        }
+        
+        query += ' ORDER BY ai_rating DESC, id DESC'; // Ranking: Điểm cao lên đầu
+
+        const r = await pool.query(query, params); 
         res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// [NEW] API THỐNG KÊ (JOB STATS) - DÙNG CHO DASHBOARD
+app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
+    try {
+        // Lấy tất cả Job
+        const jobsQuery = await pool.query('SELECT * FROM job_positions ORDER BY id DESC');
+        const jobs = jobsQuery.rows;
+
+        // Lấy thống kê ứng viên theo Job và Status của User hiện tại
+        const statsQuery = await pool.query(`
+            SELECT job_id, status, COUNT(*) as count 
+            FROM candidates 
+            WHERE owner_email = $1 
+            GROUP BY job_id, status
+        `, [req.userEmail]);
+
+        const stats = statsQuery.rows;
+
+        // Gộp dữ liệu: Mỗi job sẽ có object stats riêng
+        const dashboardData = jobs.map(job => {
+            const jobStats = stats.filter(s => s.job_id === job.id);
+            // Biến đổi mảng stats thành object { Screening: 5, Interview: 2... }
+            const statusCounts = jobStats.reduce((acc, curr) => {
+                acc[curr.status] = parseInt(curr.count);
+                return acc;
+            }, { Screening: 0, Interview: 0, Offer: 0, Hired: 0, Rejected: 0 });
+
+            return {
+                ...job,
+                stats: statusCounts,
+                total: Object.values(statusCounts).reduce((a, b) => a + b, 0)
+            };
+        });
+
+        res.json(dashboardData);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
