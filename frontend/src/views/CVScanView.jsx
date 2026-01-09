@@ -257,7 +257,7 @@ const CVScanView = () => {
                                     
                                     {/* Vùng nội dung chính - Giữ format xuống dòng */}
                                     <div style={{ 
-                                        color: '#D1D5DB', // Màu xám nhạt dễ đọc
+                                        color: '#3b3c3dff', // Màu xám nhạt dễ đọc
                                         fontSize: '14px', 
                                         lineHeight: '1.8', 
                                         whiteSpace: 'pre-wrap', // Chìa khóa để giữ format
