@@ -67,6 +67,13 @@ h1, h2, h3, h4, h5, h6, .form-title, .section-title {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border-color) !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 /* Bỏ Sidebar default trong index lằng nhằng */
