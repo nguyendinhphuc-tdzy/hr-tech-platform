@@ -7,13 +7,11 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: "fa-chart-pie" },
-    { id: "ai-scan", label: "AI Scan CV", icon: "fa-radar" },
-    {
-      id: "intern-book",
-      label: "Sổ tay Thực tập",
-      icon: "fa-book-open-reader",
-    },
-    { id: "ai-training", label: "Huấn luyện AI", icon: "fa-robot" },
+    { id: "ai-scan", label: "AI Tuyển dụng", icon: "fa-radar" },
+    { id: "core-hr", label: "Hồ sơ Nhân sự", icon: "fa-users-viewfinder", isNew: true },
+    { id: "time-off", label: "Quản lý Nghỉ phép", icon: "fa-calendar-day", isNew: true },
+    { id: "performance", label: "Đánh giá Hiệu suất", icon: "fa-arrow-trend-up", isNew: true },
+    { id: "ai-training", label: "Cấu hình AI", icon: "fa-robot" }
   ];
 
   return (
@@ -35,8 +33,9 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
             className={`sidebar-item ${activeTab === item.id ? "active" : ""}`}
             onClick={() => setActiveTab(item.id)}
           >
-            <i className={`fa-solid ${item.icon}`}></i>
+            <i className={`fa-solid ${item.icon}`} style={{ width: '20px', textAlign: 'center' }}></i>
             <span>{item.label}</span>
+            {item.isNew && <span className="badge-new">BETA</span>}
           </div>
         ))}
       </div>

@@ -327,9 +327,18 @@ const DashboardLayout = ({ user, onLogout }) => {
         switch (activeTab) {
             case 'dashboard': return <Dashboard />;
             case 'ai-scan': return <CVScanView />;
-            case 'intern-book': return <InternBook />;
             case 'ai-training': return <AITraining />;
             case 'settings': return <AccountSettings user={user} onUpdateUser={(u) => console.log("Updated", u)} />;
+            case 'core-hr':
+            case 'time-off':
+            case 'performance':
+                return (
+                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)'}}>
+                        <i className="fa-solid fa-person-digging" style={{fontSize: '48px', marginBottom: '20px', color: 'var(--accent-color)'}}></i>
+                        <h2>Tính năng đang phát triển</h2>
+                        <p>Module này sẽ sớm ra mắt trong phiên bản Beta tiếp theo.</p>
+                    </div>
+                );
             default: return <Dashboard />;
         }
     };

@@ -1,182 +1,160 @@
-/* FILE: frontend/src/index.css - Eco-Futuristic Theme (Fix Visibility) */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+/* FILE: frontend/src/index.css - Premium Enterprise Theme */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 
 :root {
-    /* --- BẢNG MÀU GỐC --- */
-    --brand-neon-green: #2EFF7B;
-    --brand-forest-green: #009E49;
-    --brand-silver: #B0B6BA;
-    
     /* --- DARK THEME (DEFAULT) --- */
-    --bg-primary: #09121D;       /* Nền tảng chính */
-    --bg-secondary: #0D1825;     /* Nền Sidebar/Card */
-    --bg-tertiary: #131F2E;      /* Nền Card nổi */
-    --bg-input: #1A2736;         /* Nền ô input/dropdown */
+    --bg-primary: #0B1121;       /* Nền tảng chính sâu hơn */
+    --bg-secondary: rgba(15, 23, 42, 0.65); /* Nền Sidebar/Kính */
+    --bg-tertiary: rgba(30, 41, 59, 0.7);  /* Nền Card kính */
+    --bg-input: #0F172A;     
     
-    --text-primary: #FFFFFF;     /* Chữ chính (Trắng) */
-    --text-secondary: #9CA3AF;   /* Chữ phụ (Xám) */
-    --text-highlight: #2EFF7B;   /* Neon Green */
+    --text-primary: #F8FAFC;     
+    --text-secondary: #94A3B8;   
     
-    --border-color: #2D3B4E;     /* Đường viền tối */
-    --accent-color: #2EFF7B;     /* Màu nhấn chính */
-    --accent-glow: rgba(46, 255, 123, 0.2);
-    
-    --card-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    --pipeline-bg: #0D1825; 
-    
-    /* Status Colors */
-    --success-color: #2EFF7B;
-    --danger-color: #FF4D4D;
-
-    /* --- [QUAN TRỌNG] LỚP TƯƠNG THÍCH CHO CODE CŨ (COMPATIBILITY) --- */
-    /* Ánh xạ các biến cũ sang biến mới để chữ không bị ẩn */
-    --text-white: var(--text-primary);       /* Sửa lỗi var(--text-white) */
-    --neon-green: var(--accent-color);       /* Sửa lỗi var(--neon-green) */
-    --text-gray: var(--text-secondary);
-    --card-background: var(--bg-tertiary);
-}
-
-/* --- LIGHT THEME (GHI ĐÈ) --- */
-[data-theme="light"] {
-    --bg-primary: #F3F4F6;       
-    --bg-secondary: #FFFFFF;     
-    --bg-tertiary: #FFFFFF;      
-    --bg-input: #E5E7EB;         
-
-    --text-primary: #111827;     /* Chữ chính chuyển thành Đen */
-    --text-secondary: #4B5563;   
-    --text-highlight: #059669;   
-
-    --border-color: #E5E7EB;     
+    --border-color: rgba(255, 255, 255, 0.08); 
     --accent-color: #10B981;     
     --accent-glow: rgba(16, 185, 129, 0.15);
-
-    --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    --pipeline-bg: #F9FAFB;      
-
-    /* Cập nhật lại tương thích cho Light Mode */
-    --text-white: var(--text-primary); /* Lúc này là màu Đen */
+    --accent-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    
+    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --pipeline-bg: rgba(15, 23, 42, 0.4); 
+    
+    /* Màu trạng thái */
+    --success-color: #10B981;
+    --danger-color: #EF4444;
+    
+    /* Support cũ */
+    --text-white: var(--text-primary);
+    --neon-green: var(--accent-color);
 }
 
-/* --- GLOBAL RESET --- */
+[data-theme="light"] {
+    --bg-primary: #F8FAFC;       
+    --bg-secondary: rgba(255, 255, 255, 0.8);     
+    --bg-tertiary: rgba(255, 255, 255, 0.95);      
+    --bg-input: #FFFFFF;         
+
+    --text-primary: #0F172A;     
+    --text-secondary: #64748B;   
+    
+    --border-color: rgba(0, 0, 0, 0.08);     
+    --card-shadow: 0 10px 40px rgba(0,0,0,0.04);
+    --pipeline-bg: rgba(241, 245, 249, 0.6);      
+    --accent-color: #059669;
+}
+
+/* GLOBAL RESET */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body { 
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Inter', sans-serif;
     background-color: var(--bg-primary); 
-    color: var(--text-primary); /* Đảm bảo mọi chữ mặc định đều lấy màu này */
-    /* Light mode sẽ tự bỏ gradient này */
-    background-image: var(--bg-image, radial-gradient(circle at 50% 0%, #1a2c42 0%, var(--bg-primary) 70%)); 
+    color: var(--text-primary);
     min-height: 100vh;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color 0.4s ease, color 0.4s ease;
+    overflow-x: hidden;
 }
 
-[data-theme="light"] body {
-    background-image: none;
+/* Cho các Headings dùng font Outfit để tạo cảm giác Premium Tech */
+h1, h2, h3, h4, h5, h6, .form-title, .section-title { 
+    font-family: 'Outfit', sans-serif; 
+    color: var(--text-primary); 
 }
 
-/* --- COMPONENTS --- */
-.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-
-/* Header & Sidebar */
-.main-header, .sidebar { 
-    background-color: var(--bg-secondary);
-    border-color: var(--border-color);
-}
-.main-header { 
-    padding: 15px 30px; 
-    border-bottom: 1px solid var(--border-color); 
-    display: flex; justify-content: space-between; align-items: center; 
-    backdrop-filter: blur(10px); 
-    position: sticky; top: 0; z-index: 100;
-}
-.sidebar {
-    width: 240px; flex-shrink: 0;
-    border: 1px solid var(--border-color);
-    border-radius: 12px; padding: 15px;
-    height: calc(100vh - 100px);
-    box-shadow: var(--card-shadow);
+/* Tinh chỉnh Header & Layout tổng */
+.main-header {
+    background: var(--bg-secondary) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-color) !important;
 }
 
-/* Cards (Dùng class này cho các khối nội dung để đảm bảo màu nền đúng) */
-.card-common, .card-dark, .kpi-card, .candidate-card {
-    background-color: var(--bg-tertiary) !important; /* Bắt buộc màu nền thẻ */
+/* Bỏ Sidebar default trong index lằng nhằng */
+.sidebar, .glass-panel {
+    background: var(--bg-secondary) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--border-color) !important;
-    color: var(--text-primary) !important;           /* Bắt buộc màu chữ */
-    border-radius: 12px;
     box-shadow: var(--card-shadow);
 }
 
-/* Inputs & Forms */
+.card-common, .card-dark, .kpi-card, .candidate-card, .job-card {
+    background: var(--bg-tertiary) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--card-shadow);
+    color: var(--text-primary) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
+}
+
+/* Buttons */
+button { transition: all 0.3s ease; font-family: 'Inter', sans-serif; }
+.btn-primary {
+    background: var(--accent-gradient) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    box-shadow: 0 4px 15px var(--accent-glow) !important;
+}
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--accent-glow) !important;
+}
+
+/* Inputs */
 input, select, textarea {
-    background-color: var(--bg-input) !important;
-    color: var(--text-primary) !important; /* Chữ trong input phải tương phản */
+    background: var(--bg-input) !important;
+    color: var(--text-primary) !important;
     border: 1px solid var(--border-color) !important;
-    padding: 10px;
-    border-radius: 6px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
 }
 input:focus, select:focus {
     border-color: var(--accent-color) !important;
     outline: none;
+    box-shadow: 0 0 0 3px var(--accent-glow);
 }
-/* Placeholder color */
-::placeholder { color: var(--text-secondary); opacity: 0.7; }
+::placeholder { color: var(--text-secondary); opacity: 0.6; }
 
-/* Buttons */
-button { cursor: pointer; transition: all 0.2s; }
-.btn-primary, button[style*="background"] {
-    color: #000 !important; /* Chữ trên nút màu luôn đen cho dễ đọc */
-    font-weight: 700;
-}
-
-/* Text Overrides */
-h1, h2, h3, h4, h5, h6 { color: var(--text-primary); }
-p, span, div { color: inherit; } /* Kế thừa màu từ cha */
-
-/* --- SCROLLBAR --- */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
-
-/* --- SIDEBAR STYLING (Thêm vào cuối file) --- */
-.sidebar-menu {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 20px;
-}
-
+/* Sidebar Items */
 .sidebar-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px; border-radius: 12px;
+    cursor: pointer; font-size: 14px; font-weight: 500;
     transition: all 0.2s ease;
-    color: var(--text-secondary); /* Mặc định màu xám dịu */
-    border: 1px solid transparent;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
 }
-
-/* Hiệu ứng khi di chuột (Hover) */
 .sidebar-item:hover {
-    background-color: var(--bg-input);
-    color: var(--text-primary); /* Sáng lên khi hover */
+    background: rgba(255,255,255,0.03);
+    color: var(--text-primary);
 }
-
-/* Trạng thái đang chọn (Active) */
 .sidebar-item.active {
-    background-color: var(--accent-glow); /* Nền phát sáng nhẹ theo màu chủ đạo */
-    color: var(--accent-color);           /* Chữ màu Neon/Xanh */
-    border-color: var(--accent-color);    /* Viền mỏng */
-    font-weight: 700;
+    background: var(--accent-glow) !important;
+    color: var(--accent-color) !important;
+    font-weight: 600;
 }
+[data-theme="light"] .sidebar-item:hover { background: rgba(0,0,0,0.03); }
 
-/* Icon trong sidebar */
-.sidebar-item i {
-    width: 20px;
-    text-align: center;
-    font-size: 16px;
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
+
+/* Utilities */
+.fade-in { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.badge-new {
+    background: #6366F1;
+    color: #FFF;
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: auto;
 }

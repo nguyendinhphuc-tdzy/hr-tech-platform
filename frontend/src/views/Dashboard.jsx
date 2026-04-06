@@ -6,6 +6,17 @@ import CandidateCard from '../components/CandidateCard';
 import CandidateModal from '../components/CandidateModal';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../supabaseClient'; 
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+const chartData = [
+  { name: 'T2', UV: 12, Hired: 2 },
+  { name: 'T3', UV: 19, Hired: 3 },
+  { name: 'T4', UV: 15, Hired: 1 },
+  { name: 'T5', UV: 25, Hired: 5 },
+  { name: 'T6', UV: 22, Hired: 4 },
+  { name: 'T7', UV: 30, Hired: 6 },
+  { name: 'CN', UV: 28, Hired: 2 },
+];
 
 const Dashboard = () => {
   // --- STATE QUẢN LÝ VIEW ---
@@ -102,64 +113,135 @@ const Dashboard = () => {
       setTimeout(() => setUploadingFiles([]), 5000); 
   };
 
-  // --- VIEW 1: DANH SÁCH JOB (JOB CARDS) ---
-  const renderJobListView = () => (
-      <div className="job-list-view fade-in">
-          <div style={{marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-              <div>
-                <h2 className="section-title" style={{ color: 'var(--text-primary)', margin: 0, fontSize: '24px' }}>Tổng quan Tuyển dụng</h2>
-                <p style={{color: 'var(--text-secondary)', marginTop: '5px', fontSize: '14px'}}>Chọn một vị trí để xem phễu ứng viên chi tiết</p>
+  // --- VIEW 1: MÀN HÌNH CHÍNH (PREMIUM DASHBOARD) ---
+  const renderJobListView = () => {
+      // Calculate overall stats implicitly
+      const totalJobs = jobsStats.length;
+      const totalCandidates = jobsStats.reduce((acc, job) => acc + job.total, 0);
+      const hiredCount = jobsStats.reduce((acc, job) => acc + (job.stats.Hired || 0), 0);
+
+      return (
+          <div className="job-list-view fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+              
+              {/* --- TOP HEADER & ACTIONS --- */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <div>
+                    <h2 className="section-title" style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: '700' }}>Tình hình Tuyển dụng</h2>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '15px' }}>Dữ liệu ứng viên và hiệu suất tuyển dụng toàn công ty.</p>
+                  </div>
+                  <button onClick={fetchDashboardStats} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <i className="fa-solid fa-rotate-right"></i> Đồng bộ dữ liệu
+                  </button>
               </div>
-              <button onClick={fetchDashboardStats} style={{background: 'var(--bg-input)', border:'1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display:'flex', alignItems:'center', gap:'8px'}}>
-                  <i className="fa-solid fa-rotate-right"></i> Làm mới
-              </button>
+
+              {/* --- TOP METRICS WIDGETS --- */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                  <MetricCard title="Tổng Ứng viên" value={totalCandidates} icon="fa-users" color="#6366F1" trend="+12% tuần này" />
+                  <MetricCard title="Vị trí Đang mở" value={totalJobs} icon="fa-briefcase" color="#10B981" trend="+2 vị trí mới" />
+                  <MetricCard title="Đã Tuyển thành công" value={hiredCount} icon="fa-handshake" color="#34D399" trend="+5% so với tháng trước" />
+                  <MetricCard title="Tỉ lệ Chuyển đổi" value={totalCandidates ? Math.round((hiredCount/totalCandidates)*100) + '%' : '0%'} icon="fa-bolt" color="#F59E0B" trend="Tăng nhẹ" />
+              </div>
+
+              {/* --- BẢNG ĐIỀU KHIỂN & BIỂU ĐỒ --- */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+                  <div className="glass-panel" style={{ padding: '25px', borderRadius: '16px' }}>
+                      <h3 style={{ margin: '0 0 20px 0', fontSize: '16px', color: 'var(--text-secondary)' }}>LƯU LƯỢNG ỨNG VIÊN THEO TUẦN</h3>
+                      <div style={{ width: '100%', height: '250px' }}>
+                          <ResponsiveContainer>
+                              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                  <defs>
+                                      <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                                          <stop offset="5%" stopColor="var(--accent-color)" stopOpacity={0.4}/>
+                                          <stop offset="95%" stopColor="var(--accent-color)" stopOpacity={0}/>
+                                      </linearGradient>
+                                  </defs>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                                  <XAxis dataKey="name" stroke="var(--text-secondary)" tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                                  <YAxis stroke="var(--text-secondary)" tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                                  <Tooltip contentStyle={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '10px', color: 'var(--text-primary)' }} itemStyle={{ color: 'var(--text-primary)' }} />
+                                  <Area type="monotone" dataKey="UV" stroke="var(--accent-color)" strokeWidth={3} fillOpacity={1} fill="url(#colorUv)" />
+                              </AreaChart>
+                          </ResponsiveContainer>
+                      </div>
+                  </div>
+
+                  <div className="glass-panel" style={{ padding: '25px', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                      <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+                          <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: '32px', color: 'var(--accent-color)' }}></i>
+                      </div>
+                      <h3 style={{ margin: '0 0 10px 0', fontSize: '18px' }}>AI Tuyển dụng</h3>
+                      <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '20px' }}>
+                          Hệ thống AI tự động đánh giá CV và gợi ý ứng viên tốt nhất cho từng vị trí.
+                      </p>
+                      <button style={{ background: 'transparent', border: '1px solid var(--accent-color)', color: 'var(--accent-color)', padding: '10px 20px', borderRadius: '8px', fontWeight: '600' }}>
+                          Cấu hình Rule ngay
+                      </button>
+                  </div>
+              </div>
+
+              {/* --- RAW PIPELINE WIDGET --- */}
+              <div>
+                  <h3 className="section-title" style={{ margin: '10px 0 20px 0', fontSize: '20px' }}>Danh sách Vị trí Đang mở</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
+                      {jobsStats.map(job => (
+                          <div key={job.id} 
+                               onClick={() => { setSelectedJob(job); setViewMode('pipeline'); fetchCandidatesByJob(job.id); }}
+                               className="job-card"
+                               style={{ padding: '25px', cursor: 'pointer' }}
+                          >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
+                                  <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-primary)', maxWidth: '70%', lineHeight: 1.4 }}>{job.title}</h3>
+                                  <span style={{ background: 'var(--accent-glow)', color: 'var(--accent-color)', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
+                                      {job.total} CV
+                                  </span>
+                              </div>
+                              
+                              {/* Progress bar mock */}
+                              <div style={{ width: '100%', height: '6px', background: 'var(--bg-input)', borderRadius: '10px', marginBottom: '20px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.min(100, Math.max(10, (job.stats.Hired / (job.total || 1)) * 100))}%`, height: '100%', background: 'var(--accent-color)' }}></div>
+                              </div>
+
+                              {/* Mini Stats Line */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+                                  <StatItem label="Screening" value={job.stats.Screening} />
+                                  <StatItem label="Interview" value={job.stats.Interview} />
+                                  <StatItem label="Offer" value={job.stats.Offer} />
+                                  <StatItem label="Hired" value={job.stats.Hired} highlight />
+                              </div>
+                          </div>
+                      ))}
+                      {jobsStats.length === 0 && (
+                          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px', borderRadius: '16px', background: 'var(--bg-tertiary)', border: '1px dashed var(--border-color)' }}>
+                              <i className="fa-solid fa-briefcase" style={{ fontSize: '40px', marginBottom: '15px', color: 'var(--text-secondary)' }}></i>
+                              <p style={{ color: 'var(--text-secondary)' }}>Chưa có chiến dịch tuyển dụng nào. Hãy bắt đầu nhập JD.</p>
+                          </div>
+                      )}
+                  </div>
+              </div>
           </div>
+      );
+  };
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '25px' }}>
-              {jobsStats.map(job => (
-                  <div key={job.id} 
-                       onClick={() => { setSelectedJob(job); setViewMode('pipeline'); fetchCandidatesByJob(job.id); }}
-                       className="job-card"
-                       style={{
-                           background: 'var(--bg-secondary)', padding: '25px', borderRadius: '16px',
-                           border: '1px solid var(--border-color)', cursor: 'pointer',
-                           transition: 'all 0.2s', position: 'relative', overflow: 'hidden',
-                           boxShadow: 'var(--card-shadow)'
-                       }}
-                       onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
-                       onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
-                  >
-                      {/* Badge Total */}
-                      <div style={{position: 'absolute', top: '20px', right: '20px', background: 'var(--bg-input)', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', color: 'var(--text-primary)', border: '1px solid var(--border-color)'}}>
-                          {job.total} hồ sơ
-                      </div>
-
-                      <h3 style={{margin: '0 0 10px 0', fontSize: '18px', color: 'var(--text-primary)', paddingRight: '60px'}}>{job.title}</h3>
-                      <div style={{height: '3px', width: '40px', background: 'var(--accent-color)', marginBottom: '25px', borderRadius: '2px'}}></div>
-
-                      {/* Mini Stats Grid */}
-                      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
-                          <StatItem label="Mới / Sàng lọc" value={job.stats.Screening} color="#A5B4FC" />
-                          <StatItem label="Phỏng vấn" value={job.stats.Interview} color="#FCD34D" />
-                          <StatItem label="Offer" value={job.stats.Offer} color="#6EE7B7" />
-                          <StatItem label="Đã tuyển" value={job.stats.Hired} color="var(--accent-color)" bold />
-                      </div>
-                  </div>
-              ))}
-              {jobsStats.length === 0 && (
-                  <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '50px', color: 'var(--text-secondary)'}}>
-                      <i className="fa-solid fa-folder-open" style={{fontSize: '40px', marginBottom: '15px', opacity: 0.5}}></i>
-                      <p>Chưa có dữ liệu vị trí nào. Hãy import JD trong phần AI Training.</p>
-                  </div>
-              )}
+  // Helper Components cho Layout Mới
+  const MetricCard = ({ title, value, icon, color, trend }) => (
+      <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${color}20`, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                  <i className={`fa-solid ${icon}`}></i>
+              </span>
+              <span style={{ fontSize: '12px', background: 'var(--bg-input)', padding: '4px 8px', borderRadius: '6px', color: 'var(--text-secondary)' }}>{trend}</span>
+          </div>
+          <div>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 5px 0' }}>{title}</p>
+              <h2 style={{ fontSize: '32px', margin: 0, fontWeight: '700' }}>{value}</h2>
           </div>
       </div>
   );
 
-  const StatItem = ({ label, value, color, bold }) => (
-      <div style={{background: 'var(--bg-input)', padding: '10px 15px', borderRadius: '10px', border: '1px solid var(--border-color)'}}>
-          <div style={{fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '5px', textTransform: 'uppercase'}}>{label}</div>
-          <div style={{fontSize: '20px', fontWeight: bold ? '800' : '600', color: color}}>{value}</div>
+  const StatItem = ({ label, value, highlight }) => (
+      <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '5px' }}>{label}</div>
+          <div style={{ fontSize: '16px', fontWeight: '600', color: highlight ? 'var(--accent-color)' : 'var(--text-primary)' }}>{value}</div>
       </div>
   );
 
