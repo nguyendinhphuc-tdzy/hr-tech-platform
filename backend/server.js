@@ -100,7 +100,8 @@ ${STRICT_RUBRIC}
     "summary": "Tóm tắt 2-3 câu về mức độ phù hợp (Tiếng Việt).", 
     "match_reason": "Giải thích chi tiết (Tiếng Việt):\n- Điểm mạnh: [Chi tiết]\n- Điểm yếu: [Chi tiết]\n- Lý do điểm số: [Chi tiết theo rubric]", 
     "recommendation": "Phỏng vấn/Cân nhắc/Loại",
-    "confidence": "Cao" 
+    "confidence": "Cao",
+    "market_salary": "Thu nhập thị trường VN: ~10M - 15M VNĐ (Ước lượng dựa trên số năm kinh nghiệm)"
 }
 `;
     }
@@ -216,7 +217,8 @@ ${STRICT_RUBRIC}
     "full_name": "...", "email": "...", "skills": [], 
     "score": 0.0, 
     "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 }, 
-    "summary": "...", "match_reason": "...", "recommendation": "...", "confidence": "Cao" 
+    "summary": "...", "match_reason": "...", "recommendation": "...", "confidence": "Cao",
+    "market_salary": "Thu nhập thị trường VN: ~10M - 15M VNĐ" 
 }
 `;
 }
@@ -418,6 +420,58 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
     } catch (err) { 
         console.error("🔥 Lỗi Server:", err);
         res.status(500).json({ error: "Lỗi: " + err.message }); 
+    }
+});
+
+// ==========================================
+// [NEW DYNAMIC] API CHAT VỚI AI VỀ CV BẤT KỲ CÓ HỖ TRỢ LOCAL AI
+// ==========================================
+app.post('/api/ai/chat-cv', requireAuth, async (req, res) => {
+    try {
+        const { candidateId, question, cvContext } = req.body;
+        if (!question) return res.status(400).json({ error: "Thiếu câu hỏi" });
+
+        const promptMessage = `
+Bạn là Trợ lý Tuyển dụng Nội bộ của doanh nghiệp. Vui lòng trả lời câu hỏi của nhà tuyển dụng dựa trên thông tin ứng viên sau:
+[Dữ liệu Ứng viên / Tóm tắt CV]:
+${cvContext || 'Không có dữ liệu văn bản đính kèm.'}
+
+[Câu hỏi của nhà tuyển dụng]: "${question}"
+Lưu ý: Chỉ trả lời dựa trên thông tin được cung cấp, nếu không có thông tin hãy báo là không tìm thấy trong CV.
+`;
+
+        // CHỌN PHƯƠNG THỨC XỬ LÝ DỰA TRÊN .ENV
+        const useLocalAI = process.env.USE_LOCAL_AI === "true";
+        let aiResponseText = "";
+
+        if (useLocalAI && process.env.LOCAL_AI_URL) {
+            console.log("🚀 Gọi Local AI Server:", process.env.LOCAL_AI_URL);
+            // Chuẩn OpenAI API Completion endpoint
+            const localPayload = {
+                model: process.env.LOCAL_AI_MODEL || "local-model",
+                messages: [{ role: "user", content: promptMessage }],
+                temperature: 0.3
+            };
+            const response = await fetch(`${process.env.LOCAL_AI_URL}/chat/completions`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(localPayload)
+            });
+            if (!response.ok) throw new Error("Local AI Server error");
+            const data = await response.json();
+            aiResponseText = data.choices[0].message.content;
+        } else {
+            console.log("☁️ Gọi Google Gemini Cloud");
+            const model = genAI.getGenerativeModel({ model: ACTIVE_MODEL_NAME });
+            const result = await model.generateContent(promptMessage);
+            aiResponseText = result.response.text();
+        }
+
+        res.json({ answer: aiResponseText });
+
+    } catch (err) {
+        console.error("Lỗi AI Chat:", err);
+        res.status(500).json({ error: "Lỗi xử lý AI: " + err.message });
     }
 });
 

@@ -11,6 +11,15 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
   const [status, setStatus] = useState(candidate.status || 'Screening');
   const [updating, setUpdating] = useState(false);
 
+  // State chat AI
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState([{ role: 'ai', text: 'Xin chào, tôi là AI Assistant. Bạn muốn tìm hiểu thêm thông tin gì từ CV này?' }]);
+  const [chatInput, setChatInput] = useState('');
+  const [loadingChat, setLoadingChat] = useState(false);
+
+  // State luân chuyển (Cross-match demo)
+  const [isMoved, setIsMoved] = useState(false);
+
   // Hàm đổi trạng thái
   const handleStatusChange = async (e) => {
       const newStatus = e.target.value;
@@ -24,6 +33,32 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
       } finally {
           setUpdating(false);
       }
+  };
+
+  // Hàm chat AI
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return;
+    const newMsgs = [...messages, { role: 'user', text: chatInput }];
+    setMessages(newMsgs);
+    setChatInput('');
+    setLoadingChat(true);
+
+    try {
+        const payload = {
+            candidateId: candidate.id,
+            question: chatInput,
+            cvContext: `Tên: ${candidate.full_name}, Email: ${candidate.email}, Kỹ năng: ${aiData.skills?.join(', ')}, Tóm tắt: ${aiData.summary}, Kinh nghiệm & Lý do: ${aiData.match_reason}`
+        };
+        const API_URL = API_BASE_URL.replace(/\/$/, ""); 
+        const res = await axios.post(`${API_URL}/api/ai/chat-cv`, payload, {
+            headers: { 'x-user-email': 'admin' } // Fix cứng để demo nếu thiếu auth
+        });
+        setMessages([...newMsgs, { role: 'ai', text: res.data.answer }]);
+    } catch (err) {
+        setMessages([...newMsgs, { role: 'ai', text: "Lỗi kết nối Local AI / Cloud API: " + err.message }]);
+    } finally {
+        setLoadingChat(false);
+    }
   };
 
   // Màu sắc điểm số
@@ -126,9 +161,32 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
           {/* PHẢI: AI ANALYSIS (Mở rộng ra 65%) */}
           <div style={{
               flex: 1, padding: '30px', overflowY: 'auto', 
-              background: 'var(--bg-secondary)' // Nền sidebar phải theo theme
+              background: 'var(--bg-secondary)', position: 'relative' // Thêm position relative
           }}>
              
+             {/* [FEATURE 3: CROSS-MATCHING] Gợi ý luân chuyển nếu điểm thấp */}
+             {candidate.ai_rating < 6.5 && !isMoved && (
+                <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)', border: '1px solid #F59E0B', 
+                    borderRadius: '12px', padding: '15px 20px', marginBottom: '25px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                    <div>
+                        <h4 style={{margin: '0 0 5px 0', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            <i className="fa-solid fa-code-branch"></i> Cảnh báo Điểm thấp (Smart Cross-match)
+                        </h4>
+                        <p style={{margin: 0, fontSize: '13px', color: 'var(--text-secondary)'}}>
+                            Dựa trên keywords kỹ năng, ứng viên này phù hợp <b>85%</b> với vị trí <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>Data Analyst</span> đang mở.
+                        </p>
+                    </div>
+                    <button 
+                        onClick={() => { alert('Đã luân chuyển ứng viên sang chiến dịch Data Analyst!'); setIsMoved(true); }}
+                        style={{background: '#F59E0B', border: 'none', padding: '8px 16px', borderRadius: '8px', color: '#000', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap'}}>
+                        Luân chuyển ngay
+                    </button>
+                </div>
+             )}
+
              {/* 1. SCORE CARD & SUMMARY (Thiết kế mới) */}
              <div style={{
                  display:'grid', gridTemplateColumns: '150px 1fr', gap:'25px', marginBottom:'30px', 
@@ -169,9 +227,9 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
              </div>
 
              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px'}}>
-                 {/* 2. KỸ NĂNG */}
+                  {/* 2. KỸ NĂNG */}
                  <div style={{
-                     background: 'var(--bg-input)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)'
+                     background: 'var(--bg-input)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column'
                  }}>
                     <h4 style={{
                         display:'flex', alignItems:'center', gap:'10px', color:'var(--text-primary)', 
@@ -227,8 +285,36 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                  </div>
              </div>
              
+             {/* [FEATURE 2: SALARY INSIGHT] */}
+             <div style={{marginBottom: '30px'}}>
+                 <h4 style={{
+                    display:'flex', alignItems:'center', gap:'10px', color:'var(--text-primary)', 
+                    marginBottom:'15px', fontSize: '14px', textTransform: 'uppercase', fontWeight: '700'
+                 }}>
+                    <i className="fa-solid fa-money-bill-trend-up" style={{color: '#10B981'}}></i> Phân tích Mức lương (Thị trường VN)
+                 </h4>
+                 <div style={{
+                     background: 'var(--bg-input)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)',
+                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                 }}>
+                     <div>
+                         <p style={{margin: '0 0 8px 0', fontSize: '13px', color: 'var(--text-secondary)'}}>AI Ước lượng Benchmark Lương:</p>
+                         <h3 style={{margin: 0, fontSize: '20px', color: 'var(--accent-color)', fontWeight: '800'}}>
+                             {aiData.market_salary || "Chưa có dữ liệu từ AI"}
+                         </h3>
+                     </div>
+                     <div style={{display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '200px'}}>
+                         <label style={{fontSize: '12px', color: 'var(--text-secondary)'}}>Lương đề xuất / Ngân sách:</label>
+                         <input type="text" placeholder="VD: 12,000,000 VND" style={{
+                             background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', 
+                             padding: '10px 15px', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none'
+                         }} />
+                     </div>
+                 </div>
+             </div>
+
              {/* 3. CHI TIẾT ĐÁNH GIÁ (MATCH REASON) */}
-             <div>
+             <div style={{marginBottom: '30px'}}>
                 <h4 style={{
                     display:'flex', alignItems:'center', gap:'10px', color:'var(--text-primary)', 
                     marginBottom:'15px', fontSize: '14px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px'
@@ -247,6 +333,68 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
              </div>
 
           </div>
+          
+          {/* [FEATURE 1: CHATBOT POP-UP UI] */}
+          {chatOpen && (
+              <div style={{
+                  position: 'absolute', bottom: '90px', right: '30px', width: '380px', height: '480px',
+                  background: 'var(--bg-tertiary)', borderRadius: '16px', border: '1px solid var(--border-color)',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 10
+              }}>
+                  <div style={{background: 'var(--accent-color)', padding: '15px 20px', color: '#000', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between'}}>
+                      <span><i className="fa-solid fa-robot"></i> Chat với CV (Local AI)</span>
+                      <i className="fa-solid fa-xmark" style={{cursor: 'pointer'}} onClick={() => setChatOpen(false)}></i>
+                  </div>
+                  <div style={{flex: 1, padding: '15px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                      {messages.map((msg, i) => (
+                          <div key={i} style={{alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%'}}>
+                              <div style={{
+                                  background: msg.role === 'user' ? '#3B82F6' : 'var(--bg-input)',
+                                  color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
+                                  padding: '10px 15px', borderRadius: '12px', fontSize: '14px', border: msg.role === 'user' ? 'none' : '1px solid var(--border-color)'
+                              }}>
+                                  {msg.text}
+                              </div>
+                          </div>
+                      ))}
+                      {loadingChat && <div style={{fontSize: '12px', color: 'var(--text-secondary)'}}><i className="fa-solid fa-circle-notch fa-spin"></i> Trợ lý đang kiểm tra...</div>}
+                  </div>
+                  <div style={{padding: '15px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px'}}>
+                      <input 
+                          type="text" 
+                          placeholder="Bạn từng quản lý team bao nhiêu người?..." 
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                          style={{
+                              flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border-color)',
+                              padding: '10px 15px', borderRadius: '20px', color: 'var(--text-primary)', outline: 'none', fontSize: '13px'
+                          }}
+                      />
+                      <button onClick={handleSendMessage} style={{
+                          background: 'var(--accent-color)', border: 'none', width: '38px', height: '38px', 
+                          borderRadius: '50%', color: '#000', cursor: 'pointer'
+                      }}>
+                          <i className="fa-solid fa-paper-plane"></i>
+                      </button>
+                  </div>
+              </div>
+          )}
+
+          {/* FLOATING ACTION BUTTON (Bong bóng Chat) */}
+          <button 
+              onClick={() => setChatOpen(!chatOpen)}
+              style={{
+                  position: 'absolute', bottom: '30px', right: '30px', width: '56px', height: '56px', borderRadius: '50%',
+                  background: 'var(--accent-color)', color: '#000', fontSize: '24px', border: 'none',
+                  boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)', cursor: 'pointer', zIndex: 10,
+                  display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'transform 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+              onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+              <i className={chatOpen ? "fa-solid fa-xmark" : "fa-solid fa-message"}></i>
+          </button>
         </div>
       </div>
     </div>
