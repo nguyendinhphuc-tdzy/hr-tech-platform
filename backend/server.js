@@ -32,12 +32,19 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // ==========================================
-// AI ROUTER: Ollama (Local) → Fallback Gemini
+// AI ROUTER: Ollama (Local/ngrok) → Fallback Gemini
 // ==========================================
 const aiRouter = async ({ prompt, preferLocal = false }) => {
-    const ollamaUrl = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
+    const ollamaUrl = (process.env.OLLAMA_URL || "http://127.0.0.1:11434").replace(/\/$/, "");
     const ollamaModel = process.env.OLLAMA_MODEL || "qwen2.5:7b";
-    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS) || 10000;
+    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS) || 15000;
+
+    // Header bắt buộc khi dùng ngrok free tier (bypass interstitial warning page)
+    const ollamaHeaders = {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+        "User-Agent": "HRTech-Backend/1.0"
+    };
 
     if (preferLocal && process.env.USE_LOCAL_AI === "true") {
         try {
@@ -47,7 +54,7 @@ const aiRouter = async ({ prompt, preferLocal = false }) => {
 
             const response = await fetch(`${ollamaUrl}/api/chat`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: ollamaHeaders,
                 body: JSON.stringify({
                     model: ollamaModel,
                     messages: [{ role: "user", content: prompt }],
@@ -57,7 +64,10 @@ const aiRouter = async ({ prompt, preferLocal = false }) => {
             });
             clearTimeout(timer);
 
-            if (!response.ok) throw new Error(`Ollama HTTP ${response.status}`);
+            if (!response.ok) {
+                const errBody = await response.text();
+                throw new Error(`Ollama HTTP ${response.status}: ${errBody.substring(0, 120)}`);
+            }
             const data = await response.json();
             const text = data.message?.content || data.response || "";
             if (!text) throw new Error("Ollama trả về nội dung trống");
@@ -503,15 +513,21 @@ Lưu ý quan trọng: Chỉ trả lời dựa trên thông tin được cung c�
 
 // API kiểm tra trạng thái Ollama (Health Check)
 app.get('/api/ai/status', async (req, res) => {
-    const ollamaUrl = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
+    const ollamaUrl = (process.env.OLLAMA_URL || "http://127.0.0.1:11434").replace(/\/$/, "");
     try {
-        const response = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
-        if (!response.ok) throw new Error("Ollama not OK");
+        const response = await fetch(`${ollamaUrl}/api/tags`, {
+            signal: AbortSignal.timeout(5000),
+            headers: {
+                "ngrok-skip-browser-warning": "true",
+                "User-Agent": "HRTech-Backend/1.0"
+            }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         const models = data.models?.map(m => m.name) || [];
-        res.json({ ollama: "online", models, gemini: "standby" });
-    } catch {
-        res.json({ ollama: "offline", gemini: "active" });
+        res.json({ ollama: "online", url: ollamaUrl, models, gemini: "standby" });
+    } catch (err) {
+        res.json({ ollama: "offline", reason: err.message, gemini: "active" });
     }
 });
 
