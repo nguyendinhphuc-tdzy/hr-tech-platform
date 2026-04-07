@@ -13,9 +13,10 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
 
   // State chat AI
   const [chatOpen, setChatOpen] = useState(false);
-  const [messages, setMessages] = useState([{ role: 'ai', text: 'Xin chào, tôi là AI Assistant. Bạn muốn tìm hiểu thêm thông tin gì từ CV này?' }]);
+  const [messages, setMessages] = useState([{ role: 'ai', text: 'Xin chào! Tôi là trợ lý AI. Bạn muốn tìm hiểu thêm gì về ứng viên này?', engine: null }]);
   const [chatInput, setChatInput] = useState('');
   const [loadingChat, setLoadingChat] = useState(false);
+  const [lastEngine, setLastEngine] = useState(null); // 'ollama' hoặc 'gemini'
 
   // State luân chuyển (Cross-match demo)
   const [isMoved, setIsMoved] = useState(false);
@@ -35,27 +36,29 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
       }
   };
 
-  // Hàm chat AI
+  // Hàm chat AI - dùng Hybrid Engine (Ollama + Gemini Fallback)
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
-    const newMsgs = [...messages, { role: 'user', text: chatInput }];
+    const userMsg = chatInput;
+    const newMsgs = [...messages, { role: 'user', text: userMsg, engine: null }];
     setMessages(newMsgs);
     setChatInput('');
     setLoadingChat(true);
 
     try {
         const payload = {
-            candidateId: candidate.id,
-            question: chatInput,
+            question: userMsg,
             cvContext: `Tên: ${candidate.full_name}, Email: ${candidate.email}, Kỹ năng: ${aiData.skills?.join(', ')}, Tóm tắt: ${aiData.summary}, Kinh nghiệm & Lý do: ${aiData.match_reason}`
         };
-        const API_URL = API_BASE_URL.replace(/\/$/, ""); 
+        const API_URL = API_BASE_URL.replace(/\/$/, "");
         const res = await axios.post(`${API_URL}/api/ai/chat-cv`, payload, {
-            headers: { 'x-user-email': 'admin' } // Fix cứng để demo nếu thiếu auth
+            headers: { 'x-user-email': 'admin' }
         });
-        setMessages([...newMsgs, { role: 'ai', text: res.data.answer }]);
+        const { answer, engine, model } = res.data;
+        setLastEngine(engine);
+        setMessages([...newMsgs, { role: 'ai', text: answer, engine, model }]);
     } catch (err) {
-        setMessages([...newMsgs, { role: 'ai', text: "Lỗi kết nối Local AI / Cloud API: " + err.message }]);
+        setMessages([...newMsgs, { role: 'ai', text: 'Lỗi kết nối AI: ' + err.message, engine: 'error' }]);
     } finally {
         setLoadingChat(false);
     }
@@ -341,8 +344,27 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                   background: 'var(--bg-tertiary)', borderRadius: '16px', border: '1px solid var(--border-color)',
                   boxShadow: '0 10px 40px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 10
               }}>
-                  <div style={{background: 'var(--accent-color)', padding: '15px 20px', color: '#000', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between'}}>
-                      <span><i className="fa-solid fa-robot"></i> Chat với CV (Local AI)</span>
+              <div style={{background: 'var(--accent-color)', padding: '12px 18px', color: '#000', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <span style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                          <i className="fa-solid fa-robot"></i>
+                          Trợ lý CV
+                          {/* Engine Status Badge */}
+                          {lastEngine === 'ollama' && (
+                              <span style={{background: 'rgba(0,0,0,0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '700'}}>
+                                  🟢 Ollama
+                              </span>
+                          )}
+                          {lastEngine === 'gemini' && (
+                              <span style={{background: 'rgba(0,0,0,0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '700'}}>
+                                  ☁️ Gemini
+                              </span>
+                          )}
+                          {!lastEngine && (
+                              <span style={{background: 'rgba(0,0,0,0.15)', padding: '2px 8px', borderRadius: '10px', fontSize: '11px'}}>
+                                  qwen2.5:7b │ Fallback: Gemini
+                              </span>
+                          )}
+                      </span>
                       <i className="fa-solid fa-xmark" style={{cursor: 'pointer'}} onClick={() => setChatOpen(false)}></i>
                   </div>
                   <div style={{flex: 1, padding: '15px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px'}}>
@@ -351,13 +373,25 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                               <div style={{
                                   background: msg.role === 'user' ? '#3B82F6' : 'var(--bg-input)',
                                   color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
-                                  padding: '10px 15px', borderRadius: '12px', fontSize: '14px', border: msg.role === 'user' ? 'none' : '1px solid var(--border-color)'
+                                  padding: '10px 15px', borderRadius: '12px', fontSize: '14px',
+                                  border: msg.role === 'user' ? 'none' : '1px solid var(--border-color)'
                               }}>
                                   {msg.text}
                               </div>
+                              {/* Engine badge mỗi tin nhắn AI */}
+                              {msg.role === 'ai' && msg.engine && (
+                                  <div style={{fontSize: '10px', color: 'var(--text-secondary)', marginTop: '4px', paddingLeft: '4px'}}>
+                                      {msg.engine === 'ollama' ? `🟢 ${msg.model}` : `☁️ ${msg.model}`}
+                                  </div>
+                              )}
                           </div>
                       ))}
-                      {loadingChat && <div style={{fontSize: '12px', color: 'var(--text-secondary)'}}><i className="fa-solid fa-circle-notch fa-spin"></i> Trợ lý đang kiểm tra...</div>}
+                      {loadingChat && (
+                          <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                              <i className="fa-solid fa-circle-notch fa-spin"></i>
+                              <span>Đang suy luận...</span>
+                          </div>
+                      )}
                   </div>
                   <div style={{padding: '15px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '10px'}}>
                       <input 

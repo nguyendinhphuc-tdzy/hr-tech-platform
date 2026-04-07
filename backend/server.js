@@ -31,6 +31,52 @@ const pool = new Pool({
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
+// ==========================================
+// AI ROUTER: Ollama (Local) → Fallback Gemini
+// ==========================================
+const aiRouter = async ({ prompt, preferLocal = false }) => {
+    const ollamaUrl = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
+    const ollamaModel = process.env.OLLAMA_MODEL || "qwen2.5:7b";
+    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS) || 10000;
+
+    if (preferLocal && process.env.USE_LOCAL_AI === "true") {
+        try {
+            console.log(`🟢 [AI Router] Thử Ollama: ${ollamaModel} @ ${ollamaUrl}`);
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+            const response = await fetch(`${ollamaUrl}/api/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: ollamaModel,
+                    messages: [{ role: "user", content: prompt }],
+                    stream: false
+                }),
+                signal: controller.signal
+            });
+            clearTimeout(timer);
+
+            if (!response.ok) throw new Error(`Ollama HTTP ${response.status}`);
+            const data = await response.json();
+            const text = data.message?.content || data.response || "";
+            if (!text) throw new Error("Ollama trả về nội dung trống");
+
+            console.log("✅ [AI Router] Ollama phản hồi thành công");
+            return { text, engine: "ollama", model: ollamaModel };
+
+        } catch (err) {
+            console.warn(`⚠️ [AI Router] Ollama thất bại (${err.message}), chuyển Fallback về Gemini...`);
+        }
+    }
+
+    // Gemini Cloud fallback
+    console.log("☁️ [AI Router] Dùng Gemini Cloud");
+    const geminiModel = genAI.getGenerativeModel({ model: ACTIVE_MODEL_NAME });
+    const result = await geminiModel.generateContent(prompt);
+    return { text: result.response.text(), engine: "gemini", model: ACTIVE_MODEL_NAME };
+};
+
 // --- CẤU HÌNH GỬI MAIL ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -424,54 +470,48 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
 });
 
 // ==========================================
-// [NEW DYNAMIC] API CHAT VỚI AI VỀ CV BẤT KỲ CÓ HỖ TRỢ LOCAL AI
+// API CHAT CV: Dùng AI Router (Ollama-first + Gemini Fallback)
 // ==========================================
 app.post('/api/ai/chat-cv', requireAuth, async (req, res) => {
     try {
-        const { candidateId, question, cvContext } = req.body;
+        const { question, cvContext } = req.body;
         if (!question) return res.status(400).json({ error: "Thiếu câu hỏi" });
 
-        const promptMessage = `
-Bạn là Trợ lý Tuyển dụng Nội bộ của doanh nghiệp. Vui lòng trả lời câu hỏi của nhà tuyển dụng dựa trên thông tin ứng viên sau:
-[Dữ liệu Ứng viên / Tóm tắt CV]:
-${cvContext || 'Không có dữ liệu văn bản đính kèm.'}
+        const prompt = `Bạn là Trợ lý Tuyển dụng Nội bộ của doanh nghiệp. Hãy trả lời bằng Tiếng Việt.
 
-[Câu hỏi của nhà tuyển dụng]: "${question}"
-Lưu ý: Chỉ trả lời dựa trên thông tin được cung cấp, nếu không có thông tin hãy báo là không tìm thấy trong CV.
-`;
+[Dữ liệu Ứng viên từ CV]:
+${cvContext || 'Không có dữ liệu CV.'}
 
-        // CHỌN PHƯƠNG THỨC XỬ LÝ DỰA TRÊN .ENV
-        const useLocalAI = process.env.USE_LOCAL_AI === "true";
-        let aiResponseText = "";
+[Câu hỏi của Nhà tuyển dụng]: "${question}"
 
-        if (useLocalAI && process.env.LOCAL_AI_URL) {
-            console.log("🚀 Gọi Local AI Server:", process.env.LOCAL_AI_URL);
-            // Chuẩn OpenAI API Completion endpoint
-            const localPayload = {
-                model: process.env.LOCAL_AI_MODEL || "local-model",
-                messages: [{ role: "user", content: promptMessage }],
-                temperature: 0.3
-            };
-            const response = await fetch(`${process.env.LOCAL_AI_URL}/chat/completions`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(localPayload)
-            });
-            if (!response.ok) throw new Error("Local AI Server error");
-            const data = await response.json();
-            aiResponseText = data.choices[0].message.content;
-        } else {
-            console.log("☁️ Gọi Google Gemini Cloud");
-            const model = genAI.getGenerativeModel({ model: ACTIVE_MODEL_NAME });
-            const result = await model.generateContent(promptMessage);
-            aiResponseText = result.response.text();
-        }
+Lưu ý quan trọng: Chỉ trả lời dựa trên thông tin được cung cấp ở trên. Nếu không tìm thấy thông tin, hãy nói rõ là CV không đề cập đến điều này.`;
 
-        res.json({ answer: aiResponseText });
+        // Ưu tiên Ollama local, tự động fallback về Gemini nếu Ollama không hoạt động
+        const result = await aiRouter({ prompt, preferLocal: true });
+
+        res.json({
+            answer: result.text,
+            engine: result.engine,      // "ollama" hoặc "gemini"
+            model: result.model         // tên model cụ thể
+        });
 
     } catch (err) {
-        console.error("Lỗi AI Chat:", err);
+        console.error("❌ Lỗi AI Chat:", err);
         res.status(500).json({ error: "Lỗi xử lý AI: " + err.message });
+    }
+});
+
+// API kiểm tra trạng thái Ollama (Health Check)
+app.get('/api/ai/status', async (req, res) => {
+    const ollamaUrl = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
+    try {
+        const response = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
+        if (!response.ok) throw new Error("Ollama not OK");
+        const data = await response.json();
+        const models = data.models?.map(m => m.name) || [];
+        res.json({ ollama: "online", models, gemini: "standby" });
+    } catch {
+        res.json({ ollama: "offline", gemini: "active" });
     }
 });
 
