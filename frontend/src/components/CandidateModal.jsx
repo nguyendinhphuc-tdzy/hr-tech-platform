@@ -379,7 +379,7 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                                   {msg.text}
                               </div>
                               {/* Engine badge mỗi tin nhắn AI */}
-                              {msg.role === 'ai' && msg.engine && (
+                              {msg.role === 'ai' && msg.engine && msg.engine !== 'error' && msg.model && (
                                   <div style={{fontSize: '10px', color: 'var(--text-secondary)', marginTop: '4px', paddingLeft: '4px'}}>
                                       {msg.engine === 'ollama' ? `🟢 ${msg.model}` : `☁️ ${msg.model}`}
                                   </div>

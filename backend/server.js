@@ -28,7 +28,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI((process.env.GEMINI_API_KEY || "").trim());
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // ==========================================
@@ -82,9 +82,14 @@ const aiRouter = async ({ prompt, preferLocal = false }) => {
 
     // Gemini Cloud fallback
     console.log("☁️ [AI Router] Dùng Gemini Cloud");
-    const geminiModel = genAI.getGenerativeModel({ model: ACTIVE_MODEL_NAME });
-    const result = await geminiModel.generateContent(prompt);
-    return { text: result.response.text(), engine: "gemini", model: ACTIVE_MODEL_NAME };
+    try {
+        const geminiModel = genAI.getGenerativeModel({ model: ACTIVE_MODEL_NAME });
+        const result = await geminiModel.generateContent(prompt);
+        return { text: result.response.text(), engine: "gemini", model: ACTIVE_MODEL_NAME };
+    } catch (geminiErr) {
+        console.error("❌ [AI Router] Gemini cũng thất bại:", geminiErr.message);
+        throw new Error(`Cả Ollama và Gemini đều không phản hồi. Gemini error: ${geminiErr.message}`);
+    }
 };
 
 // --- CẤU HÌNH GỬI MAIL ---
