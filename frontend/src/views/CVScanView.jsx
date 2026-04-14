@@ -45,8 +45,7 @@ const CVScanView = () => {
         const timerInterval = setInterval(() => {
             setCountdown((prev) => {
                 // Tự động nhảy Phase dựa trên thời gian còn lại (Gỉa lập)
-                if (prev === 38) setScanningPhase(2); // Giây thứ 38 bắt đầu Evaluate
-                if (prev === 8) setScanningPhase(3);  // Giây cuối bắt đầu Synthesize
+                if (prev === 40) setScanningPhase(2); // Giây thứ 40 bắt đầu Evaluate
                 return prev > 0 ? prev - 1 : 0;
             });
         }, 1000);
@@ -152,17 +151,12 @@ const CVScanView = () => {
                                     {/* Phase 1 */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', color: scanningPhase >= 1 ? '#fff' : 'inherit' }}>
                                         {scanningPhase === 1 ? <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--neon-green)' }}></i> : (scanningPhase > 1 ? <i className="fa-solid fa-check" style={{ color: 'var(--neon-green)' }}></i> : <i className="fa-regular fa-circle"></i>)}
-                                        <span>Giai đoạn 1: Đọc PDF (Gemini 2.0 Flash)</span>
+                                        <span>Giai đoạn 1: Đọc PDF nội bộ</span>
                                     </div>
                                     {/* Phase 2 */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', color: scanningPhase >= 2 ? '#fff' : 'inherit' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: scanningPhase >= 2 ? '#fff' : 'inherit' }}>
                                         {scanningPhase === 2 ? <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--neon-green)' }}></i> : (scanningPhase > 2 ? <i className="fa-solid fa-check" style={{ color: 'var(--neon-green)' }}></i> : <i className="fa-regular fa-circle"></i>)}
-                                        <span>Giai đoạn 2: Phân tích tư duy (Ollama Qwen)</span>
-                                    </div>
-                                    {/* Phase 3 */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: scanningPhase >= 3 ? '#fff' : 'inherit' }}>
-                                        {scanningPhase === 3 ? <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--neon-green)' }}></i> : (scanningPhase > 3 ? <i className="fa-solid fa-check" style={{ color: 'var(--neon-green)' }}></i> : <i className="fa-regular fa-circle"></i>)}
-                                        <span>Giai đoạn 3: Định dạng kết quả JSON</span>
+                                        <span>Giai đoạn 2: Phân tích tư duy chuyên sâu (Ollama)</span>
                                     </div>
                                 </div>
                             </div>
