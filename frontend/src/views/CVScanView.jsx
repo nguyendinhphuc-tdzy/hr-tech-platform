@@ -39,13 +39,12 @@ const CVScanView = () => {
 
         setLoading(true);
         setScanningPhase(1); // Bắt đầu Giai đoạn 1
-        setCountdown(45); // Set bộ đếm thời gian dự kiến (giây)
+        setCountdown(120); // 120 giây (Do Ollama Local yêu cầu thời gian phân tích lâu hơn)
 
         // Bắt đầu đếm ngược ngầm
         const timerInterval = setInterval(() => {
             setCountdown((prev) => {
-                // Tự động nhảy Phase dựa trên thời gian còn lại (Gỉa lập)
-                if (prev === 40) setScanningPhase(2); // Giây thứ 40 bắt đầu Evaluate
+                if (prev === 115) setScanningPhase(2); // Giây thứ 115 bắt đầu Evaluate
                 return prev > 0 ? prev - 1 : 0;
             });
         }, 1000);

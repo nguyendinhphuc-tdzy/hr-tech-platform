@@ -52,7 +52,9 @@ ${STRICT_JSON_SCHEMA}
 
     try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs || 100000); // Tăng giới hạn lên 100 giây!
+        // Thời gian chờ cho Local AI lên đến 5 phút (300,000 ms) vì Qwen 7B có thể mất 1-3 phút để phân tích toàn bộ CV
+        const MAX_TIMEOUT = 300000;
+        const timer = setTimeout(() => controller.abort(), MAX_TIMEOUT);
 
         const response = await fetch(`${ollamaUrl}/api/chat`, {
             method: "POST",
