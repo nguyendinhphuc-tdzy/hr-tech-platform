@@ -12,13 +12,14 @@ const mammoth = require('mammoth');
 const fs = require('fs');
 const nodemailer = require('nodemailer'); 
 const { Readable } = require('stream'); 
+const { runCVAgent } = require('./services/cvAgent');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // --- CẤU HÌNH ---
-let ACTIVE_MODEL_NAME = "gemini-2.5-flash"; 
+let ACTIVE_MODEL_NAME = "gemini-2.0-flash"; 
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -453,19 +454,16 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
             }
         }
 
-        const selectedPrompt = getSpecificPrompt(jobTitle, jobReqs);
-        // QUAN TRỌNG: Temperature = 0.0 để kết quả nhất quán
-        const model = genAI.getGenerativeModel({ 
-            model: ACTIVE_MODEL_NAME, 
-            generationConfig: { responseMimeType: "application/json", temperature: 0.0 } 
-        });
+        // CHUYỂN SANG DÙNG CV AGENT WORKFLOW MỚI
+        const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS) || 60000;
+        let aiResult = {};
         
-        const imageParts = [{ inlineData: { data: req.file.buffer.toString("base64"), mimeType: req.file.mimetype } }];
-        const result = await model.generateContent([selectedPrompt, ...imageParts]);
-        
-        let aiResult;
-        try { aiResult = JSON.parse(cleanJsonString(result.response.text())); } 
-        catch (e) { aiResult = { full_name: "Lỗi đọc", score: 0, summary: "Lỗi AI phân tích", email: null }; }
+        try {
+            aiResult = await runCVAgent(req.file.buffer, req.file.mimetype, jobTitle, jobReqs, genAI, timeoutMs);
+        } catch (agentErr) {
+            console.error("Agent error:", agentErr);
+            aiResult = { full_name: "Lỗi đọc", score: 0, summary: "Lỗi AI phân tích", email: null, match_reason: agentErr.message };
+        }
 
         const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
         let finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
@@ -479,7 +477,7 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
         res.json({ message: "Thành công!", candidate: dbResult.rows[0] });
 
     } catch (err) { 
-        console.error("🔥 Lỗi Server:", err);
+        console.error("🔥 Lỗi Server CV Upload:", err);
         res.status(500).json({ error: "Lỗi: " + err.message }); 
     }
 });

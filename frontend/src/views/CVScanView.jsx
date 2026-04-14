@@ -9,8 +9,11 @@ const CVScanView = () => {
     const [selectedJob, setSelectedJob] = useState('');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
 
+    // Thêm state cho Tiến trình quét và Đếm ngược
+    const [scanningPhase, setScanningPhase] = useState(0); // 0: IDLE, 1: Extract, 2: Evaluate, 3: Synthesize
+    const [countdown, setCountdown] = useState(0);
     useEffect(() => {
         axios.get(`${API_BASE_URL}/api/jobs`)
             .then(res => setJobs(res.data))
@@ -27,25 +30,40 @@ const CVScanView = () => {
         }
     };
 
-    const handleScan = async () => {
-        if (!file) return alert("Vui lòng chọn CV!");
-        
-        const formData = new FormData();
-        formData.append('cv_file', file);
-        if (selectedJob) formData.append('job_id', selectedJob);
+    const handleScan = async () => {
+        if (!file) return alert("Vui lòng chọn CV!");
+        
+        const formData = new FormData();
+        formData.append('cv_file', file);
+        if (selectedJob) formData.append('job_id', selectedJob);
 
-        setLoading(true);
-        try {
-            const res = await axios.post(`${API_BASE_URL}/api/cv/upload`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            setResult(res.data.candidate);
-        } catch (err) {
-            alert("Lỗi Scan: " + (err.response?.data?.error || err.message));
-        } finally {
-            setLoading(false);
-        }
-    };
+        setLoading(true);
+        setScanningPhase(1); // Bắt đầu Giai đoạn 1
+        setCountdown(45); // Set bộ đếm thời gian dự kiến (giây)
+
+        // Bắt đầu đếm ngược ngầm
+        const timerInterval = setInterval(() => {
+            setCountdown((prev) => {
+                // Tự động nhảy Phase dựa trên thời gian còn lại (Gỉa lập)
+                if (prev === 38) setScanningPhase(2); // Giây thứ 38 bắt đầu Evaluate
+                if (prev === 8) setScanningPhase(3);  // Giây cuối bắt đầu Synthesize
+                return prev > 0 ? prev - 1 : 0;
+            });
+        }, 1000);
+
+        try {
+            const res = await axios.post(`${API_BASE_URL}/api/cv/upload`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            setResult(res.data.candidate);
+        } catch (err) {
+            alert("Lỗi Scan: " + (err.response?.data?.error || err.message));
+        } finally {
+            clearInterval(timerInterval);
+            setLoading(false);
+            setScanningPhase(0);
+        }
+    };
 
     return (
         <div className="cv-scan-view" style={{ color: 'var(--text-white)', minHeight: 'calc(100vh - 100px)' }}>
@@ -121,6 +139,34 @@ const CVScanView = () => {
                         >
                             {loading ? <span><i className="fa-solid fa-circle-notch fa-spin"></i> Đang Phân Tích...</span> : <span><i className="fa-solid fa-bolt"></i> SCAN NGAY</span>}
                         </button>
+
+                        {/* HIỂN THỊ TIẾN TRÌNH KHI ĐANG SCAN */}
+                        {loading && (
+                            <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '13px', color: 'var(--neon-green)' }}>
+                                    <span style={{ fontWeight: 'bold' }}><i className="fa-regular fa-clock"></i> Thời gian dự kiến:</span>
+                                    <span style={{ fontSize: '16px', fontWeight: 'bold' }}>{countdown} giây</span>
+                                </div>
+                                
+                                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                    {/* Phase 1 */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', color: scanningPhase >= 1 ? '#fff' : 'inherit' }}>
+                                        {scanningPhase === 1 ? <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--neon-green)' }}></i> : (scanningPhase > 1 ? <i className="fa-solid fa-check" style={{ color: 'var(--neon-green)' }}></i> : <i className="fa-regular fa-circle"></i>)}
+                                        <span>Giai đoạn 1: Đọc PDF (Gemini 2.0 Flash)</span>
+                                    </div>
+                                    {/* Phase 2 */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', color: scanningPhase >= 2 ? '#fff' : 'inherit' }}>
+                                        {scanningPhase === 2 ? <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--neon-green)' }}></i> : (scanningPhase > 2 ? <i className="fa-solid fa-check" style={{ color: 'var(--neon-green)' }}></i> : <i className="fa-regular fa-circle"></i>)}
+                                        <span>Giai đoạn 2: Phân tích tư duy (Ollama Qwen)</span>
+                                    </div>
+                                    {/* Phase 3 */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: scanningPhase >= 3 ? '#fff' : 'inherit' }}>
+                                        {scanningPhase === 3 ? <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--neon-green)' }}></i> : (scanningPhase > 3 ? <i className="fa-solid fa-check" style={{ color: 'var(--neon-green)' }}></i> : <i className="fa-regular fa-circle"></i>)}
+                                        <span>Giai đoạn 3: Định dạng kết quả JSON</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* 2. PDF Preview Mini */}
