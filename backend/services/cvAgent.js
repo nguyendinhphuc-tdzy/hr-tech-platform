@@ -86,7 +86,7 @@ ${STRICT_JSON_SCHEMA}
 `;
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         // Gửi PDF gốc trực tiếp cho Gemini (Native PDF Reading — không cần pdf-parse)
         const pdfPart = {
