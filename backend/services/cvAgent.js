@@ -43,8 +43,8 @@ const STRICT_JSON_SCHEMA = `
 async function runCVAgent(fileBuffer, mimeType, jobTitle, jobReqs, genAI, timeoutMs) {
     console.log("🚀 [CV Agent] Khởi động Gemini Flash 2.0 — Native PDF Analysis...");
 
-    const reqSkills = jobReqs?.skills 
-        ? (Array.isArray(jobReqs.skills) ? jobReqs.skills.join(", ") : jobReqs.skills) 
+    const reqSkills = jobReqs?.skills
+        ? (Array.isArray(jobReqs.skills) ? jobReqs.skills.join(", ") : jobReqs.skills)
         : "Kỹ năng chuyên môn liên quan đến vị trí";
 
     const prompt = `Bạn là Giám đốc Tuyển dụng và Thẩm định Công nghệ chuyên nghiệp. Bạn đang chấm điểm ứng viên cho vị trí: ${jobTitle}.
@@ -86,7 +86,7 @@ ${STRICT_JSON_SCHEMA}
 `;
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
         // Gửi PDF gốc trực tiếp cho Gemini (Native PDF Reading — không cần pdf-parse)
         const pdfPart = {
