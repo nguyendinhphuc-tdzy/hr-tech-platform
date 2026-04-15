@@ -1,17 +1,26 @@
 const pdfParse = require('pdf-parse');
 
 const STRICT_JSON_SCHEMA = `
-{ 
-    "full_name": "[TÊN CỦA ỨNG VIÊN TRONG CV, KHÔNG ĐƯỢC BỊA ĐẶT]", 
-    "email": "[EMAIL TRONG CV, NẾU KHÔNG CÓ TRẢ VỀ NULL]", 
-    "skills": ["Kỹ năng 1", "Kỹ năng 2"], 
-    "score": 0.0, 
-    "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 }, 
-    "summary": "Tóm tắt 2-3 câu ngắn gọn", 
-    "match_reason": "Giải thích chi tiết có dẫn chứng", 
-    "recommendation": "Phỏng vấn/Cân nhắc/Loại",
-    "confidence": "Cao/Trung bình/Thấp",
-    "market_salary": "Thu nhập thị trường VNĐ"
+{
+  "candidate_info": {
+    "full_name": "[TRÍCH XUẤT CHÍNH XÁC TỪ CV. NẾU KHÔNG CÓ GHI: Không Rõ Tên]",
+    "email": "[TRÍCH XUẤT TỪ CV. NẾU KHÔNG CÓ GHI: Không Rõ Email]"
+  },
+  "skills": ["Kỹ năng 1", "Kỹ năng 2", "Kỹ năng 3"],
+  "scoring": {
+    "hard_skills": 0.0,
+    "experience": 0.0,
+    "education": 0.0,
+    "soft_skills": 0.0,
+    "total_score": 0.0
+  },
+  "deep_analysis": {
+    "match_reason_and_insights": "Đánh giá chi tiết từng hạng mục...",
+    "strengths": ["Điểm mạnh 1 có số liệu", "Điểm mạnh 2"],
+    "weaknesses_and_red_flags": ["Lỗ hổng 1", "Nhảy việc/Thiếu số liệu"],
+    "unique_highlight": "Điểm sáng độc bản của ứng viên (USP)",
+    "missing_skills": ["Kỹ năng thiếu 1", "Kỹ năng thiếu 2"]
+  }
 }
 `;
 
@@ -25,8 +34,8 @@ async function extractTextFromPDF(fileBuffer) {
         const data = await pdfParse(fileBuffer);
         return data.text;
     } catch (err) {
-         console.error("Lỗi đọc PDF:", err);
-         return "Không thể đọc văn bản từ PDF này. Hãy dùng văn bản thô.";
+        console.error("Lỗi đọc PDF:", err);
+        return "Không thể đọc văn bản từ PDF này. Hãy dùng văn bản thô.";
     }
 }
 
@@ -37,15 +46,44 @@ async function extractTextFromPDF(fileBuffer) {
 async function evaluateAndSynthesizeCV(cvText, jobTitle, jobReqs, timeoutMs) {
     console.log("-> [Agent 2] Ollama khởi chạy đánh giá và bọc kết quả JSON...");
     const reqSkills = jobReqs?.skills ? (Array.isArray(jobReqs.skills) ? jobReqs.skills.join(", ") : jobReqs.skills) : "Kỹ năng cần thiết cho công việc này";
-    
-    // Yêu cầu vô cùng khắt khe về JSON để đảm bảo Ollama không sinh thêm chữ dư thừa
-    const prompt = `Bạn là Giám đốc tuyển dụng độc lập. 
-Yêu cầu công việc: ${jobTitle} - Yêu cầu kỹ năng: ${reqSkills}
 
-Hồ sơ ứng viên:
-${cvText.substring(0, 4000)}
+    // Các quy định cực kỳ nghiêm ngặt dành cho AI Local (Ollama Qwen 7B)
+    const prompt = `Bạn là Giám đốc Tuyển dụng và Thẩm định Công nghệ chuyên nghiệp. Bạn đang chấm điểm ứng viên cho vị trí: ${jobTitle}.
+Yêu cầu chuyên môn mặc định/mong muốn: ${reqSkills}
 
-NHIỆM VỤ CỦA BẠN: Phát hiện chính xác Tên và Email của ứng viên trong văn bản trên. Tuyệt đối không được sử dụng dữ liệu giả (như Nguyen Van A, example.com, ...). Phân tích sâu, tính điểm (Scale 10.0), chỉ ra lập luận vào trường match_reason, BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON sau, không được phép trả về thêm bất kì chữ nào khác ngoài thẻ JSON:
+HƯỚNG DẪN CHẤM ĐIỂM (RUBRIC - THANG 10):
+- hard_skills (Tối đa 4.0 điểm): So khớp công nghệ, platform.
+- experience (Tối đa 3.0 điểm): Trải nghiệm thực tế, thực tập, dự án có số liệu.
+- education (Tối đa 1.0 điểm): Bằng cấp, chứng chỉ.
+- soft_skills (Tối đa 2.0 điểm): Trình bày, kỹ năng mềm.
+LƯU Ý: Breakdown điểm không được vượt quá số Max quy định ở trên. Tổng điểm 'total_score' phải là tổng của 4 thành phần này (Tối đa 10.0).
+
+QUY TẮC TRÍCH XUẤT VÀ PHÂN TÍCH CHUYÊN SÂU (CỰC KỲ QUAN TRỌNG):
+
+1. TRÍCH XUẤT ĐỊNH DANH (STRICT EXTRACTION):
+Tên (full_name) và Email (email) PHẢI nằm trong phần văn bản CV. Tuyệt đối không tự nghĩ ra tên/email giả (VD: Nguyễn Văn A, example.com). NẾU VĂN BẢN KHÔNG CÓ TÊN/EMAIL, GHI RÕ: "Không Rõ Tên" hoặc "Không Rõ Email".
+
+2. ĐÁNH GIÁ TỔNG QUAN & LẬP LUẬN CHẤM ĐIỂM (MATCH REASON & INSIGHTS):
+Khái quát tính logic của CV. Đánh giá chi tiết từng hạng mục điểm đã chấm (khen/chê rõ ràng). Đọc sát từng tác vụ, dự án ứng viên đã làm để xác nhận họ thực sự có kinh nghiệm hay chỉ đang "nhồi nhét" từ khóa.
+
+3. PHÂN TÍCH ĐIỂM MẠNH (STRENGTHS):
+Chỉ ra 2-3 điểm mạnh cốt lõi nhất của ứng viên. Phải được chứng minh bằng SỐ LIỆU (metrics), QUY MÔ DỰ ÁN, hoặc KẾT QUẢ THỰC TẾ. Không dùng các từ ngữ sáo rỗng.
+
+4. PHÂN TÍCH ĐIỂM YẾU & RỦI RO (WEAKNESSES & RED FLAGS):
+Chỉ ra hổng trong kinh nghiệm. Có employment gap bất thường không? Nhảy việc quá nhanh? Mô tả công việc thiếu chiều sâu/số liệu?
+
+5. ĐIỂM NỔI BẬT ĐỘC BẢN (UNIQUE SELLING PROPOSITION - USP):
+CV này có điểm gì thực sự sáng giá và khác biệt so với mặt bằng chung? (Tư duy hệ thống, lead team sớm, ngách công nghệ đặc thù, sở hữu dự án cá nhân ấn tượng...).
+
+6. KỸ NĂNG/KINH NGHIỆM CÒN THIẾU (MISSING SKILLS/GAPS):
+Dựa trên tiêu chuẩn vị trí, ứng viên đang hổng những kỹ năng chuyên môn/framework nào?
+
+=== VĂN BẢN CV (RAW TEXT) ===
+${cvText.substring(0, 4800)}
+============================
+
+YÊU CẦU ĐỊNH DẠNG ĐẦU RA (OUTPUT FORMAT):
+Phản hồi bắt buộc phải trả về theo cấu trúc JSON dưới đây để hệ thống dễ dàng parse dữ liệu (Tất cả viết bằng Tiếng Việt):
 ${STRICT_JSON_SCHEMA}
 `;
 
@@ -77,7 +115,7 @@ ${STRICT_JSON_SCHEMA}
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         const data = await response.json();
         let rawJson = data.message?.content || data.response || "";
-        
+
         // Clean chuỗi phòng trường hợp Ollama bọc JSON trong Markdown block
         rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
         const firstOpen = rawJson.indexOf('{');
@@ -85,7 +123,7 @@ ${STRICT_JSON_SCHEMA}
         if (firstOpen !== -1 && lastClose !== -1) {
             rawJson = rawJson.substring(firstOpen, lastClose + 1);
         }
-        
+
         return JSON.parse(rawJson);
 
     } catch (err) {

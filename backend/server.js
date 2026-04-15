@@ -462,16 +462,24 @@ app.post('/api/cv/upload', requireAuth, upload.single('cv_file'), async (req, re
             aiResult = await runCVAgent(req.file.buffer, req.file.mimetype, jobTitle, jobReqs, genAI, timeoutMs);
         } catch (agentErr) {
             console.error("Agent error:", agentErr);
-            aiResult = { full_name: "Lỗi đọc", score: 0, summary: "Lỗi AI phân tích", email: null, match_reason: agentErr.message };
+            aiResult = { 
+                candidate_info: { full_name: "Lỗi đọc", email: null }, 
+                scoring: { total_score: 0 }, 
+                deep_analysis: { match_reason_and_insights: agentErr.message } 
+            };
         }
 
-        const finalName = req.body.full_name || aiResult.full_name || "Ứng viên Mới";
-        let finalScore = aiResult.score > 10 ? (aiResult.score / 10).toFixed(1) : aiResult.score;
+        const cInfo = aiResult.candidate_info || {};
+        const finalName = req.body.full_name || cInfo.full_name || aiResult.full_name || "Ứng viên Mới";
+        const email = cInfo.email || aiResult.email;
+        
+        const rawScore = (aiResult.scoring && aiResult.scoring.total_score !== undefined) ? aiResult.scoring.total_score : (aiResult.score || 0);
+        let finalScore = rawScore > 10 ? (rawScore / 10).toFixed(1) : parseFloat(rawScore).toFixed(1);
 
         const dbResult = await pool.query(
             `INSERT INTO candidates (organization_id, job_id, full_name, email, role, status, ai_rating, ai_analysis, cv_file_url, owner_email) 
              VALUES (1, $1, $2, $3, $4, 'Screening', $5, $6, $7, $8) RETURNING *`,
-            [jobId || null, finalName, aiResult.email, jobTitle, finalScore, JSON.stringify(aiResult), publicUrl, req.userEmail]
+            [jobId || null, finalName, email, jobTitle, finalScore, JSON.stringify(aiResult), publicUrl, req.userEmail]
         );
 
         res.json({ message: "Thành công!", candidate: dbResult.rows[0] });

@@ -212,9 +212,9 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                        <i className="fa-solid fa-wand-magic-sparkles" style={{color:'var(--accent-color)'}}></i> TÓM TẮT AI
                    </h4>
                    <p style={{margin:'12px 0 0', fontSize:'15px', color:'var(--text-primary)', lineHeight:'1.6', fontWeight: '500'}}>
-                       {aiData.summary || "Đang chờ phân tích..."}
+                       {aiData.summary || (aiData.deep_analysis && aiData.deep_analysis.unique_highlight) || "Chưa có nhận xét tổng quan."}
                    </p>
-                   {/* Recommendation Badge */}
+                   {/* Recommendation Badge (Fallback cho format cũ) */}
                    <div style={{marginTop: '15px'}}>
                         <span style={{
                             background: scoreColor, color: '#000', padding: '4px 12px', borderRadius: '20px', 
@@ -266,24 +266,30 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                     }}>
                         <i className="fa-solid fa-chart-pie" style={{color:'#10B981'}}></i> Chi tiết điểm số
                     </h4>
-                    {/* Giả lập hiển thị breakdown nếu có, hoặc hiển thị placeholder */}
                     <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
-                            <span>Hard Skills (40%)</span>
-                            <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{candidate.ai_analysis?.breakdown?.hard_skills || '-'} / 4.0</span>
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
-                            <span>Experience (30%)</span>
-                            <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{candidate.ai_analysis?.breakdown?.experience || '-'} / 3.0</span>
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
-                            <span>Education (10%)</span>
-                            <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{candidate.ai_analysis?.breakdown?.education || '-'} / 1.0</span>
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
-                            <span>Soft Skills (20%)</span>
-                            <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{candidate.ai_analysis?.breakdown?.soft_skills || '-'} / 2.0</span>
-                        </div>
+                        {(() => {
+                            const breakdown = aiData.scoring || aiData.breakdown || {};
+                            return (
+                                <>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                                        <span>Hard Skills (40%)</span>
+                                        <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{breakdown.hard_skills ?? '-'} / 4.0</span>
+                                    </div>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                                        <span>Experience (30%)</span>
+                                        <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{breakdown.experience ?? '-'} / 3.0</span>
+                                    </div>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                                        <span>Education (10%)</span>
+                                        <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{breakdown.education ?? '-'} / 1.0</span>
+                                    </div>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)'}}>
+                                        <span>Soft Skills (20%)</span>
+                                        <span style={{color: 'var(--text-primary)', fontWeight: 'bold'}}>{breakdown.soft_skills ?? '-'} / 2.0</span>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                  </div>
              </div>
@@ -316,22 +322,55 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
                  </div>
              </div>
 
-             {/* 3. CHI TIẾT ĐÁNH GIÁ (MATCH REASON) */}
+             {/* 3. CHI TIẾT ĐÁNH GIÁ (Deep Analysis / Match Reason) */}
              <div style={{marginBottom: '30px'}}>
                 <h4 style={{
                     display:'flex', alignItems:'center', gap:'10px', color:'var(--text-primary)', 
                     marginBottom:'15px', fontSize: '14px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.5px'
                 }}>
-                    <i className="fa-solid fa-align-left" style={{color:'#3B82F6'}}></i> Phân tích chi tiết
+                    <i className="fa-solid fa-microscope" style={{color:'#3B82F6'}}></i> Phân tích đa chiều chuyên sâu
                 </h4>
                 <div style={{
                     fontSize:'15px', lineHeight:'1.8', color:'var(--text-primary)', 
                     background:'var(--bg-input)', padding:'25px', borderRadius:'12px',
-                    whiteSpace: 'pre-line', // Giữ format xuống dòng
-                    border: '1px solid var(--border-color)',
-                    fontFamily: 'inherit'
+                    border: '1px solid var(--border-color)'
                 }}>
-                    {aiData.match_reason || "Chưa có dữ liệu chi tiết."}
+                    {aiData.deep_analysis ? (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                            <div>
+                                <h5 style={{color: 'var(--accent-color)', margin: '0 0 5px 0'}}><i className="fa-solid fa-bullseye"></i> Lập luận chấm điểm</h5>
+                                <p style={{margin: 0, whiteSpace: 'pre-line'}}>{aiData.deep_analysis.match_reason_and_insights}</p>
+                            </div>
+                            
+                            <div style={{display: 'flex', gap: '20px'}}>
+                                <div style={{flex: 1, background: 'rgba(16, 185, 129, 0.05)', padding: '15px', borderRadius: '8px', borderLeft: '3px solid #10B981'}}>
+                                    <h5 style={{color: '#10B981', margin: '0 0 10px 0'}}><i className="fa-solid fa-arrow-trend-up"></i> Điểm Mạnh</h5>
+                                    <ul style={{margin: 0, paddingLeft: '20px', color: 'var(--text-secondary)'}}>
+                                        {aiData.deep_analysis.strengths?.map((s, i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                                <div style={{flex: 1, background: 'rgba(239, 68, 68, 0.05)', padding: '15px', borderRadius: '8px', borderLeft: '3px solid #EF4444'}}>
+                                    <h5 style={{color: '#EF4444', margin: '0 0 10px 0'}}><i className="fa-solid fa-triangle-exclamation"></i> Lỗ Hổng / Rủi Ro</h5>
+                                    <ul style={{margin: 0, paddingLeft: '20px', color: 'var(--text-secondary)'}}>
+                                        {aiData.deep_analysis.weaknesses_and_red_flags?.map((s, i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h5 style={{color: '#F59E0B', margin: '0 0 5px 0'}}><i className="fa-solid fa-link-slash"></i> Kỹ Năng Đoản Khuyết</h5>
+                                <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                                    {aiData.deep_analysis.missing_skills?.map((s, i) => (
+                                        <span key={i} style={{fontSize: '12px', background: '#374151', padding: '4px 8px', borderRadius: '4px', border: '1px solid #4B5563'}}>{s}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{whiteSpace: 'pre-line'}}>
+                            {aiData.match_reason || "Chưa có dữ liệu đánh giá dạng cũ."}
+                        </div>
+                    )}
                 </div>
              </div>
 
