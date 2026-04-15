@@ -2,14 +2,16 @@ const pdfParse = require('pdf-parse');
 
 const STRICT_JSON_SCHEMA = `
 { 
-    "full_name": "...", "email": "...", "skills": ["Skill1", "Skill2"], 
+    "full_name": "[TÊN CỦA ỨNG VIÊN TRONG CV, KHÔNG ĐƯỢC BỊA ĐẶT]", 
+    "email": "[EMAIL TRONG CV, NẾU KHÔNG CÓ TRẢ VỀ NULL]", 
+    "skills": ["Kỹ năng 1", "Kỹ năng 2"], 
     "score": 0.0, 
     "breakdown": { "hard_skills": 0, "experience": 0, "education": 0, "soft_skills": 0 }, 
     "summary": "Tóm tắt 2-3 câu ngắn gọn", 
     "match_reason": "Giải thích chi tiết có dẫn chứng", 
     "recommendation": "Phỏng vấn/Cân nhắc/Loại",
     "confidence": "Cao/Trung bình/Thấp",
-    "market_salary": "Thu nhập thị trường: ..."
+    "market_salary": "Thu nhập thị trường VNĐ"
 }
 `;
 
@@ -43,7 +45,7 @@ Yêu cầu công việc: ${jobTitle} - Yêu cầu kỹ năng: ${reqSkills}
 Hồ sơ ứng viên:
 ${cvText.substring(0, 4000)}
 
-NHIỆM VỤ CỦA BẠN: Phân tích sâu, tính điểm (Scale 10.0), chỉ ra lập luận vào trường match_reason, BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON sau, không được phép trả về thêm bất kì chữ nào khác ngoài thẻ JSON:
+NHIỆM VỤ CỦA BẠN: Phát hiện chính xác Tên và Email của ứng viên trong văn bản trên. Tuyệt đối không được sử dụng dữ liệu giả (như Nguyen Van A, example.com, ...). Phân tích sâu, tính điểm (Scale 10.0), chỉ ra lập luận vào trường match_reason, BẮT BUỘC TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON sau, không được phép trả về thêm bất kì chữ nào khác ngoài thẻ JSON:
 ${STRICT_JSON_SCHEMA}
 `;
 
