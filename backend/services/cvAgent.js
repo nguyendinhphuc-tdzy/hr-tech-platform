@@ -11,6 +11,8 @@
  * - Trích xuất Tên/Email chính xác 100%
  * - Phân tích insight sâu sắc bằng Tiếng Việt
  * - Tốc độ nhanh hơn 5-10x
+ * 
+ * LƯU Ý: Model name phải khớp với ACTIVE_MODEL_NAME trong server.js
  */
 
 const STRICT_JSON_SCHEMA = `
@@ -86,7 +88,9 @@ ${STRICT_JSON_SCHEMA}
 `;
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        // Sử dụng model name từ env hoặc default (thống nhất với server.js)
+        const modelName = process.env.GEMINI_MODEL_NAME || "gemini-2.0-flash";
+        const model = genAI.getGenerativeModel({ model: modelName });
 
         // Gửi PDF gốc trực tiếp cho Gemini (Native PDF Reading — không cần pdf-parse)
         const pdfPart = {

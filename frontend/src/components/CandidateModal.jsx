@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import API_BASE_URL from './config';
+import { supabase } from '../supabaseClient';
 
 const CandidateModal = ({ candidate, onClose, onUpdate }) => {
   if (!candidate) return null;
@@ -51,8 +52,12 @@ const CandidateModal = ({ candidate, onClose, onUpdate }) => {
             cvContext: `Tên: ${candidate.full_name}, Email: ${candidate.email}, Kỹ năng: ${aiData.skills?.join(', ')}, Tóm tắt: ${aiData.summary}, Kinh nghiệm & Lý do: ${aiData.match_reason}`
         };
         const API_URL = API_BASE_URL.replace(/\/$/, "");
+        // Get auth from Supabase session
+        const { data: { session } } = supabase.auth.getSession();
+        const authEmail = session?.user?.email || 'anonymous';
+        
         const res = await axios.post(`${API_URL}/api/ai/chat-cv`, payload, {
-            headers: { 'x-user-email': 'admin' }
+            headers: { 'x-user-email': authEmail }
         });
         const { answer, engine, model } = res.data;
         setLastEngine(engine);
