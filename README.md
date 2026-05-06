@@ -72,7 +72,7 @@
 │   CV CHAT ─────────► Ollama Local (Privacy-First)           │
 │   • Candidate data stays local                               │
 │   • No cloud API calls for chat                             │
-│   • Automatic fallback to Gemini if Ollama offline          │
+│   • Automatic fallback to Gemini if Ollama offline           │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -126,7 +126,7 @@ The AI evaluates candidates using a standardized rubric:
           ┌─────────┴───┐   ┌──────┴──────┐   ┌───┴────┐
           │  Supabase   │   │  Supabase   │   │   AI   │
           │  Storage    │   │  Database   │   │ Engines│
-          │  (CV PDFs)  │   │  (Jobs,     │   │        │
+          │  (CV PDFs)  │   │  (Jobs,    │   │        │
           │             │   │   Candidates)│   │        │
           └─────────────┘   └─────────────┘   └────────┘
 ```
@@ -322,7 +322,6 @@ MIT License - Free for personal and commercial use.
 - [Google Gemini](https://ai.google.dev/) - AI text and vision capabilities
 - [Supabase](https://supabase.com/) - Open source Firebase alternative
 - [Ollama](https://ollama.com/) - Local AI inference
-- [20in20 Partners](https://20in20.vn/) - Project inspiration and mentorship
 
 ---
 
